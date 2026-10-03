@@ -97,10 +97,13 @@ object TemplateBuilder {
 
         // Семантические константы
         val constants = linkedMapOf(
-            "transactionType" to opType.transactionType.name,
             "isRefund" to opType.isRefund.toString(),
             "isDeclined" to opType.isDeclined.toString()
-        )
+        ).apply {
+            if (opType.transactionType != TransactionType.UNKNOWN) {
+                put("transactionType", opType.transactionType.name)
+            }
+        }
 
         // Определение формата суммы
         val amountFormat = determineAmountFormat(sequence)
@@ -124,8 +127,8 @@ object TemplateBuilder {
         defaultCurrency: CurrencyCode? = null,
         maskGroupName: String = "mask"
     ): BuiltTemplate {
-        val opTypeName = constants["transactionType"] ?: TransactionType.DEBIT.name
-        val txType = TransactionType.fromStringOrNull(opTypeName) ?: TransactionType.DEBIT
+        val opTypeName = constants["opType"] ?: constants["transactionType"]
+        val txType = TransactionType.fromStringOrNull(opTypeName) ?: TransactionType.UNKNOWN
         val isRefund = constants["isRefund"]?.toBoolean() ?: false
         val isDeclined = constants["isDeclined"]?.toBoolean() ?: false
 
@@ -241,10 +244,13 @@ object TemplateBuilder {
         }
 
         val constants = linkedMapOf(
-            "transactionType" to opType.transactionType.name,
             "isRefund" to opType.isRefund.toString(),
             "isDeclined" to opType.isDeclined.toString()
-        )
+        ).apply {
+            if (opType.transactionType != TransactionType.UNKNOWN) {
+                put("transactionType", opType.transactionType.name)
+            }
+        }
 
         return DecomposedTemplateSpec(
             anchorPattern = anchorPattern,
