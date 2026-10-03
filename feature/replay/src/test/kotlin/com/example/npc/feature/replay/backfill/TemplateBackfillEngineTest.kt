@@ -9,6 +9,7 @@ import com.example.npc.core.model.finance.ExtractorKind
 import com.example.npc.core.model.finance.FinancialTransaction
 import com.example.npc.core.model.finance.Money
 import com.example.npc.core.model.finance.TransactionStatus
+import com.example.npc.core.model.finance.TxStatus
 import com.example.npc.core.model.finance.TransactionType
 import com.example.npc.core.storage.dao.EventDao
 import com.example.npc.core.storage.dao.FinancialTransactionDao
@@ -461,4 +462,71 @@ class TemplateBackfillEngineTest {
             awaitComplete()
         }
     }
+
+    @Test
+    fun `backfill uses title direction and repairs an automatic transaction`() = runTest {
+        val event = directionEvent(title = "Зачислено", text = "100 MDL")
+        val existing = directionEntity().copy(direction = "DEBIT", amountMinor = 5000L)
+        coEvery { eventSourceDao.getEventsByPackageAfterId(targetPackage, any(), any(), any(), any()) } returns listOf(event) andThen emptyList()
+        coEvery { transactionDao.getByEventId(event.eventId) } returns existing
+        val saved = slot<FinancialTransactionEntity>()
+        coEvery { transactionDao.insert(capture(saved)) } returns existing.id
+
+        engine.executeBackfill(directionTemplate()).extractedTransactionsCount shouldBe 1
+        saved.captured.id shouldBe existing.id
+        saved.captured.createdAt shouldBe existing.createdAt
+        saved.captured.direction shouldBe "CREDIT"
+        saved.captured.amountMinor shouldBe 10000L
+        saved.captured.txStatus shouldBe "CONFIRMED_AUTO"
+    }
+
+    @Test
+    fun `backfill stores unresolved direction as suggested instead of debit`() = runTest {
+        val event = directionEvent(title = "Bank", text = "Операция 100 MDL")
+        coEvery { eventSourceDao.getEventsByPackageAfterId(targetPackage, any(), any(), any(), any()) } returns listOf(event) andThen emptyList()
+        coEvery { transactionDao.getByEventId(event.eventId) } returns null
+        val saved = slot<FinancialTransactionEntity>()
+        coEvery { transactionDao.insert(capture(saved)) } returns 1L
+
+        engine.executeBackfill(directionTemplate()).extractedTransactionsCount shouldBe 1
+        saved.captured.direction shouldBe "UNKNOWN"
+        saved.captured.txStatus shouldBe "SUGGESTED"
+    }
+
+    @Test
+    fun `backfill preserves persisted user confirmation even for static extractor`() = runTest {
+        val event = directionEvent(title = "Зачислено", text = "100 MDL")
+        coEvery { eventSourceDao.getEventsByPackageAfterId(targetPackage, any(), any(), any(), any()) } returns listOf(event) andThen emptyList()
+        coEvery { transactionDao.getByEventId(event.eventId) } returns directionEntity().copy(txStatus = TxStatus.USER_CONFIRMED.name)
+
+        engine.executeBackfill(directionTemplate()).skippedManualEditsCount shouldBe 1
+        coVerify(exactly = 0) { transactionDao.insert(any()) }
+    }
+
+    @Test
+    fun `backfill cannot turn OTP with a payment amount into a transaction`() = runTest {
+        val event = directionEvent(title = "OTP code", text = "Payment 100 MDL. Code 123456")
+        coEvery { eventSourceDao.getEventsByPackageAfterId(targetPackage, any(), any(), any(), any()) } returns listOf(event) andThen emptyList()
+        coEvery { transactionDao.getByEventId(event.eventId) } returns null
+
+        engine.executeBackfill(directionTemplate()).extractedTransactionsCount shouldBe 0
+        coVerify(exactly = 0) { transactionDao.insert(any()) }
+    }
+
+    private fun directionTemplate() = CompiledTemplate(
+        id = "auto-direction", sourceKey = targetPackage, priority = 100,
+        pattern = Pattern.compile("""(?P<amount>\d+) (?P<curr>MDL)"""), constants = emptyMap()
+    )
+
+    private fun directionEvent(title: String, text: String) = ReplayHistoricalEvent(
+        eventId = 500L, rawId = 600L, packageName = targetPackage, title = title, text = text,
+        postTime = 10000L, historicalCategory = "FINANCE", historicalConfidence = 1.0,
+        historicalTransactionJson = null
+    )
+
+    private fun directionEntity() = FinancialTransactionEntity(
+        id = 700L, eventId = 500L, bank = targetPackage, direction = "DEBIT", amountMinor = 10000L,
+        currency = "MDL", balanceMinor = null, balanceCurrency = null, merchant = null, accountMask = null,
+        occurredAt = 10000L, extractorId = "bank.static", extractorVersion = 1, createdAt = 5000L
+    )
 }
