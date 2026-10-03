@@ -144,7 +144,7 @@ class EventUiMapper {
             val signedFormattedAmount = when (txn.type) {
                 Direction.DEBIT -> "-$formattedNumber"
                 Direction.CREDIT -> "+$formattedNumber"
-                Direction.TRANSFER -> formattedNumber
+                Direction.TRANSFER, Direction.UNKNOWN -> formattedNumber
             }
 
             val formattedBalance = txn.balance?.let { bal ->
