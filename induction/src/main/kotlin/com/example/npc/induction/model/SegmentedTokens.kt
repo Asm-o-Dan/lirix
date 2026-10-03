@@ -127,7 +127,7 @@ data class AmountFormatSpec(
  * Разрешение семантического типа финансовой операции.
  */
 data class OpTypeResolution(
-    val transactionType: TransactionType = TransactionType.DEBIT,
+    val transactionType: TransactionType = TransactionType.UNKNOWN,
     val isRefund: Boolean = false,
     val isDeclined: Boolean = false,
     val dominantKeyword: Token? = null,
