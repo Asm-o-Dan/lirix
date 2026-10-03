@@ -46,7 +46,7 @@ class OpTypeResolverTest {
 
         assertThat(resolution.isDeclined).isTrue()
         assertThat(resolution.isRefund).isFalse()
-        assertThat(resolution.transactionType).isEqualTo(TransactionType.DEBIT)
+        assertThat(resolution.transactionType).isEqualTo(TransactionType.UNKNOWN)
         assertThat(resolution.dominantKeywordKind).isEqualTo(KeywordKind.DECLINED)
         assertThat(resolution.dominantKeywordText).isEqualTo("Refuz")
     }
@@ -95,17 +95,17 @@ class OpTypeResolverTest {
     }
 
     @Test
-    @DisplayName("Hierarchy: CREDIT > DEBIT ('Alimentare cont prin plata' resolves to CREDIT)")
+    @DisplayName("Conflicting credit and debit terms require review")
     fun testHierarchyCreditOverDebit() {
         val text = "Alimentare cont prin plata 500 MDL"
         val stream = tokenize(text)
 
         val resolution = resolver.resolve(stream)
 
-        assertThat(resolution.transactionType).isEqualTo(TransactionType.CREDIT)
+        assertThat(resolution.transactionType).isEqualTo(TransactionType.UNKNOWN)
         assertThat(resolution.isRefund).isFalse()
         assertThat(resolution.isDeclined).isFalse()
-        assertThat(resolution.dominantKeywordKind).isEqualTo(KeywordKind.CREDIT)
+        assertThat(resolution.dominantKeywordKind).isNull()
     }
 
     @Test
@@ -161,13 +161,13 @@ class OpTypeResolverTest {
     }
 
     @Test
-    @DisplayName("Default fallback when no keywords or signs: DEBIT with 0.60 confidence")
+    @DisplayName("No direction evidence yields UNKNOWN with zero confidence")
     fun testDefaultFallback() {
         val res = resolver.resolve(tokenize("100 MDL Supermarket"))
-        assertThat(res.transactionType).isEqualTo(TransactionType.DEBIT)
+        assertThat(res.transactionType).isEqualTo(TransactionType.UNKNOWN)
         assertThat(res.isRefund).isFalse()
         assertThat(res.isDeclined).isFalse()
         assertThat(res.dominantKeyword).isNull()
-        assertThat(res.confidence).isEqualTo(0.60f)
+        assertThat(res.confidence).isEqualTo(0f)
     }
 }
