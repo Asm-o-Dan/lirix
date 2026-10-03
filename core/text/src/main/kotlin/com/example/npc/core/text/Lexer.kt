@@ -167,7 +167,8 @@ class FsmLexer : Lexer {
             // 9. Words / Letters (Currencies, Keywords, Words)
             if (Character.isLetter(c)) {
                 val start = i
-                while (i < s.length && (Character.isLetter(s[i]) || s[i] in '0'..'9')) {
+                // Compact notifications: CashBack0,70RUP and USD100 must expose money tokens.
+                while (i < s.length && Character.isLetter(s[i])) {
                     i++
                 }
 
