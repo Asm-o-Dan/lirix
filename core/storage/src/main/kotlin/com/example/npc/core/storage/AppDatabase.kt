@@ -6,6 +6,7 @@ import com.example.npc.core.storage.migration.MIGRATION_1_2
 import com.example.npc.core.storage.migration.MIGRATION_2_3
 import com.example.npc.core.storage.migration.MIGRATION_3_4
 import com.example.npc.core.storage.migration.MIGRATION_4_5
+import com.example.npc.core.storage.migration.MIGRATION_5_6
 import com.example.npc.core.storage.dao.DynamicTemplateDao
 import com.example.npc.core.storage.dao.EventDao
 import com.example.npc.core.storage.dao.ExtractionFeedbackDao
@@ -47,7 +48,7 @@ import com.example.npc.core.storage.entity.UserPrototypeEntity
         TemplateBankMembershipEntity::class,
         ExtractionFeedbackEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -68,7 +69,8 @@ abstract class AppDatabase : RoomDatabase() {
             MIGRATION_1_2,
             MIGRATION_2_3,
             MIGRATION_3_4,
-            MIGRATION_4_5
+            MIGRATION_4_5,
+            MIGRATION_5_6
         )
     }
 }
