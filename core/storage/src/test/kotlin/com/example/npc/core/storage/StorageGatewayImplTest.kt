@@ -15,6 +15,7 @@ import com.example.npc.core.storage.dao.SourceHealthDao
 import com.example.npc.core.storage.entity.EventEntity
 import com.example.npc.core.storage.entity.RawEventEntity
 import com.example.npc.core.storage.entity.SourceHealthEntity
+import com.example.npc.core.storage.mapper.FinancialTransactionMapper
 import com.example.npc.core.storage.mapper.RawEventMapper
 import com.example.npc.core.model.classify.Category
 import com.example.npc.core.model.classify.ClassificationResult
@@ -23,6 +24,7 @@ import com.example.npc.core.model.finance.CurrencyCode
 import com.example.npc.core.model.finance.FinancialTransaction
 import com.example.npc.core.model.finance.Money
 import com.example.npc.core.model.finance.TransactionStatus
+import com.example.npc.core.model.finance.TxStatus
 import com.example.npc.core.model.finance.TransactionType
 import com.example.npc.core.storage.dao.FinancialTransactionDao
 import com.example.npc.core.storage.dao.UserPrototypeDao
@@ -588,4 +590,110 @@ class StorageGatewayImplTest {
         coVerify(exactly = 1) { transactionDao.deleteById(2L) }
         coVerify(exactly = 1) { eventDao.updateIsUpdateOf(11L, 10L) }
     }
+
+    @Test
+    fun `reprocessing same event repairs automatic direction amount and status without a duplicate`() = runTest(testDispatcher) {
+        val existing = correctionFixture()
+        coEvery { eventDao.getById(201L) } returns null
+        coEvery { transactionDao.getByEventId(201L) } returns existing
+        val captured = slot<FinancialTransactionEntity>()
+        coEvery { transactionDao.insert(capture(captured)) } returns existing.id
+        val corrected = FinancialTransactionMapper.toDomain(existing).copy(
+            type = TransactionType.CREDIT,
+            amount = Money(2500, CurrencyCode.USD),
+            status = TransactionStatus.DECLINED,
+            txStatus = TxStatus.SUGGESTED,
+            isRefund = false
+        )
+
+        gateway.insertTransaction(corrected) shouldBe existing.id
+
+        captured.captured.direction shouldBe "CREDIT"
+        captured.captured.amountMinor shouldBe 2500L
+        captured.captured.status shouldBe "DECLINED"
+        captured.captured.txStatus shouldBe "SUGGESTED"
+        captured.captured.id shouldBe existing.id
+        captured.captured.eventId shouldBe existing.eventId
+        captured.captured.bankVersion shouldBe existing.bankVersion
+        captured.captured.isRefund shouldBe false
+        coVerify(exactly = 0) { transactionDao.getByPeriod(any(), any()) }
+    }
+
+    @Test
+    fun `reprocessing cannot overwrite persisted user direction or amount`() = runTest(testDispatcher) {
+        for (confirmation in listOf(TxStatus.USER_CONFIRMED, TxStatus.USER_EDITED)) {
+            val existing = correctionFixture().copy(txStatus = confirmation.name)
+            coEvery { eventDao.getById(201L) } returns null
+            coEvery { transactionDao.getByEventId(201L) } returns existing
+            val captured = slot<FinancialTransactionEntity>()
+            coEvery { transactionDao.insert(capture(captured)) } returns existing.id
+            val incoming = FinancialTransactionMapper.toDomain(existing).copy(
+                type = TransactionType.CREDIT,
+                amount = Money(2500, CurrencyCode.USD),
+                status = TransactionStatus.DECLINED,
+                txStatus = TxStatus.CONFIRMED_AUTO
+            )
+
+            gateway.insertTransaction(incoming) shouldBe existing.id
+            captured.captured shouldBe existing
+        }
+    }
+
+    @Test
+    fun `two explicit manual edits of same event persist latest direction amount status and refund`() = runTest(testDispatcher) {
+        var stored = correctionFixture().copy(txStatus = "USER_CONFIRMED", isRefund = false)
+        coEvery { eventDao.getById(201L) } returns null
+        coEvery { transactionDao.getByEventId(201L) } answers { stored }
+        coEvery { transactionDao.insert(any()) } answers {
+            stored = firstArg<FinancialTransactionEntity>()
+            stored.id
+        }
+        val firstEdit = FinancialTransactionMapper.toDomain(stored).copy(
+            type = TransactionType.CREDIT,
+            amount = Money(2500, CurrencyCode.USD),
+            status = TransactionStatus.DECLINED,
+            txStatus = TxStatus.USER_EDITED,
+            isRefund = true
+        )
+        gateway.insertTransaction(firstEdit) shouldBe 5L
+        stored.direction shouldBe "CREDIT"
+        stored.amountMinor shouldBe 2500L
+        stored.status shouldBe "DECLINED"
+        stored.txStatus shouldBe "USER_EDITED"
+        stored.isRefund shouldBe true
+
+        val secondEdit = firstEdit.copy(
+            type = TransactionType.DEBIT,
+            amount = Money(3000, CurrencyCode.USD),
+            status = TransactionStatus.COMPLETED,
+            isRefund = false
+        )
+        gateway.insertTransaction(secondEdit) shouldBe 5L
+        stored.direction shouldBe "DEBIT"
+        stored.amountMinor shouldBe 3000L
+        stored.status shouldBe "COMPLETED"
+        stored.txStatus shouldBe "USER_EDITED"
+        stored.isRefund shouldBe false
+        stored.bankVersion shouldBe 7L
+        stored.eventId shouldBe 201L
+    }
+
+    private fun correctionFixture() = FinancialTransactionEntity(
+        id = 5L,
+        eventId = 201L,
+        bank = "AnyBank",
+        direction = "DEBIT",
+        amountMinor = 9000L,
+        currency = "USD",
+        balanceMinor = null,
+        balanceCurrency = null,
+        merchant = "Shop",
+        accountMask = "*1234",
+        occurredAt = 1000L,
+        extractorId = "universal",
+        extractorVersion = 1,
+        createdAt = 2000L,
+        bankVersion = 7L,
+        isRefund = true
+    )
 }
