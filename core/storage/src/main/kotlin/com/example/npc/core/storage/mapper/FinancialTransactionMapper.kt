@@ -4,6 +4,7 @@ import com.example.npc.core.model.finance.CurrencyCode
 import com.example.npc.core.model.finance.FinancialTransaction
 import com.example.npc.core.model.finance.Money
 import com.example.npc.core.model.finance.TransactionStatus
+import com.example.npc.core.model.finance.TxStatus
 import com.example.npc.core.model.finance.TransactionType
 import com.example.npc.core.storage.entity.FinancialTransactionEntity
 import java.time.Instant
@@ -36,7 +37,10 @@ object FinancialTransactionMapper {
             extractorVersion = domain.extractorVersion,
             createdAt = domain.createdAt.toEpochMilli(),
             extractorKind = extKind,
-            templateId = tmplId
+            templateId = tmplId,
+            status = domain.status.name,
+            txStatus = domain.txStatus.name,
+            isRefund = domain.isRefund
         )
     }
 
@@ -63,19 +67,21 @@ object FinancialTransactionMapper {
             id = entity.id,
             eventId = entity.eventId?.takeIf { it > 0L },
             bank = entity.bank,
-            type = TransactionType.fromStringOrNull(entity.direction) ?: TransactionType.DEBIT,
+            type = TransactionType.fromStringOrNull(entity.direction) ?: TransactionType.UNKNOWN,
             amount = Money(entity.amountMinor, currencyCode),
             balance = balance,
             merchant = entity.merchant,
             accountMask = entity.accountMask,
-            status = TransactionStatus.COMPLETED,
+            status = TransactionStatus.fromStringOrDefault(entity.status),
             occurredAt = Instant.ofEpochMilli(entity.occurredAt),
             extractorId = entity.extractorId,
             extractorVersion = entity.extractorVersion,
             rawText = rawText.ifBlank { entity.bank },
             createdAt = Instant.ofEpochMilli(entity.createdAt),
             extractorKind = extKind,
-            templateId = tmplId
+            templateId = tmplId,
+            txStatus = TxStatus.fromStringOrDefault(entity.txStatus),
+            isRefund = entity.isRefund
         )
     }
 }
