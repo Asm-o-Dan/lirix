@@ -8,9 +8,9 @@ import org.junit.jupiter.api.Test
 class TransactionTypeTest {
 
     @Test
-    fun `enum contains DEBIT, CREDIT, and TRANSFER`() {
+    fun `enum contains explicit UNKNOWN as well as directed operations`() {
         val names = TransactionType.entries.map { it.name }.toSet()
-        assertEquals(setOf("DEBIT", "CREDIT", "TRANSFER"), names)
+        assertEquals(setOf("DEBIT", "CREDIT", "TRANSFER", "UNKNOWN"), names)
     }
 
     @Test
@@ -49,7 +49,7 @@ class TransactionTypeTest {
         assertNull(TransactionType.fromStringOrNull(null))
         assertNull(TransactionType.fromStringOrNull(""))
         assertNull(TransactionType.fromStringOrNull("   "))
-        assertNull(TransactionType.fromStringOrNull("UNKNOWN"))
+        assertEquals(TransactionType.UNKNOWN, TransactionType.fromStringOrNull("unknown"))
         assertNull(TransactionType.fromStringOrNull("WITHDRAW"))
     }
 }
