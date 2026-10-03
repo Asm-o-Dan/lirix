@@ -76,5 +76,11 @@ data class FinancialTransactionEntity(
     val bankVersion: Long = 0L,
 
     @ColumnInfo(name = "isRefund", defaultValue = "0")
-    val isRefund: Boolean = false
+    val isRefund: Boolean = false,
+
+    @ColumnInfo(name = "status", defaultValue = "'COMPLETED'")
+    val status: String = "COMPLETED",
+
+    @ColumnInfo(name = "tx_status", defaultValue = "'CONFIRMED_AUTO'")
+    val txStatus: String = "CONFIRMED_AUTO"
 )
