@@ -51,7 +51,7 @@ data class EditorUiState(
     val packageName: String,
     val rawText: String = "",
     val tokens: ImmutableList<EditorTokenUi> = persistentListOf(),
-    val detectedOpType: String = "DEBIT",
+    val detectedOpType: String = "AUTO",
     val isRefund: Boolean = false,
     val isValidationInProgress: Boolean = false,
     val candidatePattern: String? = null,
