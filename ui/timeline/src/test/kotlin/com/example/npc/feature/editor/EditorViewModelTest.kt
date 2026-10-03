@@ -38,6 +38,7 @@ class EditorViewModelTest {
             tokens.any { it.text == "150.00" } shouldBe true
             viewModel.currentState.canUndo shouldBe false
             viewModel.currentState.isSaving shouldBe false
+            viewModel.currentState.detectedOpType shouldBe "AUTO"
         } finally {
             viewModel.close()
         }
@@ -171,6 +172,8 @@ class EditorViewModelTest {
             }
 
             savedTemplate.shouldNotBeNull()
+            savedTemplate!!.constants.containsKey("transactionType") shouldBe false
+            savedTemplate!!.decomposedSpec!!.constants.containsKey("transactionType") shouldBe false
         } finally {
             viewModel.close()
         }
@@ -219,6 +222,33 @@ class EditorViewModelTest {
 
             viewModel.currentState.validationError shouldBe null
             viewModel.currentState.canSave shouldBe true
+        } finally {
+            viewModel.close()
+        }
+    }
+
+    @Test
+    fun `changing direction blocks save until the new direction is validated`() = testScope.runTest {
+        var savedTemplate: BuiltTemplate? = null
+        val viewModel = EditorViewModel(
+            eventId = 501L, packageName = "test.bank", rawText = "Операция 100 MDL Магазин",
+            onSaveTemplate = { template, _ -> savedTemplate = template },
+            coroutineScope = this, defaultDispatcher = testDispatcher
+        )
+        try {
+            testScheduler.advanceTimeBy(200)
+            testScheduler.advanceUntilIdle()
+            viewModel.currentState.canSave shouldBe true
+            viewModel.dispatch(EditorUiIntent.ChangeOpType("CREDIT"))
+            viewModel.currentState.canSave shouldBe false
+            viewModel.dispatch(EditorUiIntent.SaveAndActivate)
+            savedTemplate shouldBe null
+            testScheduler.advanceTimeBy(200)
+            testScheduler.advanceUntilIdle()
+            viewModel.currentState.canSave shouldBe true
+            viewModel.dispatch(EditorUiIntent.SaveAndActivate)
+            testScheduler.advanceUntilIdle()
+            savedTemplate!!.constants["transactionType"] shouldBe "CREDIT"
         } finally {
             viewModel.close()
         }
