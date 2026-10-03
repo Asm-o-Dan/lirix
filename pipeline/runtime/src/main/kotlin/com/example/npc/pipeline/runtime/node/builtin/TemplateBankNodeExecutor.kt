@@ -4,6 +4,9 @@ import com.example.npc.core.model.finance.CurrencyCode
 import com.example.npc.core.model.finance.FinancialTransaction
 import com.example.npc.core.model.finance.Money
 import com.example.npc.core.model.finance.TransactionStatus
+import com.example.npc.core.model.finance.TransactionDirectionResolver
+import com.example.npc.core.model.finance.ExtractorKind
+import com.example.npc.core.model.finance.TxStatus
 import com.example.npc.core.model.finance.TransactionType
 import com.example.npc.pipeline.nodes.api.effect.EffectBuffer
 import com.example.npc.pipeline.nodes.api.executor.NodeExecutor
@@ -92,27 +95,32 @@ class TemplateBankNodeExecutor(
                 val minorUnits = parseAmountToMinor(extracted.amount, currency)
                 val balanceMinor = extracted.balance?.let { parseAmountToMinor(it, currency) }
 
-                val isRefund = template.constants["isRefund"] == "true"
-                val txType = when (template.constants["opType"] ?: template.constants["transactionType"]) {
-                    "CREDIT", "INCOME" -> TransactionType.CREDIT
-                    "TRANSFER" -> TransactionType.TRANSFER
-                    else -> TransactionType.DEBIT
-                }
+                val direction = TransactionDirectionResolver.resolve(
+                    body = text,
+                    explicitType = TransactionType.fromStringOrNull(
+                        template.constants["opType"] ?: template.constants["transactionType"]
+                    )
+                )
+                if (direction.isSuppressed) continue
 
                 return FinancialTransaction(
                     id = 0L,
                     eventId = null,
                     bank = sourcePackage,
-                    type = txType,
+                    type = direction.type,
+                    isRefund = direction.isRefund || (direction.type == TransactionType.CREDIT && template.constants["isRefund"] == "true"),
                     amount = Money(minorUnits, currency),
                     balance = balanceMinor?.let { Money(it, currency) },
                     merchant = extracted.merchant,
                     accountMask = extracted.cardMask,
-                    status = TransactionStatus.SUCCESS,
+                    status = if (direction.isDeclined) TransactionStatus.DECLINED else TransactionStatus.SUCCESS,
                     occurredAt = Instant.now(),
                     extractorId = "template:${template.id}",
                     extractorVersion = 1,
-                    rawText = text
+                    rawText = text,
+                    extractorKind = ExtractorKind.TEMPLATE,
+                    templateId = template.id,
+                    txStatus = if (direction.type == TransactionType.UNKNOWN) TxStatus.SUGGESTED else TxStatus.CONFIRMED_AUTO
                 )
             }
 
@@ -140,27 +148,32 @@ class TemplateBankNodeExecutor(
                 val minorUnits = parseAmountToMinor(amountStr, currency)
                 val balanceMinor = balStr?.let { parseAmountToMinor(it, currency) }
 
-                val isRefund = template.constants["isRefund"] == "true"
-                val txType = when (template.constants["opType"] ?: template.constants["transactionType"]) {
-                    "CREDIT", "INCOME" -> TransactionType.CREDIT
-                    "TRANSFER" -> TransactionType.TRANSFER
-                    else -> TransactionType.DEBIT
-                }
+                val direction = TransactionDirectionResolver.resolve(
+                    body = text,
+                    explicitType = TransactionType.fromStringOrNull(
+                        template.constants["opType"] ?: template.constants["transactionType"]
+                    )
+                )
+                if (direction.isSuppressed) continue
 
                 return FinancialTransaction(
                     id = 0L,
                     eventId = null,
                     bank = sourcePackage,
-                    type = txType,
+                    type = direction.type,
+                    isRefund = direction.isRefund || (direction.type == TransactionType.CREDIT && template.constants["isRefund"] == "true"),
                     amount = Money(minorUnits, currency),
                     balance = balanceMinor?.let { Money(it, currency) },
                     merchant = merchantStr,
                     accountMask = cardStr,
-                    status = TransactionStatus.SUCCESS,
+                    status = if (direction.isDeclined) TransactionStatus.DECLINED else TransactionStatus.SUCCESS,
                     occurredAt = Instant.now(),
                     extractorId = "template:${template.id}",
                     extractorVersion = 1,
-                    rawText = text
+                    rawText = text,
+                    extractorKind = ExtractorKind.TEMPLATE,
+                    templateId = template.id,
+                    txStatus = if (direction.type == TransactionType.UNKNOWN) TxStatus.SUGGESTED else TxStatus.CONFIRMED_AUTO
                 )
             }
         }
