@@ -446,4 +446,18 @@ class TemplateBuilderTest {
         assertThat(matcher.group("bal")).isEqualTo("16.25")
         assertThat(matcher.group("balcurr")).isEqualTo("USD")
     }
+
+    @Test
+    fun `default and invalid directions omit direction constants in both template forms`() {
+        val raw = "Операция 100 MDL"
+        val stream = Lexer.tokenize(TextNormalizer.normalize(raw))
+        val amountIndex = (0 until stream.size).first { stream[it].type == TokenType.NUMBER }
+        val segmented = TokenSegmenter.segment(stream, listOf(SlotAssignment(SlotType.TX_AMOUNT, amountIndex)), raw)
+        assertThat(TemplateBuilder.build(segmented).constants).doesNotContainKey("transactionType")
+        assertThat(TemplateBuilder.buildDecomposedSpec(segmented).constants).doesNotContainKey("transactionType")
+        assertThat(TemplateBuilder.build(segmented, constants = mapOf("opType" to "INVALID")).constants)
+            .doesNotContainKey("transactionType")
+        assertThat(TemplateBuilder.build(segmented, constants = mapOf("opType" to "CREDIT")).constants)
+            .containsEntry("transactionType", "CREDIT")
+    }
 }
