@@ -47,6 +47,12 @@ class FinancialTransactionDeduplicator(
         a: FinancialTransaction,
         b: FinancialTransaction
     ): Boolean {
+        // A declined attempt and a successful payment are separate operations. An
+        // unresolved direction is not enough evidence for cross-event deduplication.
+        if (a.status != b.status || a.type == TransactionType.UNKNOWN || b.type == TransactionType.UNKNOWN) {
+            return false
+        }
+
         // 1. Окно сопоставления по occurredAt
         val diffMs = abs(a.occurredAt.toEpochMilli() - b.occurredAt.toEpochMilli())
         if (diffMs > windowSeconds * 1000L) {
@@ -83,8 +89,30 @@ class FinancialTransactionDeduplicator(
      */
     fun merge(
         existing: FinancialTransaction,
-        incoming: FinancialTransaction
+        incoming: FinancialTransaction,
+        replaceFinancialDetails: Boolean = false
     ): FinancialTransaction {
+        // Automatic reprocessing or alternate notifications must never rewrite a
+        // user's edit. A later explicit user edit to the same event is authoritative.
+        val isExplicitUserUpdate = replaceFinancialDetails && incoming.txStatus.isUserProtected
+        if (existing.txStatus.isUserProtected && !isExplicitUserUpdate) return existing
+        if (incoming.txStatus.isUserProtected) {
+            return incoming.copy(id = existing.id, eventId = existing.eventId, createdAt = existing.createdAt)
+        }
+
+        val corrected = if (replaceFinancialDetails) {
+            existing.copy(
+                type = incoming.type,
+                amount = incoming.amount,
+                status = incoming.status,
+                txStatus = incoming.txStatus,
+                isRefund = incoming.isRefund,
+                balance = incoming.balance ?: existing.balance?.takeIf { it.currency == incoming.amount.currency },
+                extractorVersion = incoming.extractorVersion
+            )
+        } else {
+            existing
+        }
         val mergedMerchant = when {
             !existing.merchant.isNullOrBlank() -> existing.merchant
             !incoming.merchant.isNullOrBlank() -> incoming.merchant
@@ -92,7 +120,7 @@ class FinancialTransactionDeduplicator(
         }
 
         val mergedAccountMask = selectBestAccountMask(existing.accountMask, incoming.accountMask)
-        val mergedBalance = existing.balance ?: incoming.balance
+        val mergedBalance = corrected.balance ?: incoming.balance?.takeIf { it.currency == corrected.amount.currency }
 
         // Обогащение свойствами шаблона: если хотя бы один из источников шаблонный,
         // сохраняем его в объединенной записи для корректного отображения в аналитике
@@ -113,10 +141,11 @@ class FinancialTransactionDeduplicator(
             existing.extractorId
         }
 
-        return existing.copy(
+        return corrected.copy(
             merchant = mergedMerchant,
             accountMask = mergedAccountMask,
             balance = mergedBalance,
+            isRefund = if (replaceFinancialDetails) incoming.isRefund else existing.isRefund || incoming.isRefund,
             extractorKind = mergedExtractorKind,
             templateId = mergedTemplateId,
             extractorId = mergedExtractorId,
