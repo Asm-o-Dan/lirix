@@ -130,7 +130,8 @@ class EditorViewModel(
                 updateState {
                     it.copy(
                         isRefund = intent.isRefund,
-                        isValidationInProgress = true
+                        isValidationInProgress = true,
+                        canSave = false
                     )
                 }
                 triggerValidation()
@@ -140,7 +141,8 @@ class EditorViewModel(
                 updateState {
                     it.copy(
                         detectedOpType = intent.opType,
-                        isValidationInProgress = true
+                        isValidationInProgress = true,
+                        canSave = false
                     )
                 }
                 triggerValidation()
@@ -148,7 +150,7 @@ class EditorViewModel(
 
             is EditorUiIntent.SaveAndActivate -> {
                 val state = currentState
-                if (!state.canSave || state.isSaving) return
+                if (!state.canSave || state.isValidationInProgress || state.isSaving) return
 
                 val template = lastBuiltTemplate
                 if (template == null) {
@@ -253,11 +255,7 @@ class EditorViewModel(
                 originalText = rawText
             )
 
-            val txType = try {
-                TransactionType.valueOf(state.detectedOpType.uppercase())
-            } catch (_: Exception) {
-                TransactionType.DEBIT
-            }
+            val txType = TransactionType.fromStringOrNull(state.detectedOpType) ?: TransactionType.UNKNOWN
 
             val opType = OpTypeResolution(
                 transactionType = txType,
@@ -336,6 +334,11 @@ class EditorViewModel(
                 historySamples = historySamples
             )
 
+            // Do not publish a validation result for a direction or token selection that changed mid-build.
+            if (currentState.detectedOpType != state.detectedOpType ||
+                currentState.isRefund != state.isRefund || currentState.tokens != state.tokens) {
+                return@withContext
+            }
             lastBuiltTemplate = candidateTemplate
 
             val hasConflicts = replayReport.conflictCount > 0

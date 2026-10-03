@@ -10,10 +10,6 @@ import com.example.npc.core.storage.SqlCipherSupportFactoryProvider
 import com.example.npc.core.storage.StorageGateway
 import com.example.npc.core.storage.StorageGatewayImpl
 import com.example.npc.core.storage.backup.PreMigrationBackup
-import com.example.npc.core.storage.migration.MIGRATION_1_2
-import com.example.npc.core.storage.migration.MIGRATION_2_3
-import com.example.npc.core.storage.migration.MIGRATION_3_4
-import com.example.npc.core.storage.migration.MIGRATION_4_5
 import com.example.npc.core.storage.repository.PipelineRepository
 import com.example.npc.core.storage.repository.PipelineRepositoryImpl
 import dagger.Module
@@ -45,7 +41,7 @@ object AppModule {
 
         return Room.databaseBuilder(context, AppDatabase::class.java, "npc_database.db")
             .openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(*AppDatabase.MIGRATIONS)
             .build()
     }
 

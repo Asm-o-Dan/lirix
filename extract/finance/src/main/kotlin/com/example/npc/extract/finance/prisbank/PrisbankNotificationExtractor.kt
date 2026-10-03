@@ -7,13 +7,14 @@ import com.example.npc.core.model.finance.CurrencyCode
 import com.example.npc.core.model.finance.Money
 import com.example.npc.core.model.finance.TransactionStatus
 import com.example.npc.core.model.finance.TransactionType
+import com.example.npc.core.model.finance.TransactionDirectionResolver
 import com.example.npc.extract.finance.AmountParser
 import com.example.npc.extract.finance.RegionalTextSanitizer
 import com.google.re2j.Pattern
 
 class PrisbankNotificationExtractor : FinanceExtractor {
     override val id: String = "prisbank.push"
-    override val version: Int = 1
+    override val version: Int = 2
     override val supportedBank: String = "PRISBANK"
 
     // Компактный формат (например: "4.40 RUP", "7.00 RUP")
@@ -35,14 +36,15 @@ class PrisbankNotificationExtractor : FinanceExtractor {
         val text = RegionalTextSanitizer.sanitize(input.text)
         if (text.isBlank()) return ParsedFinanceResult.NotApplicable
 
-        val titleLower = input.senderOrTitle?.lowercase() ?: ""
+        val direction = TransactionDirectionResolver.resolve(input.senderOrTitle, text)
+        if (direction.isSuppressed) return ParsedFinanceResult.NotApplicable
 
         // 1. Расширенный DEBIT
         val debitMatcher = debitPattern.matcher(text)
         if (debitMatcher.find()) {
             return parseMatched(
                 input = input,
-                type = TransactionType.DEBIT,
+                type = direction.type,
                 mask = debitMatcher.group("mask"),
                 amountStr = debitMatcher.group("amount"),
                 currStr = debitMatcher.group("curr"),
@@ -56,7 +58,7 @@ class PrisbankNotificationExtractor : FinanceExtractor {
         if (creditMatcher.find()) {
             return parseMatched(
                 input = input,
-                type = TransactionType.CREDIT,
+                type = direction.type,
                 mask = creditMatcher.group("mask"),
                 amountStr = creditMatcher.group("amount"),
                 currStr = creditMatcher.group("curr"),
@@ -68,11 +70,7 @@ class PrisbankNotificationExtractor : FinanceExtractor {
         // 3. Компактный формат (Poco M7 шторка)
         val compactMatcher = compactPattern.matcher(text)
         if (compactMatcher.find()) {
-            val type = if (titleLower.contains("зачисл") || titleLower.contains("пополн")) {
-                TransactionType.CREDIT
-            } else {
-                TransactionType.DEBIT
-            }
+            val type = direction.type
 
             return parseMatched(
                 input = input,
@@ -118,7 +116,9 @@ class PrisbankNotificationExtractor : FinanceExtractor {
             balance = balanceMoney,
             merchant = null,
             accountMask = mask,
-            status = TransactionStatus.COMPLETED
+            status = if (TransactionDirectionResolver.resolve(input.senderOrTitle, input.text).isDeclined) {
+                TransactionStatus.DECLINED
+            } else TransactionStatus.COMPLETED
         )
     }
 }

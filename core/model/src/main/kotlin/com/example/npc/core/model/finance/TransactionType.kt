@@ -6,7 +6,9 @@ package com.example.npc.core.model.finance
 enum class TransactionType {
     DEBIT,      // Списание / Покупка / Оплата услуг (Расход)
     CREDIT,     // Пополнение / Зарплата / Входящий перевод (Доход)
-    TRANSFER;   // Перевод между своими счетами / P2P-перевод
+    TRANSFER,   // Перевод между своими счетами / P2P-перевод
+
+    UNKNOWN;    // Недостаточно или противоречивые данные; не включать в расходы/доходы
 
     companion object {
         val EXPENSE: TransactionType get() = DEBIT
@@ -14,7 +16,7 @@ enum class TransactionType {
 
         fun fromStringOrNull(raw: String?): TransactionType? {
             if (raw.isNullOrBlank()) return null
-            val upper = raw.trim().uppercase()
+            val upper = raw.trim().uppercase(java.util.Locale.ROOT)
             return when (upper) {
                 "DEBIT", "EXPENSE" -> DEBIT
                 "CREDIT", "INCOME" -> CREDIT

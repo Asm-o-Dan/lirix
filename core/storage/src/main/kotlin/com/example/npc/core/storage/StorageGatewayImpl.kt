@@ -343,10 +343,11 @@ class StorageGatewayImpl(
             val existingForEvent = transactionDao.getByEventId(eventId)
             if (existingForEvent != null) {
                 val existingDomain = FinancialTransactionMapper.toDomain(existingForEvent)
-                val merged = deduplicator.merge(existingDomain, transaction)
+                val merged = deduplicator.merge(existingDomain, transaction, replaceFinancialDetails = true)
                 val mergedEntity = FinancialTransactionMapper.toEntity(merged).copy(
                     id = existingForEvent.id,
-                    eventId = eventId
+                    eventId = eventId,
+                    bankVersion = existingForEvent.bankVersion
                 )
                 transactionDao.insert(mergedEntity)
                 return existingForEvent.id
@@ -358,10 +359,11 @@ class StorageGatewayImpl(
             val parentTxnEntity = transactionDao.getByEventId(isUpdateOf)
             if (parentTxnEntity != null) {
                 val parentTxn = FinancialTransactionMapper.toDomain(parentTxnEntity)
-                val merged = deduplicator.merge(parentTxn, transaction)
+                val merged = deduplicator.merge(parentTxn, transaction, replaceFinancialDetails = true)
                 val mergedEntity = FinancialTransactionMapper.toEntity(merged).copy(
                     id = parentTxnEntity.id,
-                    eventId = parentTxnEntity.eventId
+                    eventId = parentTxnEntity.eventId,
+                    bankVersion = parentTxnEntity.bankVersion
                 )
                 transactionDao.insert(mergedEntity)
                 if (eventId > 0L) {
@@ -376,15 +378,17 @@ class StorageGatewayImpl(
         val occurredMs = transaction.occurredAt.toEpochMilli()
         val fromMs = occurredMs - windowMs
         val toMs = occurredMs + windowMs
-        val recentCandidates = transactionDao.getByPeriod(fromMs, toMs)
-            .map { FinancialTransactionMapper.toDomain(it) }
+        val recentEntities = transactionDao.getByPeriod(fromMs, toMs)
+        val recentCandidates = recentEntities.map { FinancialTransactionMapper.toDomain(it) }
 
         val duplicate = deduplicator.findDuplicate(transaction, recentCandidates)
         if (duplicate != null) {
+            val duplicateEntity = recentEntities.first { it.id == duplicate.id }
             val merged = deduplicator.merge(duplicate, transaction)
             val mergedEntity = FinancialTransactionMapper.toEntity(merged).copy(
                 id = duplicate.id,
-                eventId = duplicate.eventId ?: if (eventId > 0L) eventId else null
+                eventId = duplicate.eventId ?: if (eventId > 0L) eventId else null,
+                bankVersion = duplicateEntity.bankVersion
             )
             transactionDao.insert(mergedEntity)
             val dupEventId = duplicate.eventId
@@ -425,7 +429,8 @@ class StorageGatewayImpl(
 
                     val mergedEntity = FinancialTransactionMapper.toEntity(merged).copy(
                         id = kept.id,
-                        eventId = kept.eventId ?: current.eventId
+                        eventId = kept.eventId ?: current.eventId,
+                        bankVersion = kept.bankVersion
                     )
                     transactionDao.insert(mergedEntity)
                     keptList[matchIndex] = mergedEntity

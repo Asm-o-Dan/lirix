@@ -62,7 +62,10 @@ object OtpVetoRule : VetoRule {
             if (token.type == TokenType.NUMBER) {
                 val cleanDigits = token.text.filter { it.isDigit() }
                 // 4-8 значный код, не являющийся частью распознанной суммы транзакции с валютой
-                val isTxAmountToken = solution?.txAmount?.tokenIndex == i
+                val isTxAmountToken = solution?.txAmount?.let {
+                    it.tokenIndex == i && it.currencyTokenIndex in 0 until tokens.size &&
+                        tokens[it.currencyTokenIndex].type == TokenType.CURRENCY
+                } == true
                 val isBalanceToken = solution?.balance?.tokenIndex == i
                 if (cleanDigits.length in 4..8 && !isTxAmountToken && !isBalanceToken) {
                     hasIsolatedCode = true
@@ -91,6 +94,7 @@ object PromoVetoRule : VetoRule {
         sourcePackage: String
     ): VetoResult {
         var hasPromoKeyword = false
+        var hasPercent = false
         var hasCardMask = false
         var hasBalance = solution?.balance != null
 
@@ -102,7 +106,8 @@ object PromoVetoRule : VetoRule {
             if (token.keywordKind == KeywordKind.BALANCE) {
                 hasBalance = true
             }
-            if (token.keywordKind == KeywordKind.PROMO || token.type == TokenType.PERCENT) {
+            if (token.type == TokenType.PERCENT) hasPercent = true
+            if (token.keywordKind == KeywordKind.PROMO) {
                 hasPromoKeyword = true
             } else if (token.type == TokenType.WORD) {
                 val lower = token.text.lowercase()
@@ -112,7 +117,11 @@ object PromoVetoRule : VetoRule {
             }
         }
 
-        if (hasPromoKeyword && !hasCardMask && !hasBalance) {
+        // A percentage footer does not invalidate an otherwise established transaction.
+        // Actual percentage offers are vetoed by the shared direction resolver first.
+        val ungroundedPercentage = hasPercent && opType.transactionType ==
+            com.example.npc.core.model.finance.TransactionType.UNKNOWN
+        if ((hasPromoKeyword || ungroundedPercentage) && !hasCardMask && !hasBalance) {
             return VetoResult.promoVeto("Promo broadcast message detected")
         }
         return VetoResult.Allowed

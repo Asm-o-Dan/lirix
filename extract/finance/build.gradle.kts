@@ -4,6 +4,8 @@ plugins {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(project(":core:text"))
+    implementation(project(":extract:universal"))
     implementation("com.google.re2j:re2j:1.8")
     implementation(libs.kotlinx.coroutines.core)
 

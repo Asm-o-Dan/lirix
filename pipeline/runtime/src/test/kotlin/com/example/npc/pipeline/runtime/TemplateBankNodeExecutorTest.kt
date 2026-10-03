@@ -2,6 +2,8 @@ package com.example.npc.pipeline.runtime
 
 import com.example.npc.core.model.finance.CurrencyCode
 import com.example.npc.core.model.finance.FinancialTransaction
+import com.example.npc.core.model.finance.TransactionStatus
+import com.example.npc.core.model.finance.TxStatus
 import com.example.npc.core.model.finance.TransactionType
 import com.example.npc.pipeline.compiler.CompiledPipeline
 import com.example.npc.pipeline.compiler.CompiledStage
@@ -89,6 +91,7 @@ class TemplateBankNodeExecutorTest {
         assertEquals(24590L, tx!!.amount.minor)
         assertEquals(CurrencyCode.MDL, tx.amount.currency)
         assertEquals(TransactionType.CREDIT, tx.type)
+        assertTrue(tx.isRefund)
         assertEquals("*1234", tx.accountMask)
         assertEquals("temu.com", tx.merchant)
         assertNotNull(tx.balance)
@@ -227,5 +230,61 @@ class TemplateBankNodeExecutorTest {
 
         executor.execute(frame, buffer)
         assertNull(frame.refs[1])
+    }
+
+    @Test
+    fun `automatic template direction applies to monolithic and decomposed templates`() {
+        for (decomposed in listOf(false, true)) {
+            assertEquals(TransactionType.CREDIT, extractDirection("Зачислено 100 MDL", decomposed)!!.type)
+            assertEquals(TransactionType.DEBIT, extractDirection("Списано 100 MDL", decomposed)!!.type)
+            val unresolved = extractDirection("Операция 100 MDL", decomposed)!!
+            assertEquals(TransactionType.UNKNOWN, unresolved.type)
+            assertEquals(TxStatus.SUGGESTED, unresolved.txStatus)
+            assertEquals(TransactionType.UNKNOWN, extractDirection("Операция 100 MDL", decomposed, "garbage")!!.type)
+        }
+    }
+
+    @Test
+    fun `template constants cannot bypass OTP or conflicting direction evidence`() {
+        for (decomposed in listOf(false, true)) {
+            assertNull(extractDirection("OTP code 123456 for payment 100 MDL", decomposed, "DEBIT"))
+            assertEquals(TransactionType.UNKNOWN, extractDirection("Зачислено 100 MDL", decomposed, "DEBIT")!!.type)
+        }
+    }
+
+    @Test
+    fun `declined template transaction retains decline status`() {
+        for (decomposed in listOf(false, true)) {
+            assertEquals(TransactionStatus.DECLINED, extractDirection("Payment declined 100 MDL", decomposed)!!.status)
+        }
+    }
+
+    private fun extractDirection(text: String, decomposed: Boolean, opType: String? = null): FinancialTransaction? {
+        val amountPattern = """(?P<amount>\d+)\s+(?P<curr>MDL)"""
+        val template = if (decomposed) {
+            CompiledTemplate(
+                id = "automatic-decomposed", sourceKey = "test.bank", priority = 1,
+                anchorPattern = ".*",
+                slotRules = mapOf("amount" to amountPattern),
+                constants = opType?.let { mapOf("opType" to it) } ?: emptyMap()
+            )
+        } else {
+            CompiledTemplate(
+                id = "automatic-monolithic", sourceKey = "test.bank", priority = 1,
+                pattern = Pattern.compile(amountPattern),
+                constants = opType?.let { mapOf("opType" to it) } ?: emptyMap()
+            )
+        }
+        val generation = RuntimeGeneration(
+            createPipeline(),
+            CompiledTemplateBank(bankVersion = 1L, overrideTemplatesBySource = mapOf("test.bank" to listOf(template))),
+            1L
+        )
+        val executor = TemplateBankNodeExecutor(0, 0, 1, ActiveGenerationProvider.create(generation), 1)
+        val frame = Frame(FrameLayout(2, 2, 4, 2, 256))
+        frame.texts[0].set(text)
+        frame.refs[0] = "test.bank"
+        executor.execute(frame, EffectBuffer())
+        return frame.refs[1] as? FinancialTransaction
     }
 }

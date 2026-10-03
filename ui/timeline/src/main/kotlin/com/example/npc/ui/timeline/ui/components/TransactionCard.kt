@@ -40,7 +40,8 @@ fun TransactionCard(
         transaction.isDeclined -> CategoryColors.DeclinedBadgeContent
         transaction.isIncome -> CategoryColors.IncomeAmount
         transaction.isExpense -> CategoryColors.ExpenseAmount
-        else -> CategoryColors.TransferAmount
+        transaction.isTransfer -> CategoryColors.TransferAmount
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     Surface(
@@ -99,7 +100,8 @@ fun TransactionCard(
                     val directionLabel = when {
                         transaction.isIncome -> "Пополнение"
                         transaction.isExpense -> "Списание"
-                        else -> "Перевод"
+                        transaction.isTransfer -> "Перевод"
+                        else -> "Уточните направление"
                     }
                     val badgeShape = RoundedCornerShape(4.dp)
                     Box(

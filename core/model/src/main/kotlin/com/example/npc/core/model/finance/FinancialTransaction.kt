@@ -8,7 +8,7 @@ import java.time.Instant
  * @property id Первичный идентификатор (0L до сохранения в БД).
  * @property eventId Идентификатор связанного события Event (nullable FK на event.id с ON DELETE SET NULL).
  * @property bank Идентификатор банка: "APB", "PRISBANK", "MAIB", "UNKNOWN".
- * @property type Направление операции (DEBIT, CREDIT, TRANSFER).
+ * @property type Направление операции (DEBIT, CREDIT, TRANSFER, UNKNOWN).
  * @property amount Неотрицательная сумма операции и валюта.
  * @property balance Доступный остаток счета после операции (если указан).
  * @property merchant Контрагент операции (мерчант/магазин, получатель перевода, банк).
@@ -37,7 +37,8 @@ data class FinancialTransaction(
     val createdAt: Instant = Instant.now(),
     val extractorKind: ExtractorKind = ExtractorKind.STATIC,
     val templateId: String? = null,
-    val txStatus: TxStatus = TxStatus.CONFIRMED_AUTO
+    val txStatus: TxStatus = TxStatus.CONFIRMED_AUTO,
+    val isRefund: Boolean = false
 ) {
     init {
         require(id >= 0L) { "FinancialTransaction id must be >= 0 (got $id)" }

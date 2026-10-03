@@ -4,6 +4,8 @@ import com.example.npc.core.model.finance.FinancialTransaction
 import com.example.npc.core.model.finance.Money
 import com.example.npc.core.model.finance.TransactionStatus
 import com.example.npc.core.model.finance.TransactionType
+import com.example.npc.core.model.finance.TxStatus
+import com.example.npc.core.model.finance.ExtractorKind
 import com.example.npc.core.text.NormalizedText
 import com.example.npc.core.text.TextSpan
 import com.example.npc.core.text.TokenStream
@@ -92,8 +94,14 @@ class DefaultUniversalExtractor(
         // 2. Извлечение контекстных признаков
         val candidateFeatures = FeatureExtractor.extract(candidates, tokenStream)
 
-        // 3. Разрешение типа операции (DECLINED > REFUND > TRANSFER > CREDIT > DEBIT)
+        // 3. Shared evidence-based direction (no implicit DEBIT fallback)
         val opType = OpTypeResolver.resolve(tokenStream)
+        if (opType.isSuppressed || candidateFeatures.all { it.hasBalanceAnchorLeft || it.hasFeeAnchor }) {
+            return UniversalExtractionResult(
+                verdict = ExtractionVerdict.REJECT, transaction = null, slots = emptyList(),
+                confidence = 0f, vetoReason = opType.reason ?: "Only balance/fee amounts"
+            )
+        }
 
         // 4. Комбинаторное решение ролей слотов (TX_AMOUNT vs BALANCE)
         val solution: RoleAssignmentResult? = RoleAssignmentSolver.solve(candidateFeatures)
@@ -162,7 +170,7 @@ class DefaultUniversalExtractor(
         for (i in 0 until tokenStream.size) {
             val token = tokenStream[i]
             if (token.type == TokenType.CARD_MASK) {
-                cardMask = token.text
+                cardMask = token.text.replace(Regex("(?i)^card\\s+"), "")
                 break
             }
         }
@@ -179,11 +187,7 @@ class DefaultUniversalExtractor(
         }
 
         val txStatus = if (opType.isDeclined) TransactionStatus.DECLINED else TransactionStatus.SUCCESS
-        val txType = if (opType.isDeclined) {
-            TransactionType.DEBIT
-        } else {
-            opType.transactionType
-        }
+        val txType = opType.transactionType
 
         val transaction = FinancialTransaction(
             id = 0L,
@@ -198,11 +202,16 @@ class DefaultUniversalExtractor(
             occurredAt = Instant.now(),
             extractorId = "universal.extractor",
             extractorVersion = 1,
-            rawText = normalizedText.normalized
+            rawText = normalizedText.normalized,
+            extractorKind = ExtractorKind.UNIVERSAL,
+            isRefund = opType.isRefund,
+            txStatus = if (txType == TransactionType.UNKNOWN || safetyCheck.verdict != ExtractionVerdict.ACCEPT) {
+                TxStatus.SUGGESTED
+            } else TxStatus.CONFIRMED_AUTO
         )
 
         return UniversalExtractionResult(
-            verdict = safetyCheck.verdict,
+            verdict = if (txType == TransactionType.UNKNOWN) ExtractionVerdict.SUGGEST else safetyCheck.verdict,
             transaction = transaction,
             slots = extractedSlots,
             confidence = safetyCheck.finalScore,

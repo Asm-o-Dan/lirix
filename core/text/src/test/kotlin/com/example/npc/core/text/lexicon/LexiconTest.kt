@@ -82,7 +82,7 @@ class LexiconTest {
         assertThat(lexicon.matchKeyword("акция")).isEqualTo(KeywordKind.PROMO)
         assertThat(lexicon.matchKeyword("reducere")).isEqualTo(KeywordKind.PROMO)
         assertThat(lexicon.matchKeyword("promo")).isEqualTo(KeywordKind.PROMO)
-        assertThat(lexicon.matchKeyword("cashback")).isEqualTo(KeywordKind.PROMO)
+        assertThat(lexicon.matchKeyword("cashback")).isEqualTo(KeywordKind.CREDIT)
 
         // FEE
         assertThat(lexicon.matchKeyword("komissiya")).isEqualTo(KeywordKind.FEE)

@@ -20,5 +20,6 @@ data class FinancialTransactionUiModel(
 ) {
     val isExpense: Boolean get() = direction == Direction.DEBIT
     val isIncome: Boolean get() = direction == Direction.CREDIT
+    val isUnknown: Boolean get() = direction == Direction.UNKNOWN
     val isTransfer: Boolean get() = direction == Direction.TRANSFER
 }

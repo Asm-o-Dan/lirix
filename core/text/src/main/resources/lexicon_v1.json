@@ -14,7 +14,7 @@
     "CREDIT": [
       "popoln", "zachisl", "postupl", "zarplat",
       "пополн", "пополнение", "зачисл", "зачисление", "поступл", "поступление", "зарплат", "зарплата", "внесение",
-      "alimentar", "alimentare", "incasar", "incasare", "credit", "salariu", "depuner", "depunere", "salary", "deposit"
+      "alimentar", "alimentare", "incasar", "incasare", "credit", "salariu", "depuner", "depunere", "salary", "deposit", "cashback", "кэшбэк", "кешбэк", "кешбек", "поступили", "пришли", "credited", "received"
     ],
     "TRANSFER": [
       "perevod",
@@ -38,8 +38,8 @@
     ],
     "PROMO": [
       "skidk", "akci",
-      "скидк", "скидка", "акци", "акция", "распродаж", "распродажа", "кэшбэк",
-      "reducer", "reducere", "promo", "ofert", "oferta", "cashback", "bonus", "discount"
+      "скидк", "скидка", "акци", "акция", "распродаж", "распродажа",
+      "reducer", "reducere", "promo", "ofert", "oferta", "bonus", "discount"
     ],
     "FEE": [
       "komissi",

@@ -11,6 +11,7 @@ import com.example.npc.core.model.classify.ClassificationResult
 import com.example.npc.core.model.classify.UserPrototype
 import com.example.npc.core.model.finance.CurrencyCode
 import com.example.npc.core.model.finance.FinancialTransaction
+import com.example.npc.core.model.finance.TxStatus
 import com.example.npc.core.model.finance.TransactionType
 import com.example.npc.core.model.pipeline.EventProcessingTarget
 import com.example.npc.core.storage.StorageGateway
@@ -18,6 +19,7 @@ import com.example.npc.pipeline.compiler.CompiledPipeline
 import com.example.npc.pipeline.compiler.CompiledStage
 import com.example.npc.pipeline.compiler.DebugInfo
 import com.example.npc.pipeline.compiler.Signal
+import com.example.npc.pipeline.nodes.api.effect.EffectKindId
 import com.example.npc.pipeline.nodes.api.frame.Frame
 import com.example.npc.pipeline.nodes.api.frame.FrameLayout
 import com.example.npc.pipeline.runtime.hotswap.ActivePipelineProvider
@@ -195,5 +197,55 @@ class PipelineRuntimeEngineTest {
 
         val metrics = engine.getMetrics()
         assertEquals(1L, metrics.totalFailed)
+    }
+
+    @Test
+    fun `legacy numeric transaction effect resolves title direction and uses current effect index`() = runBlocking {
+        val storage = FakeStorageGateway()
+        val base = createSampleTarget(401L)
+        storage.targets[401L] = base.copy(event = base.event.copy(title = "Зачислено", text = "100 RUP"))
+        val pipeline = createPipeline({ frame ->
+            // originPc is a program counter, never an effect index.
+            frame.effects.currentPc = 12
+            frame.effects.begin(EffectKindId.SET_CATEGORY)
+            frame.effects.putLong(Category.FINANCE.ordinal.toLong())
+            frame.effects.putLong(0.95.toRawBits())
+            frame.effects.end()
+            frame.effects.begin(EffectKindId.CREATE_FINANCIAL_TRANSACTION)
+            frame.effects.putLong(10000L)
+            frame.effects.end()
+            Signal.PASS
+        })
+        val engine = PipelineRuntimeEngine.create(storage, ActivePipelineProvider.create(pipeline))
+        assertTrue(engine.processSingleEvent(401L).success)
+        val (classification, tx) = storage.completedEvents.getValue(401L)
+        assertEquals(Category.FINANCE, classification.category)
+        assertEquals(TransactionType.CREDIT, tx!!.type)
+        assertEquals(10000L, tx.amount.minor)
+    }
+
+    @Test
+    fun `unresolved numeric transaction remains suggested and OTP is vetoed`() = runBlocking {
+        for ((title, text, suppressed) in listOf(
+            Triple("Bank", "Операция 100 RUP", false),
+            Triple("OTP code", "Payment 100 RUP code 123456", true)
+        )) {
+            val storage = FakeStorageGateway()
+            val base = createSampleTarget(402L)
+            storage.targets[402L] = base.copy(event = base.event.copy(title = title, text = text))
+            val pipeline = createPipeline({ frame ->
+                frame.effects.begin(EffectKindId.CREATE_FINANCIAL_TRANSACTION)
+                frame.effects.putLong(10000L)
+                frame.effects.end()
+                Signal.PASS
+            })
+            val engine = PipelineRuntimeEngine.create(storage, ActivePipelineProvider.create(pipeline))
+            assertTrue(engine.processSingleEvent(402L).success)
+            val tx = storage.completedEvents.getValue(402L).second
+            if (suppressed) assertEquals(null, tx) else {
+                assertEquals(TransactionType.UNKNOWN, tx!!.type)
+                assertEquals(TxStatus.SUGGESTED, tx.txStatus)
+            }
+        }
     }
 }

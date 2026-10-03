@@ -25,6 +25,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -186,6 +187,32 @@ fun TemplateEditorSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            Text(
+                text = "Направление операции",
+                style = MaterialTheme.typography.labelLarge
+            )
+            listOf(
+                listOf("AUTO" to "Авто", "DEBIT" to "Списание"),
+                listOf("CREDIT" to "Пополнение", "TRANSFER" to "Перевод")
+            ).forEach { choices ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    choices.forEach { (type, label) ->
+                        FilterChip(
+                            selected = state.detectedOpType == type,
+                            onClick = { viewModel.dispatch(EditorUiIntent.ChangeOpType(type)) },
+                            label = { Text(label) },
+                            enabled = !state.isSaving
+                        )
+                    }
+                }
+            }
+            Text(
+                text = "Авто определяет направление по каждому сообщению. Неясные операции требуют уточнения.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Статус валидации и компиляции
             if (state.isValidationInProgress) {
                 Row(
@@ -279,7 +306,7 @@ fun TemplateEditorSheet(
 
                 Button(
                     onClick = { viewModel.dispatch(EditorUiIntent.SaveAndActivate) },
-                    enabled = state.canSave && !state.isSaving,
+                    enabled = state.canSave && !state.isValidationInProgress && !state.isSaving,
                     modifier = Modifier.weight(2f)
                 ) {
                     if (state.isSaving) {

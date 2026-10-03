@@ -297,7 +297,7 @@ class ReplayEngineImpl(
             id = 0L,
             eventId = null,
             bank = "UNKNOWN",
-            type = TransactionType.DEBIT,
+            type = TransactionType.UNKNOWN,
             amount = Money(amount, CurrencyCode.MDL),
             balance = null,
             merchant = null,
@@ -306,7 +306,8 @@ class ReplayEngineImpl(
             occurredAt = Instant.now(),
             extractorId = "legacy",
             extractorVersion = 1,
-            rawText = "historical transaction"
+            rawText = "historical transaction",
+            txStatus = com.example.npc.core.model.finance.TxStatus.SUGGESTED
         )
     }
 

@@ -146,6 +146,11 @@ class EffectView internal constructor(private val buf: EffectBuffer) {
         return buf.longArgs[argIdx]
     }
 
+    fun getLongArg(argOffset: Int): Long {
+        check(cursor in 0 until buf.effectCount)
+        return getLongArg(cursor, argOffset)
+    }
+
     fun getIntArg(argOffset: Int): Int {
         check(cursor in 0 until buf.effectCount)
         return getLongArg(cursor, argOffset).toInt()

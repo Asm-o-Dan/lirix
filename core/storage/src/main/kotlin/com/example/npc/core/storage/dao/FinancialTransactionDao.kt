@@ -48,10 +48,13 @@ interface FinancialTransactionDao {
               SELECT 1 FROM event e
               JOIN financial_transaction parent_ft ON parent_ft.event_id = e.is_update_of
               WHERE e.id = financial_transaction.event_id
+                AND parent_ft.status = financial_transaction.status
           )
           AND NOT EXISTS (
               SELECT 1 FROM financial_transaction ft2
               WHERE ft2.id != financial_transaction.id
+                AND ft2.status = financial_transaction.status
+                AND ft2.direction IN ('DEBIT', 'EXPENSE', 'CREDIT', 'INCOME', 'TRANSFER')
                 AND ft2.currency = financial_transaction.currency
                 AND ft2.amount_minor = financial_transaction.amount_minor
                 AND (
@@ -98,10 +101,13 @@ interface FinancialTransactionDao {
               SELECT 1 FROM event e
               JOIN financial_transaction parent_ft ON parent_ft.event_id = e.is_update_of
               WHERE e.id = financial_transaction.event_id
+                AND parent_ft.status = financial_transaction.status
           )
           AND NOT EXISTS (
               SELECT 1 FROM financial_transaction ft2
               WHERE ft2.id != financial_transaction.id
+                AND ft2.status = financial_transaction.status
+                AND ft2.direction IN ('DEBIT', 'EXPENSE', 'CREDIT', 'INCOME', 'TRANSFER')
                 AND ft2.currency = financial_transaction.currency
                 AND ft2.amount_minor = financial_transaction.amount_minor
                 AND (
@@ -151,14 +157,19 @@ interface FinancialTransactionDao {
         SELECT currency, SUM(amount_minor) AS totalMinor, COUNT(*) AS transactionCount 
         FROM financial_transaction 
         WHERE direction = :direction AND occurred_at BETWEEN :fromEpochMs AND :toEpochMs
+          AND status = 'COMPLETED'
+          AND direction IN ('DEBIT', 'EXPENSE', 'CREDIT', 'INCOME', 'TRANSFER')
           AND NOT EXISTS (
               SELECT 1 FROM event e
               JOIN financial_transaction parent_ft ON parent_ft.event_id = e.is_update_of
               WHERE e.id = financial_transaction.event_id
+                AND parent_ft.status = financial_transaction.status
           )
           AND NOT EXISTS (
               SELECT 1 FROM financial_transaction ft2
               WHERE ft2.id != financial_transaction.id
+                AND ft2.status = financial_transaction.status
+                AND ft2.direction IN ('DEBIT', 'EXPENSE', 'CREDIT', 'INCOME', 'TRANSFER')
                 AND ft2.currency = financial_transaction.currency
                 AND ft2.amount_minor = financial_transaction.amount_minor
                 AND (
@@ -209,15 +220,20 @@ interface FinancialTransactionDao {
             COUNT(*) AS txCount
         FROM financial_transaction
         WHERE occurred_at >= :fromEpochMs AND occurred_at < :toEpochMs
+          AND status = 'COMPLETED'
+          AND direction IN ('DEBIT', 'EXPENSE', 'CREDIT', 'INCOME', 'TRANSFER')
           AND (:direction IS NULL OR direction = :direction)
           AND NOT EXISTS (
               SELECT 1 FROM event e
               JOIN financial_transaction parent_ft ON parent_ft.event_id = e.is_update_of
               WHERE e.id = financial_transaction.event_id
+                AND parent_ft.status = financial_transaction.status
           )
           AND NOT EXISTS (
               SELECT 1 FROM financial_transaction ft2
               WHERE ft2.id != financial_transaction.id
+                AND ft2.status = financial_transaction.status
+                AND ft2.direction IN ('DEBIT', 'EXPENSE', 'CREDIT', 'INCOME', 'TRANSFER')
                 AND ft2.currency = financial_transaction.currency
                 AND ft2.amount_minor = financial_transaction.amount_minor
                 AND (
@@ -267,10 +283,13 @@ interface FinancialTransactionDao {
                 SELECT 1 FROM event e
                 JOIN financial_transaction parent_ft ON parent_ft.event_id = e.is_update_of
                 WHERE e.id = ft.event_id
+                  AND parent_ft.status = ft.status
             )
             OR EXISTS (
                 SELECT 1 FROM financial_transaction ft2
                 WHERE ft2.id != ft.id
+                  AND ft2.status = ft.status
+                  AND ft2.direction IN ('DEBIT', 'EXPENSE', 'CREDIT', 'INCOME', 'TRANSFER')
                   AND ft2.currency = ft.currency
                   AND ft2.amount_minor = ft.amount_minor
                   AND (
