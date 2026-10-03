@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-09-26T09:47:06.115323+00:00",
+  "inputFile": "synthetic_dataset.json",
+  "allPassed": true,
+  "metrics": {
+    "totalRawEvents": 30,
+    "totalEvents": 30,
+    "dod8_export_schema_pass": true,
+    "dod6_garbage_cleaning_pass": true,
+    "dod2_bank_verification_pass": true,
+    "dod3_notification_audit_pass": true,
+    "dod4_music_continuity_pass": true,
+    "bankSmsCount": 1,
+    "bankPushCount": 1,
+    "bankTotalTransactions": 2,
+    "musicTotalSessions": 3,
+    "musicEffectiveDurationMs": 817000,
+    "groupSummariesLeaked": 0,
+    "unlinkedUpdates": 0,
+    "brokenFields": 0
+  },
+  "issues": []
+}

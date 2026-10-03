@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NPC Architecture Infographic — Notification Pipeline Constructor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --bg-card: #111827;
+      --bg-card-hover: #172136;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-bright: rgba(255, 255, 255, 0.18);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      
+      --phase0: #3b82f6; /* Blue: Core Storage & Foundation */
+      --phase1: #06b6d4; /* Cyan: Ingestion */
+      --phase2: #8b5cf6; /* Purple: Zero-alloc Pipeline Engine */
+      --phase3: #ec4899; /* Pink: Dynamic Induction & Universal */
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'Fira Code', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.5;
+    }
+
+    /* Ambient Background Glow */
+    .ambient-glow {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      background: 
+        radial-gradient(circle at 15% 15%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 20%, rgba(139, 92, 246, 0.09) 0%, transparent 45%),
+        radial-gradient(circle at 50% 80%, rgba(236, 72, 153, 0.07) 0%, transparent 50%);
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 32px 24px 80px 24px;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 28px;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .title-group h1 {
+      font-size: 2.3rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .badge-sub {
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: rgba(6, 182, 212, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      vertical-align: middle;
+      font-family: var(--font-mono);
+      letter-spacing: 0;
+    }
+
+    .title-group p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      margin-top: 6px;
+      max-width: 850px;
+    }
+
+    .kpi-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .kpi-pill {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-family: var(--font-mono);
+    }
+
+    .kpi-pill .val {
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .kpi-pill .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      background: rgba(17, 24, 39, 0.7);
+      backdrop-filter: blur(12px);
+      padding: 12px 18px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      position: sticky;
+      top: 16px;
+      z-index: 100;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+    }
+
+    .nav-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-btn.active {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--border-bright);
+    }
+
+    .action-group {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .sim-button {
+      background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+      color: white;
+      border: none;
+      padding: 9px 18px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
+    }
+
+    .sim-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+    }
+
+    .sim-button.running {
+      background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+    }
+
+    /* Tab Contents */
+    .tab-view {
+      display: none;
+      margin-top: 24px;
+    }
+
+    .tab-view.active {
+      display: block;
+    }
+
+    /* Layer Grid Layout */
+    .layers-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .layer-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+
+    .layer-card:hover {
+      border-color: var(--border-bright);
+    }
+
+    .layer-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+    }
+
+    .layer-ingest::before { background: var(--phase1); }
+    .layer-engine::before { background: var(--phase2); }
+    .layer-extract::before { background: var(--phase3); }
+    .layer-core::before { background: var(--phase0); }
+    .layer-ui::before { background: var(--accent-green); }
+
+    .layer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .layer-title-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .layer-badge {
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+
+    .badge-p1 { background: rgba(6, 182, 212, 0.15); color: var(--phase1); border: 1px solid rgba(6, 182, 212, 0.3); }
+    .badge-p2 { background: rgba(139, 92, 246, 0.15); color: var(--phase2); border: 1px solid rgba(139, 92, 246, 0.3); }
+    .badge-p3 { background: rgba(236, 72, 153, 0.15); color: var(--phase3); border: 1px solid rgba(236, 72, 153, 0.3); }
+    .badge-p0 { background: rgba(59, 130, 246, 0.15); color: var(--phase0); border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge-ui { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+    .layer-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .layer-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .module-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 14px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    .module-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .module-card.active-pulse {
+      animation: pulseGlow 1.4s infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+      from { border-color: rgba(6, 182, 212, 0.3); box-shadow: 0 0 15px rgba(6, 182, 212, 0.1); }
+      to { border-color: rgba(6, 182, 212, 0.9); box-shadow: 0 0 25px rgba(6, 182, 212, 0.4); }
+    }
+
+    .mod-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .mod-name {
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mod-tag {
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-dim);
+    }
+
+    .mod-summary {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    .mod-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .mod-features li {
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mod-features li::before {
+      content: '›';
+      color: var(--text-dim);
+      font-weight: 700;
+    }
+
+    /* Modal / Inspector Drawer */
+    .drawer-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .drawer-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .inspector-drawer {
+      position: fixed;
+      top: 0;
+      right: -600px;
+      width: 100%;
+      max-width: 580px;
+      height: 100%;
+      background: #0f172a;
+      border-left: 1px solid var(--border-bright);
+      z-index: 201;
+      padding: 32px;
+      overflow-y: auto;
+      transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: -15px 0 50px rgba(0, 0, 0, 0.6);
+    }
+
+    .inspector-drawer.open {
+      right: 0;
+    }
+
+    .drawer-close {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.2rem;
+    }
+
+    .drawer-badge {
+      display: inline-block;
+      margin-bottom: 12px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .drawer-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #fff;
+      font-family: var(--font-mono);
+      margin-bottom: 8px;
+    }
+
+    .drawer-subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .drawer-section {
+      margin-bottom: 24px;
+    }
+
+    .drawer-section h4 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+      font-family: var(--font-mono);
+    }
+
+    .code-box {
+      background: #060911;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: #38bdf8;
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+
+    .spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .spec-table td {
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .spec-table td:first-child {
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      width: 40%;
+    }
+
+    .spec-table td:last-child {
+      color: #fff;
+      font-weight: 500;
+    }
+
+    /* VM Architecture Deep Dive Tab */
+    .vm-architecture-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .vm-architecture-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .vm-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .vm-card h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .compiler-passes {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .pass-step {
+      display: flex;
+      gap: 14px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    .pass-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: rgba(139, 92, 246, 0.2);
+      color: #a78bfa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+
+    .pass-content h5 {
+      font-size: 0.95rem;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .pass-content p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Seqlock visualization */
+    .seqlock-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #080c14;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+    }
+
+    .ring-slot {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      border: 1px solid var(--border);
+    }
+
+    .ring-slot.active {
+      background: rgba(6, 182, 212, 0.2);
+      border-color: #06b6d4;
+      color: #38bdf8;
+      font-weight: 700;
+    }
+
+    /* Flow Simulation Diagram */
+    .flow-step-bar {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      margin: 32px 0;
+      padding: 0 20px;
+    }
+
+    .flow-step-bar::before {
+      content: '';
+      position: absolute;
+      top: 24px;
+      left: 50px;
+      right: 50px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      z-index: 0;
+    }
+
+    .flow-step-node {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 140px;
+    }
+
+    .step-circle {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #111827;
+      border: 2px solid var(--border-bright);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      transition: all 0.3s;
+    }
+
+    .flow-step-node.active .step-circle {
+      border-color: #06b6d4;
+      background: rgba(6, 182, 212, 0.2);
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.6);
+      transform: scale(1.15);
+    }
+
+    .step-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .flow-step-node.active .step-label {
+      color: #38bdf8;
+    }
+
+    /* Console simulation log */
+    .sim-terminal {
+      background: #040711;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      height: 240px;
+      overflow-y: auto;
+      line-height: 1.6;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.6);
+    }
+
+    .sim-terminal .log-time { color: var(--text-dim); margin-right: 8px; }
+    .sim-terminal .log-info { color: #38bdf8; }
+    .sim-terminal .log-success { color: #34d399; }
+    .sim-terminal .log-warn { color: #fbbf24; }
+    .sim-terminal .log-purple { color: #c084fc; }
+
+    /* HyperOS & Architecture Callout */
+    .hyperos-banner {
+      margin-top: 32px;
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(245, 158, 11, 0.08) 100%);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      border-radius: 16px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .hyperos-icon {
+      font-size: 2rem;
+      line-height: 1;
+    }
+
+    .hyperos-banner h4 {
+      color: #fca5a5;
+      font-size: 1rem;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .hyperos-banner p {
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-glow"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="header-top">
+        <div class="title-group">
+          <h1>
+            NPC Architecture
+            <span class="badge-sub">v5.0-ENTERPRISE</span>
+          </h1>
+          <p>
+            Notification Pipeline Constructor — 16 Gradle-модулей, 4 архитектурных слоя, регистровая VM конвейера с нулевыми аллокациями, отказоустойчивая эвристическая экстракция и динамическая индукция шаблонов.
+          </p>
+        </div>
+
+        <div class="kpi-row">
+          <div class="kpi-pill">
+            <span class="dot" style="background: var(--phase1)"></span>
+            <span>Modules:</span>
+            <span class="val">16 Gradle</span>
+          </div>
+          <div class="kpi-pill">
+            <span class="dot" style="background: var(--phase2)"></span>
+            <span>Pipeline:</span>
+            <span class="val">Zero-Alloc VM</span>
+          </div>
+          <div class="kpi-pill">
+            <span class="dot" style="background: var(--phase3)"></span>
+            <span>Trace Ring:</span>
+            <span class="val">128 Seqlock</span>
+          </div>
+          <div class="kpi-pill">
+            <span class="dot" style="background: var(--phase0)"></span>
+            <span>Storage:</span>
+            <span class="val">SQLCipher AES-256</span>
+          </div>
+          <div class="kpi-pill">
+            <span class="dot" style="background: var(--accent-green)"></span>
+            <span>UI:</span>
+            <span class="val">Compose 60fps</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Controls Bar -->
+    <div class="controls-bar">
+      <div class="nav-tabs">
+        <button class="nav-btn active" onclick="switchTab('system-map')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+          Сквозная карта системы
+        </button>
+        <button class="nav-btn" onclick="switchTab('vm-engine')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Zero-Alloc Pipeline VM
+        </button>
+        <button class="nav-btn" onclick="switchTab('data-flow')">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+          Интерактивный Replay & Flow
+        </button>
+      </div>
+
+      <div class="action-group">
+        <button id="simBtn" class="sim-button" onclick="runEventSimulation()">
+          <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <span>Запустить симуляцию Push-события</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 1: SYSTEM MAP -->
+    <div id="system-map" class="tab-view active">
+      <div class="layers-stack">
+
+        <!-- LAYER 1: INGESTION -->
+        <div class="layer-card layer-ingest">
+          <div class="layer-header">
+            <div class="layer-title-area">
+              <span class="layer-badge badge-p1">Фаза 1 • Real-time Sensors</span>
+              <h2 class="layer-name">Уровень Ingestion (Источники данных в реальном времени)</h2>
+            </div>
+            <span class="layer-desc">Входной периметр: системные сервисы Android, неблокирующие каналы Channel(UNLIMITED), Watchdog</span>
+          </div>
+
+          <div class="modules-grid">
+            <!-- Mod 1: :ingest:notification -->
+            <div class="module-card" onclick="openDrawer('ingest-notification')">
+              <div class="mod-top">
+                <span class="mod-name">🔔 :ingest:notification</span>
+                <span class="mod-tag">Service</span>
+              </div>
+              <p class="mod-summary">Системный перехват уведомлений ОС с нулевым дропом и восстановлением после перезапуска.</p>
+              <ul class="mod-features">
+                <li>PipelineNotificationListenerService</li>
+                <li>Channel(UNLIMITED) buffered ingress</li>
+                <li>IngestWatchdog (WorkManager 15 min)</li>
+                <li>NotificationPayload sanitizer</li>
+              </ul>
+            </div>
+
+            <!-- Mod 2: :ingest:sms -->
+            <div class="module-card" onclick="openDrawer('ingest-sms')">
+              <div class="mod-top">
+                <span class="mod-name">💬 :ingest:sms</span>
+                <span class="mod-tag">Broadcast</span>
+              </div>
+              <p class="mod-summary">Двойной контур SMS: мгновенные BroadcastReceiver и глубокий бэкфилл через ContentProvider.</p>
+              <ul class="mod-features">
+                <li>SmsBroadcastReceiver (Telephony.SMS_RECEIVED)</li>
+                <li>SmsIngestController & SmsPoller</li>
+                <li>WorkManager SMS Backfill fallback</li>
+                <li>SubscriptionId & PDU parser</li>
+              </ul>
+            </div>
+
+            <!-- Mod 3: :ingest:media -->
+            <div class="module-card" onclick="openDrawer('ingest-media')">
+              <div class="mod-top">
+                <span class="mod-name">🎵 :ingest:media</span>
+                <span class="mod-tag">Session</span>
+              </div>
+              <p class="mod-summary">Мониторинг музыкальных и медиа-плееров, FSM отслеживание треков и детекция границ воспроизведения.</p>
+              <ul class="mod-features">
+                <li>MediaSessionManager & MediaControllerCompat</li>
+                <li>MediaSessionObserver FSM transitions</li>
+                <li>PlaybackState & Metadata change debouncing</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- LAYER 2: CORE & DOMAIN -->
+        <div class="layer-card layer-core">
+          <div class="layer-header">
+            <div class="layer-title-area">
+              <span class="layer-badge badge-p0">Фаза 0/1 • Foundation & Data</span>
+              <h2 class="layer-name">Уровень Core, Domain & Storage (Ядро и Хранилище)</h2>
+            </div>
+            <span class="layer-desc">Шифрованная база SQLCipher 4.6.x (AES-256 GCM), доменные модели и детерминированный FsmLexer O(N)</span>
+          </div>
+
+          <div class="modules-grid">
+            <!-- Mod 4: :core:model -->
+            <div class="module-card" onclick="openDrawer('core-model')">
+              <div class="mod-top">
+                <span class="mod-name">📦 :core:model</span>
+                <span class="mod-tag">Entities</span>
+              </div>
+              <p class="mod-summary">Канонические неизменяемые структуры данных и типизированные Value Objects всей системы.</p>
+              <ul class="mod-features">
+                <li>RawEvent & IngestSource metadata</li>
+                <li>FinancialTransaction, Money (Long cents)</li>
+                <li>CurrencyCode (MDL, RUP, USD, EUR, RUB)</li>
+                <li>ExtractorKind, Category, Confidence</li>
+              </ul>
+            </div>
+
+            <!-- Mod 5: :core:text -->
+            <div class="module-card" onclick="openDrawer('core-text')">
+              <div class="mod-top">
+                <span class="mod-name">🔍 :core:text</span>
+                <span class="mod-tag">Zero-Alloc Lexer</span>
+              </div>
+              <p class="mod-summary">Высокоскоростной токенизатор и нормализатор текста без накладных расходов памяти.</p>
+              <ul class="mod-features">
+                <li>TextNormalizer (NFKC, диакритика, спецсимволы)</li>
+                <li>FsmLexer — O(N) детерминированный автомат DFA</li>
+                <li>Распознавание TEMU.COM, карт ****1234, сумм</li>
+                <li>Мультиязычные словари RU / RO / EN</li>
+              </ul>
+            </div>
+
+            <!-- Mod 6: :core:storage -->
+            <div class="module-card" onclick="openDrawer('core-storage')">
+              <div class="mod-top">
+                <span class="mod-name">🔐 :core:storage</span>
+                <span class="mod-tag">Room 2.6 + Cipher</span>
+              </div>
+              <p class="mod-summary">Аппаратно-ускоренная зашифрованная БД с механизмом безопасного бэкапа перед миграцией.</p>
+              <ul class="mod-features">
+                <li>Room 2.6 + SQLCipher 4.6.x (AES-256 GCM)</li>
+                <li>AppDatabase v5 (5 таблиц)</li>
+                <li>EventDao, FinancialTransactionDao, TemplateDaos</li>
+                <li>PreMigrationBackup & Room WAL mode</li>
+              </ul>
+            </div>
+
+            <!-- Mod 7: :domain -->
+            <div class="module-card" onclick="openDrawer('domain')">
+              <div class="mod-top">
+                <span class="mod-name">⚙️ :domain</span>
+                <span class="mod-tag">Use Cases</span>
+              </div>
+              <p class="mod-summary">Интерфейсы репозиториев, бизнес-сценарии транзакций и контракт шины событий.</p>
+              <ul class="mod-features">
+                <li>EventRepository & TransactionRepository</li>
+                <li>ProcessEventUseCase & DeduplicateEventUseCase</li>
+                <li>DomainEventBus contract</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- LAYER 3: PIPELINE ENGINE -->
+        <div class="layer-card layer-engine">
+          <div class="layer-header">
+            <div class="layer-title-area">
+              <span class="layer-badge badge-p2">Фаза 2 • High-Performance VM</span>
+              <h2 class="layer-name">Уровень Pipeline Engine (Регистровая машина конвейера zero-alloc)</h2>
+            </div>
+            <span class="layer-desc">4-проходный компилятор, защита от ReDoS (RE2/J), банки регистров и lock-free TraceRing</span>
+          </div>
+
+          <div class="modules-grid">
+            <!-- Mod 8: :pipeline:dsl -->
+            <div class="module-card" onclick="openDrawer('pipeline-dsl')">
+              <div class="mod-top">
+                <span class="mod-name">📜 :pipeline:dsl</span>
+                <span class="mod-tag">AST / JSON</span>
+              </div>
+              <p class="mod-summary">Декларативное AST дерево: триггеры, предикаты, конвейерные стадии и действия.</p>
+              <ul class="mod-features">
+                <li>PipelineDefinition & StageDefinition</li>
+                <li>Predicate AST (And, Or, Not, Regex, Eq)</li>
+                <li>Action AST (Extract, Transform, Route, Drop)</li>
+                <li>Kotlinx.serialization полиморфный парсинг</li>
+              </ul>
+            </div>
+
+            <!-- Mod 9: :pipeline:compiler -->
+            <div class="module-card" onclick="openDrawer('pipeline-compiler')">
+              <div class="mod-top">
+                <span class="mod-name">⚙️ :pipeline:compiler</span>
+                <span class="mod-tag">4-Pass Security</span>
+              </div>
+              <p class="mod-summary">Строгий валидатор и генератор байткода с проверкой ReDoS и потоков данных.</p>
+              <ul class="mod-features">
+                <li>Pass 1: AST Node limits & nesting depth</li>
+                <li>Pass 2: ReDoS Guard (Linear-time RE2/J)</li>
+                <li>Pass 3: Dataflow & Definite Assignment analysis</li>
+                <li>Pass 4: Control Flow Graph (CFG) ацикличность</li>
+              </ul>
+            </div>
+
+            <!-- Mod 10: :pipeline:nodes-api -->
+            <div class="module-card" onclick="openDrawer('pipeline-nodes-api')">
+              <div class="mod-top">
+                <span class="mod-name">⚡ :pipeline:nodes-api</span>
+                <span class="mod-tag">Zero-Alloc VM</span>
+              </div>
+              <p class="mod-summary">Регистровая виртуальная машина с фиксированными массивами примитивов без GC-пауз.</p>
+              <ul class="mod-features">
+                <li>Frame: банки LONG[], DOUBLE[], REF[], TEXT[]</li>
+                <li>TextRegister: zero-copy String slices</li>
+                <li>EffectBuffer: SoA структура буферизации эффектов</li>
+                <li>SPI NodeExecutor (высокоскоростной диспетчер)</li>
+              </ul>
+            </div>
+
+            <!-- Mod 11: :pipeline:runtime -->
+            <div class="module-card" onclick="openDrawer('pipeline-runtime')">
+              <div class="mod-top">
+                <span class="mod-name">🚀 :pipeline:runtime</span>
+                <span class="mod-tag">Hot Runtime</span>
+              </div>
+              <p class="mod-summary">Высоконадежная среда исполнения конвейера с lock-free телеметрией и hot-swap заменой.</p>
+              <ul class="mod-features">
+                <li>ActivePipelineProvider (CAS atomic hot-swap)</li>
+                <li>TraceRing: 128 слотов seqlock ring buffer</li>
+                <li>NodeCircuitBreaker (защита от сбоев узлов)</li>
+                <li>PipelineRuntimeEngine (горячий цикл)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- LAYER 4: EXTRACTION & INDUCTION -->
+        <div class="layer-card layer-extract">
+          <div class="layer-header">
+            <div class="layer-title-area">
+              <span class="layer-badge badge-p3">Фаза 3 • AI & Dynamic Patterns</span>
+              <h2 class="layer-name">Уровень Экстракции и Индукции (Фаза 3)</h2>
+            </div>
+            <span class="layer-desc">Региональные экстракторы банков, отказоустойчивые эвристики и индукция пользовательских шаблонов</span>
+          </div>
+
+          <div class="modules-grid">
+            <!-- Mod 12: :extract:finance -->
+            <div class="module-card" onclick="openDrawer('extract-finance')">
+              <div class="mod-top">
+                <span class="mod-name">🏦 :extract:finance</span>
+                <span class="mod-tag">Static Extractors</span>
+              </div>
+              <p class="mod-summary">Высокоточные парсеры региональных банков (APB, Сбербанк, MAIB) с детекцией отклонений.</p>
+              <ul class="mod-features">
+                <li>APB (Агропромбанк), Sberbank, MAIB парсеры</li>
+                <li>Детекция DECLINED / Отклонено транзакций</li>
+                <li>Парсинг комиссий, кэшбэка и балансов</li>
+              </ul>
+            </div>
+
+            <!-- Mod 13: :extract:universal -->
+            <div class="module-card" onclick="openDrawer('extract-universal')">
+              <div class="mod-top">
+                <span class="mod-name">🧠 :extract:universal</span>
+                <span class="mod-tag">Heuristic Solver</span>
+              </div>
+              <p class="mod-summary">Автоматический извлекатель сумм и ролей для любых неизвестных банковских push-уведомлений.</p>
+              <ul class="mod-features">
+                <li>AmountCandidateGenerator (Currency-bound ADR-302)</li>
+                <li>RoleAssignmentSolver (TX_AMOUNT vs BALANCE vs FEE)</li>
+                <li>SafetyGate (Жесткое вето на OTP пароли и рекламу)</li>
+              </ul>
+            </div>
+
+            <!-- Mod 14: :induction -->
+            <div class="module-card" onclick="openDrawer('induction')">
+              <div class="mod-top">
+                <span class="mod-name">🧬 :induction</span>
+                <span class="mod-tag">Template Builder</span>
+              </div>
+              <p class="mod-summary">Динамический генератор регулярных выражений и шаблонов конвейера на основе выбора пользователя.</p>
+              <ul class="mod-features">
+                <li>TokenSegmenter & Gap-Aware Token Emission</li>
+                <li>TemplateBuilder (монолитный и decomposedSpec)</li>
+                <li>RoundTripValidator & ReplayValidator</li>
+                <li>TemplateCanonicalHasher (дедупликация)</li>
+              </ul>
+            </div>
+
+            <!-- Mod 15: :feature:replay -->
+            <div class="module-card" onclick="openDrawer('feature-replay')">
+              <div class="mod-top">
+                <span class="mod-name">🔄 :feature:replay</span>
+                <span class="mod-tag">Sandbox Engine</span>
+              </div>
+              <p class="mod-summary">Изолированный симулятор прогона новых шаблонов по истории без изменения базы данных.</p>
+              <ul class="mod-features">
+                <li>Historical events replay stream</li>
+                <li>Dry-run extraction accuracy metrics</li>
+                <li>Zero database mutation guarantee</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- LAYER 5: UI & ORCHESTRATION -->
+        <div class="layer-card layer-ui">
+          <div class="layer-header">
+            <div class="layer-title-area">
+              <span class="layer-badge badge-ui">Presentation & App Core</span>
+              <h2 class="layer-name">Уровень UI & Presentation (Jetpack Compose Material 3)</h2>
+            </div>
+            <span class="layer-desc">60fps Canvas графики, One-Tap интерактивный редактор шаблонов и оркестратор процессов</span>
+          </div>
+
+          <div class="modules-grid">
+            <!-- Mod 16: :ui:timeline -->
+            <div class="module-card" onclick="openDrawer('ui-timeline')">
+              <div class="mod-top">
+                <span class="mod-name">📱 :ui:timeline</span>
+                <span class="mod-tag">Compose M3</span>
+              </div>
+              <p class="mod-summary">Пользовательский интерфейс: лента событий, аналитика и визуальный редактор шаблонов.</p>
+              <ul class="mod-features">
+                <li>TimelineScreen (бесшовный скроллинг транзакций)</li>
+                <li>One-Tap Editor: TemplateEditorSheet, TokenGridView</li>
+                <li>RoleSelectionMenu (мультивалютность BALANCE_CURRENCY)</li>
+                <li>FinancialAnalyticsScreen (60fps Canvas, MDL/RUP/USD)</li>
+                <li>OrchestratorDiagnosticsScreen (Seqlock TraceRing monitor)</li>
+              </ul>
+            </div>
+
+            <!-- Mod 17: :app -->
+            <div class="module-card" onclick="openDrawer('app')">
+              <div class="mod-top">
+                <span class="mod-name">👑 :app</span>
+                <span class="mod-tag">Root Orchestrator</span>
+              </div>
+              <p class="mod-summary">Связующее звено: Hilt DI, интеграция всех модулей и адаптация под агрессивный энергосберегающий режим HyperOS.</p>
+              <ul class="mod-features">
+                <li>EventProcessingOrchestratorImpl (главный диспетчер)</li>
+                <li>Hilt Dependency Injection (AppModule)</li>
+                <li>HyperOS Autostart & Battery Saver Unrestricted onboarding</li>
+                <li>WorkManager periodic maintenance bootstrap</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- HyperOS Callout -->
+      <div class="hyperos-banner">
+        <div class="hyperos-icon">⚡</div>
+        <div>
+          <h4>Специфика Android & HyperOS (Poco M7 Deployment Tuning)</h4>
+          <p>
+            Ввиду жесткой политики закрытия фоновых сервисов в Xiaomi HyperOS, уровень Ingestion защищен связкой <code>PipelineNotificationListenerService</code> (высокий приоритет ОС) и <code>IngestWatchdog</code> (WorkManager 15-мин периодический опрос). При первой установке запускается Onboarding с запросом прав <code>Autostart</code> и отключением <code>MIUI Battery Saver Restrictions</code>.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: VM ENGINE DEEP DIVE -->
+    <div id="vm-engine" class="tab-view">
+      <div class="vm-architecture-grid">
+        <div class="vm-card">
+          <h3>
+            <span style="color: var(--phase2);">●</span>
+            4-Проходный Компилятор Конвейера (:pipeline:compiler)
+          </h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">
+            Перед попаданием в горячий рантайм любое декларативное AST-дерево конвейера проходит через 4 строгих анализатора для предотвращения утечек памяти, зависаний и зацикливаний.
+          </p>
+
+          <div class="compiler-passes">
+            <div class="pass-step">
+              <div class="pass-num">P1</div>
+              <div class="pass-content">
+                <h5>Structural & Depth Limits</h5>
+                <p>Проверка лимита узлов (макс. 64 узла), глубины вложенности предикатов (макс. 8) и валидности строковых констант.</p>
+              </div>
+            </div>
+
+            <div class="pass-step">
+              <div class="pass-num">P2</div>
+              <div class="pass-content">
+                <h5>ReDoS Guard (Linear-time RE2/J)</h5>
+                <p>Предотвращение катастрофического бэктрекинга регулярных выражений. Все Regex-предикаты проверяются на линейное O(N) время выполнения.</p>
+              </div>
+            </div>
+
+            <div class="pass-step">
+              <div class="pass-num">P3</div>
+              <div class="pass-content">
+                <h5>Dataflow & Definite Assignment</h5>
+                <p>Проверка доступности регистров: регистр не может быть прочитан до того, как в него было произведено безусловное присваивание.</p>
+              </div>
+            </div>
+
+            <div class="pass-step">
+              <div class="pass-num">P4</div>
+              <div class="pass-content">
+                <h5>CFG Acyclicity (Topological Sort)</h5>
+                <p>Построение графа потока управления (Control Flow Graph) и проверка на отсутствие циклов с помощью топологической сортировки Кана.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="vm-card">
+          <h3>
+            <span style="color: var(--phase2);">●</span>
+            Zero-Alloc Register Machine (:pipeline:nodes-api)
+          </h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
+            Исполнение стадии конвейера не порождает ни одного объекта в куче (Heap GC Zero-Alloc) за счет предварительно выделенного <code>Frame</code>.
+          </p>
+
+          <div class="code-box">
+// Layout структуры Frame в памяти
+class Frame(
+    val longRegisters: LongArray = LongArray(16),     // Суммы в центах, timestamp
+    val doubleRegisters: DoubleArray = DoubleArray(8), // Рейтинги, веса
+    val refRegisters: Array<Any?> = arrayOfNulls(16),  // Доменные ссылки
+    val textRegisters: Array<TextRegister> = ...       // Неаллоцируемые срезы строк
+) {
+    val effectBuffer = EffectBuffer(capacity = 32)    // SoA эффекты: emit, tag, log
+}
+          </div>
+
+          <h4 style="margin-top: 20px; font-size: 0.9rem; color: #fff; font-family: var(--font-mono);">
+            Lock-Free Seqlock TraceRing (128 Slots)
+          </h4>
+          <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 4px;">
+            Журналирование выполнения конвейера без блокировок потоков (Lock-free single writer, multi reader через счетчик версий seqlock):
+          </p>
+          <div class="seqlock-diagram">
+            <span style="color: var(--text-dim);">Slot 0..127:</span>
+            <div class="ring-slot active">#124</div>
+            <div class="ring-slot active">#125</div>
+            <div class="ring-slot active">#126</div>
+            <div class="ring-slot" style="border-color: #ec4899; color: #f472b6;">#127 (Head)</div>
+            <div class="ring-slot">#0</div>
+            <div class="ring-slot">#1</div>
+            <span style="color: #34d399; font-size: 0.75rem;">Atomic Sequence Lock</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: DATA FLOW & REPLAY -->
+    <div id="data-flow" class="tab-view">
+      <div class="vm-card">
+        <h3>Сквозной жизненный цикл уведомления в NPC</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">
+          От системного прерывания Android до отрисовки в Canvas-аналитике и ручной калибровки в One-Tap редакторе.
+        </p>
+
+        <div class="flow-step-bar">
+          <div class="flow-step-node" id="step-0">
+            <div class="step-circle">📱</div>
+            <span class="step-label">1. Android OS Push / SMS</span>
+          </div>
+          <div class="flow-step-node" id="step-1">
+            <div class="step-circle">⚡</div>
+            <span class="step-label">2. Ingest Listener & Queue</span>
+          </div>
+          <div class="flow-step-node" id="step-2">
+            <div class="step-circle">🔤</div>
+            <span class="step-label">3. TextNormalizer & FsmLexer</span>
+          </div>
+          <div class="flow-step-node" id="step-3">
+            <div class="step-circle">⚙️</div>
+            <span class="step-label">4. Zero-Alloc Pipeline VM</span>
+          </div>
+          <div class="flow-step-node" id="step-4">
+            <div class="step-circle">🧠</div>
+            <span class="step-label">5. Extractor & Induction</span>
+          </div>
+          <div class="flow-step-node" id="step-5">
+            <div class="step-circle">💾</div>
+            <span class="step-label">6. SQLCipher & Compose UI</span>
+          </div>
+        </div>
+
+        <div class="sim-terminal" id="terminalLog">
+          <div><span class="log-time">[00:00:00.000]</span> <span class="log-info">NPC System Ready. Нажмите кнопку "Запустить симуляцию Push-события" для трассировки.</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Inspector Drawer (Modal) -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+  <div class="inspector-drawer" id="inspectorDrawer">
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    <span class="drawer-badge" id="drawerBadge">MODULE</span>
+    <h2 class="drawer-title" id="drawerTitle">:module:name</h2>
+    <p class="drawer-subtitle" id="drawerSubtitle">Описание модуля</p>
+
+    <div class="drawer-section">
+      <h4>Ключевые классы и контракты</h4>
+      <div class="code-box" id="drawerClasses"></div>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Архитектурные гарантии и метрики</h4>
+      <table class="spec-table" id="drawerSpecs"></table>
+    </div>
+  </div>
+
+  <script>
+    // Module Data for Inspector Drawer
+    const MODULE_DATA = {
+      'ingest-notification': {
+        badge: 'Фаза 1 • Ingestion',
+        badgeColor: 'var(--phase1)',
+        title: ':ingest:notification',
+        subtitle: 'Служба фонового перехвата входящих пуш-уведомлений от банковских и почтовых клиентов с защитой от вытеснения ОС.',
+        classes: `class PipelineNotificationListenerService : NotificationListenerService
+class IngestWatchdog : CoroutineWorker
+val notificationChannel = Channel<StatusBarNotification>(UNLIMITED)
+fun sanitize(sbn: StatusBarNotification): RawEvent`,
+        specs: [
+          ['Пропускная способность', 'Неблокирующий Channel(UNLIMITED)'],
+          ['Watchdog таймер', '15 мин (WorkManager PeriodicRequest)'],
+          ['HyperOS совместимость', 'NotificationListenerService priority level'],
+          ['Аллокации памяти', 'Минимальный парсинг Extras бандла']
+        ]
+      },
+      'ingest-sms': {
+        badge: 'Фаза 1 • Ingestion',
+        badgeColor: 'var(--phase1)',
+        title: ':ingest:sms',
+        subtitle: 'Двухуровневый контроллер SMS: перехват входящих сообщений Telephony.SMS_RECEIVED и ретроспективный опрос базы провайдера.',
+        classes: `class SmsBroadcastReceiver : BroadcastReceiver
+class SmsIngestController(private val poller: SmsPoller)
+class SmsPoller(private val contentResolver: ContentResolver)
+class SmsBackfillWorker : CoroutineWorker`,
+        specs: [
+          ['Интенты', 'android.provider.Telephony.SMS_RECEIVED'],
+          ['Бэкфилл', 'WorkManager дедупликация по SmsId и дате'],
+          ['PDU парсинг', 'Поддержка мультивалютных составных SMS'],
+          ['Шифрование номера', 'SHA-256 хэширование отправителя']
+        ]
+      },
+      'ingest-media': {
+        badge: 'Фаза 1 • Ingestion',
+        badgeColor: 'var(--phase1)',
+        title: ':ingest:media',
+        subtitle: 'Слежение за активными сессиями воспроизведения мультимедиа с защитой от дребезга при смене трека.',
+        classes: `class MediaSessionObserver(private val manager: MediaSessionManager)
+class MediaFsmEngine {
+    fun onPlaybackStateChanged(state: PlaybackStateCompat)
+    fun onMetadataChanged(meta: MediaMetadataCompat)
+}`,
+        specs: [
+          ['Дрожание треков', 'Debounce 300ms для смены стейта'],
+          ['FSM состояния', 'IDLE, PLAYING, PAUSED, TRACK_BOUNDARY'],
+          ['API уровень', 'MediaSessionCompat / MediaControllerCompat']
+        ]
+      },
+      'core-model': {
+        badge: 'Фаза 0/1 • Core',
+        badgeColor: 'var(--phase0)',
+        title: ':core:model',
+        subtitle: 'Фундаментальные доменные модели и Value Objects без зависимостей от сторонних библиотек.',
+        classes: `data class RawEvent(val id: Long, val payload: String, val timestamp: Long)
+data class Event(val id: Long, val normalizedText: String, val rawId: Long)
+data class FinancialTransaction(val amount: Money, val balance: Money?, val merchant: String)
+data class Money(val cents: Long, val currency: CurrencyCode)`,
+        specs: [
+          ['Представление денег', 'Целочисленные центы (Long cents, 0 rounding error)'],
+          ['Валюты (ISO-4217+)', 'MDL, RUP (Приднестровский рубль), USD, EUR, RUB'],
+          ['Иммутабельность', '100% Kotlin data classes / Value classes']
+        ]
+      },
+      'core-text': {
+        badge: 'Фаза 0/1 • Core',
+        badgeColor: 'var(--phase0)',
+        title: ':core:text',
+        subtitle: 'Сверхбыстрый токенизатор FsmLexer O(N) детерминированного конечного автомата и Unicode NFKC нормализация.',
+        classes: `class TextNormalizer {
+    fun normalize(raw: CharSequence): String // NFKC + strip accents
+}
+class FsmLexer(private val input: CharSequence) {
+    fun nextToken(reusableToken: Token): Boolean // Zero-alloc stream
+}
+enum class TokenType { MERCHANT_DOMAIN, CARD_MASK, AMOUNT, DATE, WORD }`,
+        specs: [
+          ['Сложность парсинга', 'Строгое детерминированное O(N)'],
+          ['Мерчанты', 'Детекция доменов TEMU.COM, ALIEXPRESS.COM'],
+          ['Языковые словари', 'Спецификаторы RU, RO, EN в едином автомате'],
+          ['GC нагрузка', 'Переиспользуемый объект Token']
+        ]
+      },
+      'core-storage': {
+        badge: 'Фаза 0/1 • Storage',
+        badgeColor: 'var(--phase0)',
+        title: ':core:storage',
+        subtitle: 'Защищенное хранилище Room 2.6 с полнодисковым шифрованием базы данных SQLCipher 4.6.x (AES-256 GCM).',
+        classes: `@Database(version = 5, entities = [RawEventEntity::class, ...])
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun eventDao(): EventDao
+    abstract fun financialTransactionDao(): FinancialTransactionDao
+    abstract fun dynamicTemplateDao(): DynamicTemplateDao
+}
+class PreMigrationBackup(private val context: Context)`,
+        specs: [
+          ['Шифрование', 'SQLCipher 4.6.x AES-256 GCM, Key in Keystore'],
+          ['Резервирование', 'PreMigrationBackup атомарный снимок перед миграцией'],
+          ['Журнал транзакций', 'WAL (Write-Ahead Logging) для 100x ускорения'],
+          ['Таблицы', '5 канонических сущностей']
+        ]
+      },
+      'domain': {
+        badge: 'Фаза 0/1 • Domain',
+        badgeColor: 'var(--phase0)',
+        title: ':domain',
+        subtitle: 'Бизнес-логика, Use Cases и высокоуровневые порты/интерфейсы системы без деталей реализации.',
+        classes: `interface EventRepository
+interface TransactionRepository
+class ProcessEventUseCase(
+    private val lexer: FsmLexer,
+    private val runtime: PipelineRuntimeEngine,
+    private val repo: TransactionRepository
+)`,
+        specs: [
+          ['Архитектура', 'Clean Architecture (Ports & Adapters)'],
+          ['Шина событий', 'StateFlow / SharedFlow реактивные стримы']
+        ]
+      },
+      'pipeline-dsl': {
+        badge: 'Фаза 2 • Pipeline',
+        badgeColor: 'var(--phase2)',
+        title: ':pipeline:dsl',
+        subtitle: 'Сериализуемое полиморфное AST-дерево для декларативного описания графов обработки событий.',
+        classes: `@Serializable
+data class PipelineDefinition(val id: String, val stages: List<StageDefinition>)
+@Serializable
+sealed interface PredicateDefinition {
+    data class RegexMatch(val pattern: String) : PredicateDefinition
+    data class AmountThreshold(val minCents: Long) : PredicateDefinition
+}`,
+        specs: [
+          ['Формат описания', 'Полиморфный JSON через kotlinx.serialization'],
+          ['Глубина графа', 'Максимум 8 уровней вложенности'],
+          ['Предикаты', 'And, Or, Not, Regex, Eq, InRange']
+        ]
+      },
+      'pipeline-compiler': {
+        badge: 'Фаза 2 • Compiler',
+        badgeColor: 'var(--phase2)',
+        title: ':pipeline:compiler',
+        subtitle: '4-проходный верификатор и компилятор конвейеров с гарантией линейного времени исполнения регулярных выражений.',
+        classes: `class PipelineCompiler {
+    fun compile(def: PipelineDefinition): CompiledPipeline {
+        pass1ValidateLimits(def)
+        pass2ReDosGuard(def) // RE2/J linear time
+        pass3DataflowCheck(def) // Definite assignment
+        pass4AcyclicCheck(def) // Topological Sort
+        return BytecodeEmitter.emit(def)
+    }
+}`,
+        specs: [
+          ['Защита от ReDoS', 'Linear-time RE2/J (Google) regex validator'],
+          ['Dataflow анализ', 'Definite Assignment (нет чтения неинициализированных регистров)'],
+          ['CFG ацикличность', 'Kahn Algorithm топологическая сортировка графа']
+        ]
+      },
+      'pipeline-nodes-api': {
+        badge: 'Фаза 2 • Engine',
+        badgeColor: 'var(--phase2)',
+        title: ':pipeline:nodes-api',
+        subtitle: 'Виртуальная машина регистрового типа: примитивные массивы Long/Double/Ref/Text без аллокаций.',
+        classes: `class Frame(
+    val longs: LongArray = LongArray(16),
+    val doubles: DoubleArray = DoubleArray(8),
+    val refs: Array<Any?> = arrayOfNulls(16),
+    val texts: Array<TextRegister> = Array(16) { TextRegister() },
+    val effects: EffectBuffer = EffectBuffer(32)
+)
+interface NodeExecutor {
+    fun execute(frame: Frame): NodeResult
+}`,
+        specs: [
+          ['Аллокации в куче', '0 байт во время исполнения горячего цикла'],
+          ['Регистры текста', 'Zero-copy слайсы исходной строки (Offset + Length)'],
+          ['Буфер эффектов', 'SoA (Structure of Arrays) плоская буферизация']
+        ]
+      },
+      'pipeline-runtime': {
+        badge: 'Фаза 2 • Runtime',
+        badgeColor: 'var(--phase2)',
+        title: ':pipeline:runtime',
+        subtitle: 'Горячее исполнение конвейера с CAS hot-swap подменой пайплайнов и lock-free буфером телеметрии.',
+        classes: `class ActivePipelineProvider {
+    private val active = AtomicReference<CompiledPipeline>()
+    fun swap(newPipeline: CompiledPipeline) // Lock-free CAS
+}
+class TraceRing(val capacity: Int = 128) {
+    // Seqlock 64-bit sequence counter for lock-free multi-reader
+    fun record(trace: TraceEntry)
+}
+class NodeCircuitBreaker(val failureThreshold: Int = 5)`,
+        specs: [
+          ['Задержка трассировки', '< 15 наносекунд на запись в TraceRing'],
+          ['Seqlock буфер', '128 записей, безопасное чтение из UI потока'],
+          ['Hot-Swap', 'Атомарная CAS смена версии без перезапуска']
+        ]
+      },
+      'extract-finance': {
+        badge: 'Фаза 3 • Extraction',
+        badgeColor: 'var(--phase3)',
+        title: ':extract:finance',
+        subtitle: 'Специализированные статические экстракторы региональных банков (APB, Сбербанк, MAIB).',
+        classes: `class ApbExtractor : BankExtractor
+class SberbankExtractor : BankExtractor
+class MaibExtractor : BankExtractor
+class DeclinedTransactionDetector {
+    fun isDeclined(text: CharSequence): Boolean
+}`,
+        specs: [
+          ['Поддерживаемые банки', 'Агропромбанк (MD/PMR), Сбербанк (RU), MAIB (MD)'],
+          ['Отказы', 'Распознавание ОТКЛОНЕНО, Недостаточно средств, Лимит исчерпан'],
+          ['Точность', '> 99.8% на целевых банковских шаблонах']
+        ]
+      },
+      'extract-universal': {
+        badge: 'Фаза 3 • Universal',
+        badgeColor: 'var(--phase3)',
+        title: ':extract:universal',
+        subtitle: 'Отказоустойчивый эвристический решатель: генерация кандидатов сумм и сопоставление ролей с защитой от OTP.',
+        classes: `class AmountCandidateGenerator {
+    fun generate(tokens: List<Token>): List<AmountCandidate> // ADR-302
+}
+class RoleAssignmentSolver {
+    fun solve(candidates: List<AmountCandidate>): RoleAssignment
+    // TX_AMOUNT vs BALANCE vs FEE
+}
+class SafetyGate {
+    fun isVetoed(text: String): Boolean // Blocks OTP, 2FA, Ads
+}`,
+        specs: [
+          ['ADR-302', 'Currency-bound эвристика связки валютного знака с числом'],
+          ['Role Assignment', 'Разделение суммы покупки, остатка баланса и комиссии'],
+          ['Safety Gate', '100% вето на одноразовые пароли и спам']
+        ]
+      },
+      'induction': {
+        badge: 'Фаза 3 • Induction',
+        badgeColor: 'var(--phase3)',
+        title: ':induction',
+        subtitle: 'Динамическая индукция шаблонов конвейера на основе ручной разметки пользователя в One-Tap редакторе.',
+        classes: `class TokenSegmenter
+class TemplateBuilder {
+    fun buildMonolithic(tokens: List<AnnotatedToken>): String
+    fun buildDecomposedSpec(tokens: List<AnnotatedToken>): DecomposedSpec
+}
+class RoundTripValidator
+class ReplayValidator(private val storage: AppDatabase)
+class TemplateCanonicalHasher`,
+        specs: [
+          ['Генерация регулярок', 'Gap-Aware Token Emission (учет пробелов и разделителей)'],
+          ['Валидация', 'Round-Trip валидация синтезированного шаблона'],
+          ['Дедупликация', 'TemplateCanonicalHasher канонический хэш структуры']
+        ]
+      },
+      'feature-replay': {
+        badge: 'Фаза 3 • Sandbox',
+        badgeColor: 'var(--phase3)',
+        title: ':feature:replay',
+        subtitle: 'Изолированная песочница для безопасного прогона шаблонов по историческим событиям без мутации БД.',
+        classes: `class HistoryReplayEngine(
+    private val rawEventSource: RawEventDataSource,
+    private val pipelineRunner: PipelineRuntimeEngine
+) {
+    fun replayDryRun(template: DynamicTemplate): ReplayReport
+}`,
+        specs: [
+          ['Изоляция данных', 'Гарантия Read-Only (Zero SQLite Mutation)'],
+          ['Отчет точности', 'Расчет Precision / Recall по размеченным событиям']
+        ]
+      },
+      'ui-timeline': {
+        badge: 'Presentation • Compose',
+        badgeColor: 'var(--accent-green)',
+        title: ':ui:timeline',
+        subtitle: 'Пользовательский интерфейс Material 3: лента событий, 60fps Canvas аналитика и One-Tap редактор.',
+        classes: `@Composable fun TimelineScreen(viewModel: TimelineViewModel)
+@Composable fun TemplateEditorSheet(
+    tokens: List<Token>,
+    onRoleAssigned: (Token, TokenRole) -> Unit
+)
+@Composable fun TokenGridView(tokens: List<Token>)
+@Composable fun FinancialAnalyticsScreen(canvasData: AnalyticsState)
+@Composable fun OrchestratorDiagnosticsScreen(traceRing: TraceRing)`,
+        specs: [
+          ['Графика', 'Аппаратный Android Canvas 60 FPS рендеринг расходов'],
+          ['One-Tap Editor', 'Интерактивная сетка токенов с выбором ролей и мультивалютностью'],
+          ['Диагностика', 'Визуализация буфера TraceRing и очередей Ingest в реальном времени']
+        ]
+      },
+      'app': {
+        badge: 'Application Root',
+        badgeColor: '#fff',
+        title: ':app',
+        subtitle: 'Главный оркестратор приложения, инициализация Hilt DI и онбординг HyperOS для Poco M7.',
+        classes: `@HiltAndroidApp
+class NpcApplication : Application()
+class EventProcessingOrchestratorImpl @Inject constructor(
+    private val notificationService: PipelineNotificationListenerService,
+    private val compiler: PipelineCompiler,
+    private val runtime: PipelineRuntimeEngine
+) : EventProcessingOrchestrator`,
+        specs: [
+          ['Dependency Injection', 'Google Hilt 2.50+'],
+          ['Target Device', 'Xiaomi Poco M7 / HyperOS Android 14+'],
+          ['Инициализация', 'Ленивая загрузка compiled-шаблонов из Room']
+        ]
+      }
+    };
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-view').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      
+      document.getElementById(tabId).classList.add('active');
+      event.currentTarget.classList.add('active');
+    }
+
+    function openDrawer(modKey) {
+      const data = MODULE_DATA[modKey];
+      if (!data) return;
+
+      const badge = document.getElementById('drawerBadge');
+      badge.textContent = data.badge;
+      badge.style.background = data.badgeColor + '25';
+      badge.style.color = data.badgeColor;
+      badge.style.border = '1px solid ' + data.badgeColor + '60';
+
+      document.getElementById('drawerTitle').textContent = data.title;
+      document.getElementById('drawerSubtitle').textContent = data.subtitle;
+      document.getElementById('drawerClasses').textContent = data.classes;
+
+      const specsTable = document.getElementById('drawerSpecs');
+      specsTable.innerHTML = '';
+      data.specs.forEach(([key, val]) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${key}</td><td>${val}</td>`;
+        specsTable.appendChild(row);
+      });
+
+      document.getElementById('drawerOverlay').classList.add('open');
+      document.getElementById('inspectorDrawer').classList.add('open');
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawerOverlay').classList.remove('open');
+      document.getElementById('inspectorDrawer').classList.remove('open');
+    }
+
+    // Interactive Push Event Simulation
+    let isSimulating = false;
+    async function runEventSimulation() {
+      if (isSimulating) return;
+      isSimulating = true;
+      
+      switchTab('data-flow');
+      document.querySelectorAll('.nav-btn')[2].classList.add('active');
+      document.querySelectorAll('.nav-btn')[0].classList.remove('active');
+
+      const simBtn = document.getElementById('simBtn');
+      simBtn.classList.add('running');
+      simBtn.innerHTML = `<span>Выполняется симуляция...</span>`;
+
+      const terminal = document.getElementById('terminalLog');
+      terminal.innerHTML = '';
+
+      function log(type, msg) {
+        const now = new Date().toISOString().substring(11, 23);
+        const div = document.createElement('div');
+        div.innerHTML = `<span class="log-time">[${now}]</span> <span class="log-${type}">${msg}</span>`;
+        terminal.appendChild(div);
+        terminal.scrollTop = terminal.scrollHeight;
+      }
+
+      function setActiveStep(index) {
+        for (let i = 0; i <= 5; i++) {
+          const el = document.getElementById('step-' + i);
+          if (el) el.classList.remove('active');
+        }
+        const curr = document.getElementById('step-' + index);
+        if (curr) curr.classList.add('active');
+      }
+
+      // Step 0: Android Push
+      setActiveStep(0);
+      log('info', 'Incoming StatusBarNotification: pkg=com.agroprombank.mobile, title="Агропромбанк", text="Оплата 142.50 RUP в TEMU.COM. Баланс: 1,420.00 RUP"');
+      await new Promise(r => setTimeout(r, 600));
+
+      // Step 1: Ingest
+      setActiveStep(1);
+      log('info', '[:ingest:notification] PipelineNotificationListenerService перехватил Push. Channel(UNLIMITED).send(sbn)');
+      log('success', '[:ingest:notification] Watchdog active. Ingress latency: 0.12ms. Преобразовано в RawEvent(id=40921)');
+      await new Promise(r => setTimeout(r, 700));
+
+      // Step 2: Normalizer & Lexer
+      setActiveStep(2);
+      log('purple', '[:core:text] TextNormalizer: NFKC очистка выполнена. Символов: 72.');
+      log('purple', '[:core:text] FsmLexer O(N) детерминированный проход:');
+      log('purple', '   Токены: [WORD("Оплата"), AMOUNT(142.50), CURRENCY("RUP"), WORD("в"), MERCHANT_DOMAIN("TEMU.COM"), WORD("Баланс"), AMOUNT(1420.00), CURRENCY("RUP")]');
+      await new Promise(r => setTimeout(r, 800));
+
+      // Step 3: Pipeline VM
+      setActiveStep(3);
+      log('warn', '[:pipeline:runtime] ActivePipelineProvider: выбран конвейер "regional_apb_pipeline_v3"');
+      log('warn', '[:pipeline:nodes-api] Инициализация Frame (Zero-Alloc): LONG[0]=14250, LONG[1]=142000, REF[0]="TEMU.COM"');
+      log('warn', '[:pipeline:runtime] TraceRing seqlock recorded: seq=128, exec_time=48µs, status=SUCCESS');
+      await new Promise(r => setTimeout(r, 750));
+
+      // Step 4: Extraction & Induction
+      setActiveStep(4);
+      log('info', '[:extract:universal] RoleAssignmentSolver: TX_AMOUNT=142.50 RUP, BALANCE=1420.00 RUP, MERCHANT="TEMU.COM"');
+      log('success', '[:extract:universal] SafetyGate: Pass. Нет OTP/рекламы (Confidence: 0.994).');
+      log('purple', '[:induction] TemplateCanonicalHasher: хэш совпал с кэшем шаблонов APB_MONEY_OUT_v2');
+      await new Promise(r => setTimeout(r, 800));
+
+      // Step 5: Storage & UI
+      setActiveStep(5);
+      log('success', '[:core:storage] AppDatabase (SQLCipher AES-256): запись в FinancialTransactionDao в WAL режиме.');
+      log('success', '[:ui:timeline] StateFlow эмиссия -> TimelineScreen обновлен. Canvas рендерер 60fps пересчитал баланс RUP.');
+      log('success', '🏁 Симуляция успешно завершена за 3.65с. Все инварианты конвейера соблюдены.');
+
+      simBtn.classList.remove('running');
+      simBtn.innerHTML = `<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>Запустить симуляцию Push-события</span>`;
+      isSimulating = false;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+package com.example.npc.app.onboarding
+
+enum class OnboardingStep {
+    NOTIFICATION_LISTENER_ACCESS,
+    HYPEROS_AUTOSTART,
+    BATTERY_OPTIMIZATION_EXCLUSION,
+    RUNTIME_PERMISSIONS,
+    RECENTS_LOCK_GUIDE
+}

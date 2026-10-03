@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Notification Pipeline</string>
+    <string name="channel_service_name">NPC Background Service</string>
+    <string name="channel_service_desc">Foreground service keeping notification ingestion active</string>
+    <string name="channel_alerts_name">NPC System Alerts</string>
+    <string name="channel_alerts_desc">Critical alerts: missing permissions, watchdog issues, and event absence warnings</string>
+</resources>

@@ -1,0 +1,95 @@
+﻿Applications Graphics Acceleration Info:
+Uptime: 79373794 Realtime: 85221247
+
+** Graphics info for pid 21234 [com.example.npc] **
+
+Stats since: 72881415816050ns
+Total frames rendered: 5604
+Janky frames: 802 (14.31%)
+Janky frames (legacy): 1838 (32.80%)
+50th percentile: 21ms
+90th percentile: 46ms
+95th percentile: 73ms
+99th percentile: 150ms
+Number Missed Vsync: 186
+Number High input latency: 8929
+Number Slow UI thread: 600
+Number Slow bitmap uploads: 2
+Number Slow issue draw commands: 626
+Number Frame deadline missed: 802
+Number Frame deadline missed (legacy): 673
+HISTOGRAM: 5ms=0 6ms=0 7ms=0 8ms=1 9ms=6 10ms=7 11ms=11 12ms=44 13ms=58 14ms=87 15ms=177 16ms=284 17ms=485 18ms=435 19ms=503 20ms=485 21ms=361 22ms=269 23ms=179 24ms=165 25ms=136 26ms=163 27ms=141 28ms=135 29ms=117 30ms=108 31ms=113 32ms=172 34ms=101 36ms=92 38ms=84 40ms=46 42ms=43 44ms=35 46ms=33 48ms=55 53ms=42 57ms=40 61ms=34 65ms=25 69ms=33 73ms=20 77ms=29 81ms=21 85ms=19 89ms=11 93ms=10 97ms=5 101ms=20 105ms=5 109ms=9 113ms=8 117ms=7 121ms=17 125ms=13 129ms=6 133ms=8 150ms=44 200ms=23 250ms=9 300ms=6 350ms=2 400ms=3 450ms=0 500ms=0 550ms=0 600ms=1 650ms=1 700ms=0 750ms=0 800ms=0 850ms=0 900ms=0 950ms=0 1000ms=0 1050ms=0 1100ms=0 1150ms=0 1200ms=1 1250ms=0 1300ms=1 1350ms=0 1400ms=0 1450ms=0 1500ms=0 1550ms=0 1600ms=0 1650ms=0 1700ms=0 1750ms=0 1800ms=0 1850ms=0 1900ms=0 1950ms=0 2000ms=0 2050ms=0 2100ms=0 2150ms=0 2200ms=0 2250ms=0 2300ms=0 2350ms=0 2400ms=0 2450ms=0 2500ms=0 2550ms=0 2600ms=0 2650ms=0 2700ms=0 2750ms=0 2800ms=0 2850ms=0 2900ms=0 2950ms=0 3000ms=0 3050ms=0 3100ms=0 3150ms=0 3200ms=0 3250ms=0 3300ms=0 3350ms=0 3400ms=0 3450ms=0 3500ms=0 3550ms=0 3600ms=0 3650ms=0 3700ms=0 3750ms=0 3800ms=0 3850ms=0 3900ms=0 3950ms=0 4000ms=0 4050ms=0 4100ms=0 4150ms=0 4200ms=0 4250ms=0 4300ms=0 4350ms=0 4400ms=0 4450ms=0 4500ms=0 4550ms=0 4600ms=0 4650ms=0 4700ms=0 4750ms=0 4800ms=0 4850ms=0 4900ms=0 4950ms=0
+50th gpu percentile: 11ms
+90th gpu percentile: 16ms
+95th gpu percentile: 19ms
+99th gpu percentile: 4950ms
+GPU HISTOGRAM: 1ms=0 2ms=0 3ms=1 4ms=5 5ms=19 6ms=61 7ms=121 8ms=252 9ms=1189 10ms=607 11ms=626 12ms=1160 13ms=528 14ms=227 15ms=167 16ms=135 17ms=114 18ms=93 19ms=86 20ms=54 21ms=36 22ms=26 23ms=16 24ms=9 25ms=12 4950ms=60
+
+Pipeline=Skia (OpenGL)
+Memory policy:
+  Max surface area: 2554200
+  Max resource usage: 122.60MB (x48)
+  Background retention: 50% (altUiHidden = true)
+  GPU Context timeout: 10
+Contexts: 3 (stopped = 1)
+CPU Caches:
+  Glyph Cache: 828.57 KB (1 entry)
+  Glyph Count: 89 
+Total CPU memory usage:
+  848460 bytes, 828.57 KB (0.00 bytes is purgeable)
+GPU Caches:
+  Other:
+    Other: 52.55 KB (1 entry)
+  Image:
+    Texture: 70.27 KB (33 entries)
+  Scratch:
+    Buffer Object: 78.00 KB (2 entries)
+    Texture: 4.07 MB (38 entries)
+Total GPU memory usage:
+  4471604 bytes, 4.26 MB (99.17 KB is purgeable)
+
+GraphicBufferAllocator buffers:
+        Handle |        Size |     W (Stride) x H | Layers |   Format |      Usage | Requestor
+0xb400007543395b20 | 9945.00 KiB | 1080 (1088) x 2340 |      1 |        1 | 0x10000900 | VRI[MainActivity]#15(BLAST Consumer)15
+0xb4000075433c6510 | 9945.00 KiB | 1080 (1088) x 2340 |      1 |        1 | 0x10000900 | VRI[MainActivity]#15(BLAST Consumer)15
+0xb4000075433c6f30 | 10051.25 KiB | 1080 (1088) x 2365 |      1 |        1 | 0x10000900 | VRI[MainActivity]#26(BLAST Consumer)26
+0xb4000075433c7b90 | 9945.00 KiB | 1080 (1088) x 2340 |      1 |        1 | 0x10000900 | VRI[MainActivity]#15(BLAST Consumer)15
+0xb4000075433ccc90 | 9945.00 KiB | 1080 (1088) x 2340 |      1 |        1 | 0x10000900 | VRI[MainActivity]#15(BLAST Consumer)15
+0xb4000075433d4cd0 | 10051.25 KiB | 1080 (1088) x 2365 |      1 |        1 | 0x10000900 | VRI[MainActivity]#26(BLAST Consumer)26
+Total allocated by GraphicBufferAllocator (estimate): 59882.50 KB
+Imported gralloc buffers:
++ name:VRI[MainActivity]#26(BLAST Consumer)26, id:21081, size:10140.00KiB, w/h:1080x2365, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x8810000, compressed: true
+	planes: R/G/B/A:	 w/h:1080x2365, stride:4352 bytes, size:10383360
++ name:VRI[MainActivity]#26(BLAST Consumer)26, id:21080, size:10140.00KiB, w/h:1080x2365, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x8810000, compressed: true
+	planes: R/G/B/A:	 w/h:1080x2365, stride:4352 bytes, size:10383360
++ name:VRI[MainActivity]#15(BLAST Consumer)15, id:21010, size:10072.00KiB, w/h:1080x2340, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x8810000, compressed: true
+	planes: R/G/B/A:	 w/h:1080x2340, stride:4352 bytes, size:10313728
++ name:VRI[MainActivity]#15(BLAST Consumer)15, id:21009, size:10072.00KiB, w/h:1080x2340, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x8810000, compressed: true
+	planes: R/G/B/A:	 w/h:1080x2340, stride:4352 bytes, size:10313728
++ name:VRI[MainActivity]#15(BLAST Consumer)15, id:21008, size:10072.00KiB, w/h:1080x2340, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x8810000, compressed: true
+	planes: R/G/B/A:	 w/h:1080x2340, stride:4352 bytes, size:10313728
++ name:VRI[MainActivity]#15(BLAST Consumer)15, id:21007, size:10072.00KiB, w/h:1080x2340, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x8810000, compressed: true
+	planes: R/G/B/A:	 w/h:1080x2340, stride:4352 bytes, size:10313728
+Total imported by gralloc: 60568.00KiB
+
+Profile data in ms:
+
+	com.example.npc/com.example.npc.app.MainActivity/android.view.ViewRootImpl@f38ce09 (visibility=8)
+	com.example.npc/com.example.npc.app.MainActivity/android.view.ViewRootImpl@edd23c (visibility=0)
+	com.example.npc/com.example.npc.app.MainActivity/android.view.ViewRootImpl@b839094 (visibility=0)
+View hierarchy:
+
+  com.example.npc/com.example.npc.app.MainActivity/android.view.ViewRootImpl@f38ce09
+  12 views, 24,61 kB of render nodes
+
+  com.example.npc/com.example.npc.app.MainActivity/android.view.ViewRootImpl@edd23c
+  13 views, 30,09 kB of render nodes
+
+  com.example.npc/com.example.npc.app.MainActivity/android.view.ViewRootImpl@b839094
+  6 views, 11,43 kB of render nodes
+
+
+Total ViewRootImpl   : 3
+Total attached Views : 31
+Total RenderNode     : 66,13 kB (used) / 133,59 kB (capacity)
+

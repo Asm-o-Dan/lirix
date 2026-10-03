@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "keywords": {
+    "DECLINED": [
+      "otkaz", "otklon", "nedostatoch", "ne uspeshn", "neavtoriz",
+      "отказ", "отклон", "отклонен", "недостаточн", "неуспешн", "неавториз",
+      "respins", "refuz", "refuzat", "insufficient", "declin", "declined", "anulat", "rejected", "failed"
+    ],
+    "REFUND": [
+      "vozvrat", "vozmecsh", "storno",
+      "возврат", "возмещ", "возмещение", "сторнир", "сторнирование",
+      "restitu", "restituire", "rambursa", "rambursare", "retur", "refund", "reversal", "stornar", "stornare"
+    ],
+    "CREDIT": [
+      "popoln", "zachisl", "postupl", "zarplat",
+      "пополн", "пополнение", "зачисл", "зачисление", "поступл", "поступление", "зарплат", "зарплата", "внесение",
+      "alimentar", "alimentare", "incasar", "incasare", "credit", "salariu", "depuner", "depunere", "salary", "deposit"
+    ],
+    "TRANSFER": [
+      "perevod",
+      "перевод", "перечисление",
+      "transfer", "p2p", "remitent", "remitenta", "remittance"
+    ],
+    "DEBIT": [
+      "pokupk", "oplat", "spisan",
+      "покупк", "покупка", "оплат", "оплата", "списан", "списание", "снятие",
+      "plata", "cumparatur", "cumparaturi", "achizit", "achizitie", "achitar", "achitare", "purchase", "payment", "extragere", "cheltuieli", "spent"
+    ],
+    "BALANCE": [
+      "ostat", "balans", "dostupn",
+      "остат", "остаток", "баланс", "доступн", "доступно",
+      "sold", "disponibil", "balance", "bal", "ramas", "available"
+    ],
+    "OTP": [
+      "kod", "parol",
+      "код", "пароль",
+      "cod", "code", "otp", "parola", "password"
+    ],
+    "PROMO": [
+      "skidk", "akci",
+      "скидк", "скидка", "акци", "акция", "распродаж", "распродажа", "кэшбэк",
+      "reducer", "reducere", "promo", "ofert", "oferta", "cashback", "bonus", "discount"
+    ],
+    "FEE": [
+      "komissi",
+      "комисси", "комиссия", "сбор",
+      "comision", "taxa", "fee", "commission", "charge"
+    ]
+  },
+  "currencies": {
+    "exact": {
+      "MDL": ["mdl", "lei", "leu", "лей", "лея", "леев"],
+      "RUP": ["rup", "приднестровских"],
+      "USD": ["usd", "$", "dollar", "долл", "долл."],
+      "EUR": ["eur", "€", "euro"],
+      "RUB": ["rub"],
+      "RON": ["ron"],
+      "UAH": ["uah"]
+    },
+    "ambiguous": {
+      "RUB_RUP": {
+        "codes": ["RUP", "RUB"],
+        "stems": ["руб", "руб.", "рубля", "рублей", "р.", "р", "rublej"]
+      }
+    }
+  }
+}

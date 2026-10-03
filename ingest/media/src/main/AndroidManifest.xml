@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- POST_NOTIFICATIONS needed for MediaSessionManager access through NotificationListenerService -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+        Note: android.permission.MEDIA_CONTENT_CONTROL is only available to system apps.
+        For third-party apps, access to MediaSessionManager.getActiveSessions() is granted
+        automatically by the OS when NotificationListenerService is enabled.
+    -->
+
+</manifest>

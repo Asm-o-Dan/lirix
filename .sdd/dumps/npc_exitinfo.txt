@@ -1,0 +1,68 @@
+﻿ACTIVITY MANAGER PROCESS EXIT INFO (dumpsys activity exit-info)
+Last Timestamp of Persistence Into Persistent Storage: 2026-09-28 13:15:03.522
+  package: com.example.npc
+    Historical Process Exit for uid=10326
+        ApplicationExitInfo #0:
+          timestamp=2026-09-28 11:41:00.287 pid=19563 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=4 (APP CRASH(EXCEPTION)) subreason=0 (UNKNOWN) status=0
+          importance=100 pss=0,00 rss=0,00 description=crash state=empty trace=null
+        ApplicationExitInfo #1:
+          timestamp=2026-09-28 11:38:33.659 pid=26183 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=16 (PACKAGE UPDATED) subreason=0 (UNKNOWN) status=0
+          importance=125 pss=116MB rss=151MB description=stop com.example.npc due to installPackageLI state=empty trace=null
+        ApplicationExitInfo #2:
+          timestamp=2026-09-28 09:50:46.080 pid=25223 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=13 (OTHER KILLS BY SYSTEM) subreason=0 (UNKNOWN) status=0
+          importance=125 pss=176MB rss=310MB description=SwipeUpClean state=empty trace=null
+        ApplicationExitInfo #3:
+          timestamp=2026-09-28 09:48:44.458 pid=24713 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=4 (APP CRASH(EXCEPTION)) subreason=0 (UNKNOWN) status=0
+          importance=125 pss=0,00 rss=0,00 description=crash state=empty trace=null
+        ApplicationExitInfo #4:
+          timestamp=2026-09-28 09:45:27.633 pid=22627 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=4 (APP CRASH(EXCEPTION)) subreason=0 (UNKNOWN) status=0
+          importance=100 pss=0,00 rss=0,00 description=crash state=empty trace=null
+        ApplicationExitInfo #5:
+          timestamp=2026-09-28 09:44:50.435 pid=22474 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=4 (APP CRASH(EXCEPTION)) subreason=0 (UNKNOWN) status=0
+          importance=125 pss=0,00 rss=0,00 description=crash state=empty trace=null
+        ApplicationExitInfo #6:
+          timestamp=2026-09-28 09:44:41.722 pid=22214 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=4 (APP CRASH(EXCEPTION)) subreason=0 (UNKNOWN) status=0
+          importance=100 pss=0,00 rss=0,00 description=crash state=empty trace=null
+        ApplicationExitInfo #7:
+          timestamp=2026-09-28 09:44:32.400 pid=21669 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=4 (APP CRASH(EXCEPTION)) subreason=0 (UNKNOWN) status=0
+          importance=125 pss=0,00 rss=0,00 description=crash state=empty trace=null
+        ApplicationExitInfo #8:
+          timestamp=2026-09-28 09:41:40.168 pid=20717 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=4 (APP CRASH(EXCEPTION)) subreason=0 (UNKNOWN) status=0
+          importance=100 pss=0,00 rss=0,00 description=crash state=empty trace=null
+        ApplicationExitInfo #9:
+          timestamp=2026-09-28 09:41:14.628 pid=20345 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=4 (APP CRASH(EXCEPTION)) subreason=0 (UNKNOWN) status=0
+          importance=100 pss=0,00 rss=0,00 description=crash state=empty trace=null
+        ApplicationExitInfo #10:
+          timestamp=2026-09-28 09:40:55.740 pid=20182 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=4 (APP CRASH(EXCEPTION)) subreason=0 (UNKNOWN) status=0
+          importance=125 pss=0,00 rss=0,00 description=crash state=empty trace=null
+        ApplicationExitInfo #11:
+          timestamp=2026-09-28 09:40:42.978 pid=19539 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=4 (APP CRASH(EXCEPTION)) subreason=0 (UNKNOWN) status=0
+          importance=125 pss=0,00 rss=0,00 description=crash state=empty trace=null
+        ApplicationExitInfo #12:
+          timestamp=2026-09-28 09:40:36.460 pid=12230 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=16 (PACKAGE UPDATED) subreason=0 (UNKNOWN) status=0
+          importance=125 pss=166MB rss=198MB description=stop com.example.npc due to installPackageLI state=empty trace=null
+        ApplicationExitInfo #13:
+          timestamp=2026-09-28 01:20:49.783 pid=10838 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=125 pss=0,00 rss=0,00 description=stop com.example.npc due to from process:12224 state=empty trace=null
+        ApplicationExitInfo #14:
+          timestamp=2026-09-28 01:18:30.905 pid=20919 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=16 (PACKAGE UPDATED) subreason=0 (UNKNOWN) status=0
+          importance=125 pss=108MB rss=99MB description=stop com.example.npc due to installPackageLI state=empty trace=null
+        ApplicationExitInfo #15:
+          timestamp=2026-09-28 00:38:13.158 pid=16042 realUid=10326 packageUid=10326 definingUid=10326 user=0
+          process=com.example.npc reason=16 (PACKAGE UPDATED) subreason=0 (UNKNOWN) status=0
+          importance=125 pss=170MB rss=255MB description=stop com.example.npc due to installPackageLI state=empty trace=null

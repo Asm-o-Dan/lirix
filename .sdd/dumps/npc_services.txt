@@ -1,0 +1,50 @@
+﻿ACTIVITY MANAGER SERVICES (dumpsys activity services)
+  User 0 active services:
+  * ServiceRecord{b05cd33 u0 com.example.npc/.ingest.notification.service.PipelineNotificationListenerService c:android}
+    intent={act=android.service.notification.NotificationListenerService cmp=com.example.npc/.ingest.notification.service.PipelineNotificationListenerService}
+    packageName=com.example.npc
+    processName=com.example.npc
+    targetSdkVersion=35
+    permission=android.permission.BIND_NOTIFICATION_LISTENER_SERVICE
+    baseDir=/data/app/~~kl_WBJ-xn7qhhmHym4sVVA==/com.example.npc-yBLApHRMkJbuPrRqJbz8nA==/base.apk
+    dataDir=/data/user/0/com.example.npc
+    app=ProcessRecord{86e3a14 21234:com.example.npc/u0a326}
+    allowlistManager=true
+    useNewWiuLogic_forCapabilities()=true
+    useNewWiuLogic_forStart()=true
+    useNewBfslLogic()=true
+    mAllowWiu_noBinding=DENIED
+    mAllowWiu_inBindService=PROC_STATE_PERSISTENT
+    mAllowWiu_byBindings=DENIED
+    getFgsAllowWiu_legacy=PROC_STATE_PERSISTENT
+    getFgsAllowWiu_new=DENIED
+    getFgsAllowWiu_forStart=DENIED
+    getFgsAllowWiu_forCapabilities=DENIED
+    allowUiJobScheduling=false
+    recentCallingPackage=android
+    recentCallingUid=1000
+    mAllowStart_noBinding=DENIED
+    mAllowStart_inBindService=PROC_STATE_PERSISTENT
+    mAllowStart_byBindings=DENIED
+    getFgsAllowStart_legacy=PROC_STATE_PERSISTENT
+    getFgsAllowStart_new=DENIED
+    getFgsAllowStart=DENIED
+    startForegroundCount=0
+    infoAllowStartForeground=[callingPackage: android; callingUid: 1000; uidState: PER ; uidBFSL: [BFSL]; intent: Intent { act=android.service.notification.NotificationListenerService cmp=com.example.npc/.ingest.notification.service.PipelineNotificationListenerService }; code:PROC_STATE_PERSISTENT; tempAllowListReason:<7bceb47 android.bluetooth.device.action.NAME_CHANGED/u0,reasonCode:BLUETOOTH_BROADCAST,duration:20000,callingUid:1002>; targetSdkVersion:35; callerTargetSdkVersion:35; startForegroundCount:0; bindFromPackage:null: isBindService:true]
+    createTime=-44m57s843ms startingBgTimeout=--
+    lastActivity=-42m56s22ms restartTime=-42m56s22ms createdFromFg=true
+    Bindings:
+    * IntentBindRecord{974187b CREATE}:
+      intent={act=android.service.notification.NotificationListenerService cmp=com.example.npc/.ingest.notification.service.PipelineNotificationListenerService}
+      binder=android.os.BinderProxy@61698
+      requested=true received=true hasBound=true doRebind=false
+      * Client AppBindRecord{f0a1ef1 ProcessRecord{6fef1 2501:system/1000}}
+        Per-process Connections:
+          ConnectionRecord{cfa6ca2 u0 CR FGS !PRCP com.example.npc/.ingest.notification.service.PipelineNotificationListenerService:@a0f386d flags=0x5000101}
+    All Connections:
+      ConnectionRecord{cfa6ca2 u0 CR FGS !PRCP com.example.npc/.ingest.notification.service.PipelineNotificationListenerService:@a0f386d flags=0x5000101}
+
+  Connection bindings to services:
+  * ConnectionRecord{cfa6ca2 u0 CR FGS !PRCP com.example.npc/.ingest.notification.service.PipelineNotificationListenerService:@a0f386d flags=0x5000101}
+    binding=AppBindRecord{f0a1ef1 com.example.npc/.ingest.notification.service.PipelineNotificationListenerService:system}
+    conn=android.app.LoadedApk$ServiceDispatcher$InnerConnection@a0f386d flags=0x5000101
