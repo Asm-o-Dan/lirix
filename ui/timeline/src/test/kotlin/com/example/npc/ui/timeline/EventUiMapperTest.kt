@@ -205,4 +205,14 @@ class EventUiMapperTest {
         uiModel.contentFingerprint shouldBe "deadbeef1234"
         uiModel.pipelineRevisionId shouldBe 77L
     }
+
+    @Test
+    fun `unknown direction remains unsigned and is neither expense income nor transfer`() {
+        val uiModel = EventUiMapper.toTransactionUiModel(createBaseTransaction(type = TransactionType.UNKNOWN))
+        uiModel.formattedAmount shouldBe "15.15"
+        uiModel.isUnknown shouldBe true
+        uiModel.isIncome shouldBe false
+        uiModel.isExpense shouldBe false
+        uiModel.isTransfer shouldBe false
+    }
 }
