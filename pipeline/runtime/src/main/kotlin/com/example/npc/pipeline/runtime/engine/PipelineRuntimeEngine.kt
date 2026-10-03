@@ -7,6 +7,8 @@ import com.example.npc.core.model.finance.CurrencyCode
 import com.example.npc.core.model.finance.Direction
 import com.example.npc.core.model.finance.FinancialTransaction
 import com.example.npc.core.model.finance.TransactionStatus
+import com.example.npc.core.model.finance.TransactionDirectionResolver
+import com.example.npc.core.model.finance.TxStatus
 import com.example.npc.core.model.finance.TransactionType
 import com.example.npc.core.storage.StorageGateway
 import com.example.npc.pipeline.compiler.Signal
@@ -227,7 +229,7 @@ class PipelineRuntimeEngineImpl(
                     )
                 }
                 else -> { // PASS
-                    val view = context.effectBuffer.view()
+                    val view = frame.effects.view()
                     val defaultFingerprint = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                     var classification = ClassificationResult(
                         category = Category.OTHER,
@@ -241,7 +243,7 @@ class PipelineRuntimeEngineImpl(
                         when (view.kindId) {
                             EffectKindId.SET_CATEGORY -> {
                                 val catOrd = view.getIntArg(0)
-                                val confBits = view.getLongArg(view.originPc, 1)
+                                val confBits = view.getLongArg(1)
                                 val conf = java.lang.Double.longBitsToDouble(confBits).coerceIn(0.0, 1.0)
                                 val cat = Category.entries.getOrElse(catOrd) { Category.OTHER }
                                 classification = ClassificationResult(
@@ -252,20 +254,42 @@ class PipelineRuntimeEngineImpl(
                                 )
                             }
                             EffectKindId.CREATE_FINANCIAL_TRANSACTION -> {
-                                val amount = view.getLongArg(view.originPc, 0)
+                                val extracted = view.getRefArg(0) as? FinancialTransaction
+                                val direction = TransactionDirectionResolver.resolve(
+                                    title = target.event.title,
+                                    body = target.event.text,
+                                    explicitType = extracted?.type
+                                )
+                                if (direction.isSuppressed) continue
+                                val txStatus = if (direction.type == TransactionType.UNKNOWN) {
+                                    TxStatus.SUGGESTED
+                                } else extracted?.txStatus ?: TxStatus.CONFIRMED_AUTO
+                                if (extracted != null) {
+                                    transaction = extracted.copy(
+                                        eventId = eventId,
+                                        type = direction.type,
+                                        isRefund = direction.isRefund || (direction.type == TransactionType.CREDIT && extracted.isRefund),
+                                        status = if (direction.isDeclined) TransactionStatus.DECLINED else extracted.status,
+                                        txStatus = txStatus
+                                    )
+                                    continue
+                                }
+                                val amount = view.getLongArg(0)
                                 transaction = FinancialTransaction(
                                     eventId = eventId,
                                     bank = target.packageName.ifBlank { "UNKNOWN" },
-                                    type = TransactionType.DEBIT,
+                                    type = direction.type,
+                                    isRefund = direction.isRefund,
                                     amount = com.example.npc.core.model.finance.Money.ofMinor(amount, CurrencyCode.RUP),
                                     balance = null,
                                     merchant = null,
                                     accountMask = null,
-                                    status = TransactionStatus.COMPLETED,
+                                    status = if (direction.isDeclined) TransactionStatus.DECLINED else TransactionStatus.COMPLETED,
                                     occurredAt = target.event.ts,
                                     extractorId = "pipeline.runtime",
                                     extractorVersion = 1,
-                                    rawText = target.event.text
+                                    rawText = target.event.text,
+                                    txStatus = txStatus
                                 )
                             }
                         }
