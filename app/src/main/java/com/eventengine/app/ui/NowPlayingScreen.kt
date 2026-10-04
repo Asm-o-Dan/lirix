@@ -69,6 +69,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -102,6 +103,7 @@ import com.eventengine.app.feature.AggregatedLyricsProvider
 import com.eventengine.app.feature.MusicFeatureEngine
 import com.eventengine.app.feature.lyrics.AmDmChordParser
 import com.eventengine.app.feature.lyrics.ChordAutoscrollCalculator
+import com.eventengine.app.feature.lyrics.ChordTransposer
 import com.eventengine.app.feature.share.ShareCardGenerator
 import com.eventengine.app.feature.share.ShareManager
 import com.eventengine.app.ui.components.ShareFormatDialog
@@ -269,11 +271,14 @@ fun NowPlayingScreen(
     var autoscrollMultiplier by rememberSaveable { mutableFloatStateOf(1.0f) }
     var isTouchPaused by remember { mutableStateOf(false) }
     val chordsScrollState = rememberScrollState()
+    var transposeSemitones by rememberSaveable(currentTrack?.trackKey) { mutableIntStateOf(0) }
+    var chordTextZoom by rememberSaveable { mutableFloatStateOf(1.0f) }
 
     LaunchedEffect(currentTrack?.trackKey) {
         isEditingNotes = false
         isAutoscrollRunning = false
         isTouchPaused = false
+        transposeSemitones = 0
     }
 
     var localPlaybackPositionMs by remember { mutableLongStateOf(0L) }
@@ -1137,7 +1142,11 @@ fun NowPlayingScreen(
                                         .fillMaxSize()
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
-                                    // Header bar with badge and Autoscroll controls (TASK-CHR-01)
+                                    val displayedChords = remember(chords, transposeSemitones) {
+                                        if (transposeSemitones == 0) chords else ChordTransposer.transposeText(chords, transposeSemitones)
+                                    }
+
+                                    // Header bar with Autoscroll, Transpose and Zoom controls (TASK-CHR-01, TASK-CHR-02)
                                     Surface(
                                         color = AppColors.SurfaceLevel2,
                                         shape = RoundedCornerShape(10.dp),
@@ -1146,109 +1155,222 @@ fun NowPlayingScreen(
                                             .fillMaxWidth()
                                             .padding(bottom = 8.dp)
                                     ) {
-                                        Row(
+                                        Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(horizontal = 8.dp, vertical = 6.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            // Title badge
-                                            Text(
-                                                text = "🎸 Аккорды AmDm",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                color = AppColors.CyberCyan
-                                            )
-
-                                            // Autoscroll Toolbar Widget
+                                            // Row 1: Title badge + Autoscroll
                                             Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                // Play/Pause button [ ▶ Старт / ⏸ Пауза ]
-                                                Surface(
-                                                    shape = RoundedCornerShape(6.dp),
-                                                    color = if (isAutoscrollRunning && !isTouchPaused) AppColors.HyperViolet.copy(alpha = 0.2f) else AppColors.SurfaceLevel3,
-                                                    border = androidx.compose.foundation.BorderStroke(
-                                                        1.dp,
-                                                        if (isAutoscrollRunning && !isTouchPaused) AppColors.HyperViolet else AppColors.BorderSubtle
-                                                    ),
-                                                    modifier = Modifier.clickable {
-                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                        isAutoscrollRunning = !isAutoscrollRunning
-                                                        if (isAutoscrollRunning) isTouchPaused = false
-                                                    }
+                                                // Title badge
+                                                Text(
+                                                    text = "🎸 Аккорды AmDm",
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                    color = AppColors.CyberCyan
+                                                )
+
+                                                // Autoscroll Toolbar Widget
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                                 ) {
-                                                    Row(
-                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                    // Play/Pause button [ ▶ Старт / ⏸ Пауза ]
+                                                    Surface(
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        color = if (isAutoscrollRunning && !isTouchPaused) AppColors.HyperViolet.copy(alpha = 0.2f) else AppColors.SurfaceLevel3,
+                                                        border = androidx.compose.foundation.BorderStroke(
+                                                            1.dp,
+                                                            if (isAutoscrollRunning && !isTouchPaused) AppColors.HyperViolet else AppColors.BorderSubtle
+                                                        ),
+                                                        modifier = Modifier.clickable {
+                                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                            isAutoscrollRunning = !isAutoscrollRunning
+                                                            if (isAutoscrollRunning) isTouchPaused = false
+                                                        }
                                                     ) {
                                                         Text(
                                                             text = if (isAutoscrollRunning && !isTouchPaused) "⏸ Пауза" else if (isAutoscrollRunning && isTouchPaused) "⏳ Пауза" else "▶ Старт",
                                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                            color = if (isAutoscrollRunning) AppColors.HyperViolet else AppColors.CyberCyan
+                                                            color = if (isAutoscrollRunning) AppColors.HyperViolet else AppColors.CyberCyan,
+                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                        )
+                                                    }
+
+                                                    // Tempo controller: [-] multiplier [+]
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(6.dp))
+                                                            .background(AppColors.SurfaceLevel3)
+                                                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "−",
+                                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                            color = if (autoscrollMultiplier > ChordAutoscrollCalculator.MIN_MULTIPLIER) AppColors.TextPrimary else AppColors.TextTertiary,
+                                                            modifier = Modifier
+                                                                .clickable(enabled = autoscrollMultiplier > ChordAutoscrollCalculator.MIN_MULTIPLIER) {
+                                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                    autoscrollMultiplier = ChordAutoscrollCalculator.nextMultiplier(autoscrollMultiplier, increase = false)
+                                                                }
+                                                                .padding(horizontal = 4.dp)
+                                                        )
+
+                                                        Text(
+                                                            text = String.format(java.util.Locale.US, "%.2fx", autoscrollMultiplier),
+                                                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold),
+                                                            color = AppColors.ElectricMint,
+                                                            modifier = Modifier.padding(horizontal = 4.dp)
+                                                        )
+
+                                                        Text(
+                                                            text = "+",
+                                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                            color = if (autoscrollMultiplier < ChordAutoscrollCalculator.MAX_MULTIPLIER) AppColors.TextPrimary else AppColors.TextTertiary,
+                                                            modifier = Modifier
+                                                                .clickable(enabled = autoscrollMultiplier < ChordAutoscrollCalculator.MAX_MULTIPLIER) {
+                                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                    autoscrollMultiplier = ChordAutoscrollCalculator.nextMultiplier(autoscrollMultiplier, increase = true)
+                                                                }
+                                                                .padding(horizontal = 4.dp)
+                                                        )
+                                                    }
+
+                                                    // Reset to top button [ ⤾ ]
+                                                    Surface(
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        color = AppColors.SurfaceLevel3,
+                                                        border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle),
+                                                        modifier = Modifier.clickable {
+                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                            scope.launch {
+                                                                chordsScrollState.animateScrollTo(0)
+                                                            }
+                                                        }
+                                                    ) {
+                                                        Text(
+                                                            text = "⤾",
+                                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                            color = AppColors.TextSecondary,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                                         )
                                                     }
                                                 }
+                                            }
 
-                                                // Tempo controller: [-] multiplier [+]
+                                            // Row 2: Transposition [ ♭ -1 ] [ Тон: ±N ] [ ♯ +1 ] and Zoom [ A- ] [ 100% ] [ A+ ]
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // Transpose controller
                                                 Row(
                                                     verticalAlignment = Alignment.CenterVertically,
                                                     modifier = Modifier
                                                         .clip(RoundedCornerShape(6.dp))
                                                         .background(AppColors.SurfaceLevel3)
-                                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                                        .padding(horizontal = 2.dp, vertical = 2.dp)
                                                 ) {
                                                     Text(
-                                                        text = "−",
-                                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                        color = if (autoscrollMultiplier > ChordAutoscrollCalculator.MIN_MULTIPLIER) AppColors.TextPrimary else AppColors.TextTertiary,
+                                                        text = "♭ -1",
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                        color = if (transposeSemitones > -11) AppColors.TextPrimary else AppColors.TextTertiary,
                                                         modifier = Modifier
-                                                            .clickable(enabled = autoscrollMultiplier > ChordAutoscrollCalculator.MIN_MULTIPLIER) {
+                                                            .clickable(enabled = transposeSemitones > -11) {
                                                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                                autoscrollMultiplier = ChordAutoscrollCalculator.nextMultiplier(autoscrollMultiplier, increase = false)
+                                                                transposeSemitones--
                                                             }
-                                                            .padding(horizontal = 4.dp)
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+
+                                                    val toneLabel = when {
+                                                        transposeSemitones == 0 -> "Тон: 0"
+                                                        transposeSemitones > 0 -> "+$transposeSemitones"
+                                                        else -> "$transposeSemitones (Капо: ${-transposeSemitones})"
+                                                    }
+                                                    Text(
+                                                        text = toneLabel,
+                                                        style = MaterialTheme.typography.labelSmall.copy(
+                                                            fontFamily = FontFamily.Monospace,
+                                                            fontWeight = FontWeight.Bold
+                                                        ),
+                                                        color = if (transposeSemitones != 0) AppColors.HyperViolet else AppColors.TextSecondary,
+                                                        modifier = Modifier
+                                                            .clickable {
+                                                                if (transposeSemitones != 0) {
+                                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                                    transposeSemitones = 0
+                                                                }
+                                                            }
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
                                                     )
 
                                                     Text(
-                                                        text = String.format(java.util.Locale.US, "%.2fx", autoscrollMultiplier),
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold),
-                                                        color = AppColors.ElectricMint,
-                                                        modifier = Modifier.padding(horizontal = 4.dp)
-                                                    )
-
-                                                    Text(
-                                                        text = "+",
-                                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                        color = if (autoscrollMultiplier < ChordAutoscrollCalculator.MAX_MULTIPLIER) AppColors.TextPrimary else AppColors.TextTertiary,
+                                                        text = "♯ +1",
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                        color = if (transposeSemitones < 11) AppColors.TextPrimary else AppColors.TextTertiary,
                                                         modifier = Modifier
-                                                            .clickable(enabled = autoscrollMultiplier < ChordAutoscrollCalculator.MAX_MULTIPLIER) {
+                                                            .clickable(enabled = transposeSemitones < 11) {
                                                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                                autoscrollMultiplier = ChordAutoscrollCalculator.nextMultiplier(autoscrollMultiplier, increase = true)
+                                                                transposeSemitones++
                                                             }
-                                                            .padding(horizontal = 4.dp)
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
                                                     )
                                                 }
 
-                                                // Reset to top button [ ⤾ ]
-                                                Surface(
-                                                    shape = RoundedCornerShape(6.dp),
-                                                    color = AppColors.SurfaceLevel3,
-                                                    border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle),
-                                                    modifier = Modifier.clickable {
-                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                        scope.launch {
-                                                            chordsScrollState.animateScrollTo(0)
-                                                        }
-                                                    }
+                                                // Font zoom controller
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(AppColors.SurfaceLevel3)
+                                                        .padding(horizontal = 2.dp, vertical = 2.dp)
                                                 ) {
                                                     Text(
-                                                        text = "⤾",
-                                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                        color = AppColors.TextSecondary,
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        text = "A−",
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                        color = if (chordTextZoom > 0.85f) AppColors.TextPrimary else AppColors.TextTertiary,
+                                                        modifier = Modifier
+                                                            .clickable(enabled = chordTextZoom > 0.85f) {
+                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                chordTextZoom = (chordTextZoom - 0.15f).coerceAtLeast(0.85f)
+                                                            }
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+
+                                                    Text(
+                                                        text = "${(chordTextZoom * 100).toInt()}%",
+                                                        style = MaterialTheme.typography.labelSmall.copy(
+                                                            fontFamily = FontFamily.Monospace,
+                                                            fontWeight = FontWeight.Bold
+                                                        ),
+                                                        color = AppColors.CyberCyan,
+                                                        modifier = Modifier
+                                                            .clickable {
+                                                                if (chordTextZoom != 1.0f) {
+                                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                                    chordTextZoom = 1.0f
+                                                                }
+                                                            }
+                                                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                                                    )
+
+                                                    Text(
+                                                        text = "A+",
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                        color = if (chordTextZoom < 1.6f) AppColors.TextPrimary else AppColors.TextTertiary,
+                                                        modifier = Modifier
+                                                            .clickable(enabled = chordTextZoom < 1.6f) {
+                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                chordTextZoom = (chordTextZoom + 0.15f).coerceAtMost(1.6f)
+                                                            }
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
                                                     )
                                                 }
                                             }
@@ -1263,11 +1385,11 @@ fun NowPlayingScreen(
                                             .verticalScroll(chordsScrollState)
                                     ) {
                                         Text(
-                                            text = chords,
+                                            text = displayedChords,
                                             style = MaterialTheme.typography.bodySmall.copy(
                                                 fontFamily = FontFamily.Monospace,
-                                                fontSize = 13.sp,
-                                                lineHeight = 22.sp
+                                                fontSize = (13 * chordTextZoom).sp,
+                                                lineHeight = (22 * chordTextZoom).sp
                                             ),
                                             color = AppColors.CyberCyan,
                                             modifier = Modifier.padding(bottom = 32.dp)
