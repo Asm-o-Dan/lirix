@@ -1,0 +1,6 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Ensure shell scripts and gradlew wrapper always keep Unix LF
+gradlew text eol=lf
+*.sh text eol=lf
