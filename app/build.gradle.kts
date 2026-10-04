@@ -10,7 +10,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.lirix.app"
+        applicationId = "com.eventengine.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

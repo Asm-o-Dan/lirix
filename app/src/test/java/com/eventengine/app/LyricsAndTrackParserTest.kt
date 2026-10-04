@@ -7,7 +7,7 @@ import com.eventengine.app.domain.EventType
 import com.eventengine.app.feature.AggregatedLyricsProvider
 import com.eventengine.app.feature.FallbackLyricsScraper
 import com.eventengine.app.feature.LrcLibLyricsProvider
-import com.eventengine.app.feature.MusicTrackParser
+import com.eventengine.app.feature.music.MusicTrackParser
 import com.eventengine.app.feature.OfflineLyricsAdapter
 import com.eventengine.app.storage.TrackEntity
 import kotlinx.coroutines.runBlocking

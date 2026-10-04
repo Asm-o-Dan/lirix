@@ -33,10 +33,25 @@ class NotificationListener : NotificationListenerService() {
 
     // Sliding window LRU for deduplication (1200ms window)
     private val recentFingerprints = ConcurrentHashMap<String, Long>()
+    private var mediaSessionCollector: MediaSessionCollector? = null
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        Timber.tag(TAG).i("NotificationListener connected — starting MediaSessionCollector listening…")
+        try {
+            mediaSessionCollector = MediaSessionCollector(applicationContext).apply {
+                startListening()
+            }
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Failed to start MediaSessionCollector in onListenerConnected")
+        }
+    }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         Timber.tag(TAG).w("onListenerDisconnected — requesting rebind…")
+        mediaSessionCollector?.stopListening()
+        mediaSessionCollector = null
         try {
             requestRebind(ComponentName(this, NotificationListener::class.java))
         } catch (e: Exception) {
@@ -186,6 +201,8 @@ class NotificationListener : NotificationListenerService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        mediaSessionCollector?.stopListening()
+        mediaSessionCollector = null
         serviceScope.cancel()
     }
 

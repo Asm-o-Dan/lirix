@@ -9,6 +9,7 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -58,6 +61,8 @@ import com.eventengine.app.storage.AppDatabase
 import com.eventengine.app.storage.CustomLyricsRuleEntity
 import com.eventengine.app.storage.LyricsCacheEntity
 import com.eventengine.app.storage.TrackEntity
+import com.eventengine.app.ui.components.ExportRuleDialog
+import com.eventengine.app.ui.components.ImportRuleDialog
 import com.eventengine.app.ui.theme.AppColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -116,6 +121,10 @@ fun TeachModeScreen(
     var selectedText by remember { mutableStateOf("") }
     var selectedLinesCount by remember { mutableIntStateOf(0) }
     var detectedDomain by remember { mutableStateOf("") }
+
+    var showExportDialog by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
+    var ruleToExport by remember { mutableStateOf<CustomLyricsRuleEntity?>(null) }
 
     Column(
         modifier = Modifier
@@ -213,6 +222,16 @@ fun TeachModeScreen(
                 }
 
                 Spacer(modifier = Modifier.width(4.dp))
+
+                IconButton(onClick = { showImportDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.FileDownload,
+                        contentDescription = "Импорт правила",
+                        tint = AppColors.CyberCyan
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(2.dp))
 
                 IconButton(onClick = onClose) {
                     Icon(
@@ -384,6 +403,44 @@ fun TeachModeScreen(
                             }
                         }
 
+                        IconButton(
+                            onClick = {
+                                val cleanDomain = detectedDomain.ifBlank { "custom" }
+                                val ruleId = "rule_${cleanDomain.replace(".", "_")}_${System.currentTimeMillis() % 10000}"
+                                val ruleJson = JSONObject().apply {
+                                    put("domain", cleanDomain)
+                                    put("name", cleanDomain)
+                                    put("content", JSONObject().apply {
+                                        put("selector", selectedSelector)
+                                        put("stripSelectors", JSONArray(listOf("script", "style", ".ads", "button")))
+                                    })
+                                }.toString()
+
+                                val entity = CustomLyricsRuleEntity(
+                                    id = ruleId,
+                                    domain = cleanDomain,
+                                    name = cleanDomain,
+                                    ruleJson = ruleJson,
+                                    isEnabled = true,
+                                    priority = 100
+                                )
+                                ruleToExport = entity
+                                showExportDialog = true
+                            },
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(AppColors.SurfaceLevel3)
+                                .border(1.dp, AppColors.HyperViolet.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                .size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Поделиться правилом",
+                                tint = AppColors.HyperViolet,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
                         Button(
                             onClick = {
                                 val cleanDomain = detectedDomain.ifBlank { "custom" }
@@ -424,5 +481,26 @@ fun TeachModeScreen(
                 }
             }
         }
+    }
+
+    // Export rule dialog
+    if (showExportDialog && ruleToExport != null) {
+        ExportRuleDialog(
+            rule = ruleToExport!!,
+            onDismiss = {
+                showExportDialog = false
+                ruleToExport = null
+            }
+        )
+    }
+
+    // Import rule dialog
+    if (showImportDialog) {
+        ImportRuleDialog(
+            onDismiss = { showImportDialog = false },
+            onRuleImported = { importedRule ->
+                onRuleSaved(importedRule)
+            }
+        )
     }
 }

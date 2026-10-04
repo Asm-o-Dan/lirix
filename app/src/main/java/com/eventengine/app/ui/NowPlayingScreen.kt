@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,10 +47,12 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Share
+import com.eventengine.app.service.FloatingLyricsService
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -109,6 +112,8 @@ import com.eventengine.app.feature.lyrics.GuitarChordDictionary
 import com.eventengine.app.feature.lyrics.GuitarChordDialog
 import com.eventengine.app.feature.share.ShareCardGenerator
 import com.eventengine.app.feature.share.ShareManager
+import com.eventengine.app.ui.components.AnalogTurntable
+import com.eventengine.app.ui.components.LrcTapSyncStudioDialog
 import com.eventengine.app.ui.components.ShareFormatDialog
 import android.content.Intent
 import android.graphics.BitmapFactory
@@ -139,30 +144,11 @@ enum class NowPlayingMode(val label: String) {
     NOTES("Заметки")
 }
 
-data class KaraokeLine(
-    val timestampMs: Long,
-    val text: String
-)
+typealias KaraokeLine = com.eventengine.app.feature.lyrics.KaraokeLine
 
-fun parseLrcLinesStrict(rawLrc: String): List<KaraokeLine> {
-    if (rawLrc.isBlank()) return emptyList()
-    val regex = Regex("""^\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\](.*)$""")
-    return rawLrc.lines().mapNotNull { line ->
-        val trimmed = line.trim()
-        val match = regex.find(trimmed) ?: return@mapNotNull null
-        val m = match.groupValues[1].toLongOrNull() ?: 0L
-        val s = match.groupValues[2].toLongOrNull() ?: 0L
-        val fracStr = match.groupValues[3]
-        val ms = when (fracStr.length) {
-            1 -> (fracStr.toLongOrNull() ?: 0L) * 100L
-            2 -> (fracStr.toLongOrNull() ?: 0L) * 10L
-            3 -> fracStr.toLongOrNull() ?: 0L
-            else -> 0L
-        }
-        val text = match.groupValues[4].trim()
-        if (text.isBlank()) null else KaraokeLine(m * 60000L + s * 1000L + ms, text)
-    }.sortedBy { it.timestampMs }
-}
+fun parseLrcLinesStrict(rawLrc: String): List<KaraokeLine> =
+    com.eventengine.app.feature.lyrics.LrcSyncEngine.parseLrcLinesStrict(rawLrc)
+
 
 fun formatMs(ms: Long): String {
     val totalSec = (ms / 1000L).coerceAtLeast(0L)
@@ -188,6 +174,7 @@ fun NowPlayingScreen(
     val haptic = LocalHapticFeedback.current
 
     val livePlayback by MediaSessionCollector.livePlaybackFlow.collectAsStateWithLifecycle()
+    val isOverlayActive by FloatingLyricsService.isRunning.collectAsStateWithLifecycle()
     val syncOffsetStore = remember { SyncOffsetStore(context) }
 
     val recentTracks by db.musicDao().observeRecentTracks().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -277,6 +264,7 @@ fun NowPlayingScreen(
     var transposeSemitones by rememberSaveable(currentTrack?.trackKey) { mutableIntStateOf(0) }
     var chordTextZoom by rememberSaveable { mutableFloatStateOf(1.0f) }
     var selectedChordDiagram by remember { mutableStateOf<String?>(null) }
+    var isVinylCollapsed by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(currentTrack?.trackKey) {
         isEditingNotes = false
@@ -292,6 +280,43 @@ fun NowPlayingScreen(
     val isPlaying = livePlayback?.isPlaying ?: localIsPlaying
     var playbackPositionMs by remember { mutableLongStateOf(0L) }
     var showShareDialog by remember { mutableStateOf(false) }
+    var showTapSyncStudio by remember { mutableStateOf(false) }
+
+    if (showTapSyncStudio && currentTrack != null) {
+        val plainLyricsText = lyricsCache?.plainLyrics ?: currentTrack.plainLyrics.orEmpty()
+        LrcTapSyncStudioDialog(
+            trackTitle = currentTrack.title,
+            artist = currentTrack.artist,
+            initialPlainText = plainLyricsText,
+            onDismissRequest = { showTapSyncStudio = false },
+            onSaveLrc = { generatedLrc ->
+                showTapSyncStudio = false
+                scope.launch(Dispatchers.IO) {
+                    val updatedEntity = LyricsCacheEntity(
+                        trackKey = currentTrack.trackKey,
+                        plainLyrics = plainLyricsText,
+                        syncedLyricsLrc = generatedLrc,
+                        chordsAmDm = lyricsCache?.chordsAmDm,
+                        userNotes = lyricsCache?.userNotes,
+                        provider = "USER:TAP_SYNC",
+                        updatedAt = System.currentTimeMillis()
+                    )
+                    // 1. Dual-Write to lyrics_cache
+                    db.lyricsDao().saveLyrics(updatedEntity)
+                    // 2. Dual-Write to music_tracks
+                    db.musicDao().updateLyrics(currentTrack.trackKey, plainLyricsText, generatedLrc)
+                    withContext(Dispatchers.Main) {
+                        lyricsCache = updatedEntity
+                        selectedMode = NowPlayingMode.KARAOKE
+                        snackbarHostState.showSnackbar(
+                            message = "Караоке синхронизировано и сохранено!",
+                            duration = androidx.compose.material3.SnackbarDuration.Short
+                        )
+                    }
+                }
+            }
+        )
+    }
 
     if (showShareDialog && currentTrack != null) {
         val trackToShare = currentTrack
@@ -586,154 +611,177 @@ fun NowPlayingScreen(
         ) {
         // Track Header & Analog Vinyl Disk
         if (currentTrack != null) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
-            // Infinite rotation animation for the vinyl disc when playing
-            val infiniteTransition = rememberInfiniteTransition(label = "VinylSpin")
-            val spinAngle by infiniteTransition.animateFloat(
-                initialValue = 0f,
-                targetValue = 360f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(durationMillis = 16000, easing = LinearEasing),
-                    repeatMode = RepeatMode.Restart
-                ),
-                label = "VinylSpinAngle"
+            // Collapsible Analog Turntable with Kinetic Tonearm
+            AnalogTurntable(
+                isPlaying = isPlaying,
+                albumArtBitmap = vinylCenterArt,
+                isCollapsed = isVinylCollapsed,
+                onToggleCollapse = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    isVinylCollapsed = !isVinylCollapsed
+                },
+                onTogglePlayPause = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    val newLocal = !isPlaying
+                    localIsPlaying = newLocal
+                    MediaSessionCollector.togglePlayPause()
+                }
             )
 
-            Box(
-                modifier = Modifier
-                    .size(200.dp)
-                    .clip(CircleShape)
-                    .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        val newLocal = !isPlaying
-                        localIsPlaying = newLocal
-                        MediaSessionCollector.togglePlayPause()
-                    }
-                    .background(
-                        Brush.radialGradient(
-                            listOf(
-                                AppColors.SurfaceLevel3,
-                                AppColors.SurfaceLevel1,
-                                AppColors.AmoledBlack
-                            )
-                        )
-                    )
-                    .border(
-                        1.5.dp,
-                        Brush.sweepGradient(
-                            listOf(
-                                AppColors.HyperViolet,
-                                AppColors.CyberCyan,
-                                AppColors.HyperVioletDark,
-                                AppColors.HyperViolet
-                            )
-                        ),
-                        CircleShape
-                    )
-                    .rotate(if (isPlaying) spinAngle else 0f),
-                contentAlignment = Alignment.Center
-            ) {
-                // Vinyl grooves
-                Box(
-                    modifier = Modifier
-                        .size(150.dp)
-                        .clip(CircleShape)
-                        .border(1.dp, AppColors.BorderSubtle.copy(alpha = 0.6f), CircleShape)
-                )
-                Box(
-                    modifier = Modifier
-                        .size(105.dp)
-                        .clip(CircleShape)
-                        .border(1.dp, AppColors.BorderSubtle.copy(alpha = 0.5f), CircleShape)
-                )
-                // Center label
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .border(1.5.dp, AppColors.HyperViolet, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (vinylCenterArt != null) {
-                        Image(
-                            bitmap = vinylCenterArt,
-                            contentDescription = "Album Art Label",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        // Тонкий шпиндель (центральное отверстие пластинки)
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(AppColors.AmoledBlack)
-                                .border(1.dp, AppColors.CyberCyan.copy(alpha = 0.6f), CircleShape)
-                        )
-                    } else {
-                        // Fallback: стилизованный лейбл с нотой
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.radialGradient(
-                                        listOf(AppColors.HyperViolet, AppColors.HyperVioletDark, AppColors.SurfaceLevel1)
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.MusicNote,
-                                contentDescription = null,
-                                tint = AppColors.AmoledBlack,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                }
-            }
+            Spacer(modifier = Modifier.height(6.dp))
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Track metadata & Favorite toggle
+            // Track metadata & Favorite toggle (with 38dp mini-disc when vinyl is collapsed)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = currentTrack.title,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = (-0.3).sp
-                        ),
-                        color = AppColors.TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = currentTrack.artist.ifBlank { "Unknown Artist" },
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = AppColors.HyperViolet,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Компактный вращающийся мини-диск (38dp), когда винил свёрнут
+                    if (isVinylCollapsed) {
+                        val infiniteTransition = rememberInfiniteTransition(label = "MiniVinylSpin")
+                        val spinAngle by infiniteTransition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 360f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(durationMillis = 16000, easing = LinearEasing),
+                                repeatMode = RepeatMode.Restart
+                            ),
+                            label = "MiniVinylSpinAngle"
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(AppColors.SurfaceLevel2)
+                                .border(
+                                    1.2.dp,
+                                    Brush.sweepGradient(
+                                        listOf(
+                                            AppColors.HyperViolet,
+                                            AppColors.CyberCyan,
+                                            AppColors.HyperVioletDark,
+                                            AppColors.HyperViolet
+                                        )
+                                    ),
+                                    CircleShape
+                                )
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    isVinylCollapsed = false
+                                }
+                                .rotate(if (isPlaying) spinAngle else 0f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // Mini Vinyl Grooves
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .border(0.8.dp, AppColors.BorderSubtle.copy(alpha = 0.5f), CircleShape)
+                            )
+                            // Center label / Art
+                            if (vinylCenterArt != null) {
+                                Image(
+                                    bitmap = vinylCenterArt,
+                                    contentDescription = "Развернуть винил",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(4.dp)
+                                        .clip(CircleShape)
+                                        .background(AppColors.AmoledBlack)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.MusicNote,
+                                    contentDescription = "Развернуть винил",
+                                    tint = AppColors.CyberCyan,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                        Text(
+                            text = currentTrack.title,
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = (-0.3).sp
+                            ),
+                            color = AppColors.TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = currentTrack.artist.ifBlank { "Unknown Artist" },
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = AppColors.HyperViolet,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Floating Lyrics Overlay Toggle (Track C)
+                    IconButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            if (!FloatingLyricsService.isPermissionGranted(context)) {
+                                FloatingLyricsService.requestPermission(context)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Предоставьте разрешение «Поверх других приложений»",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                }
+                            } else {
+                                FloatingLyricsService.toggle(context)
+                            }
+                        },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(if (isOverlayActive) AppColors.CyberCyan.copy(alpha = 0.18f) else AppColors.SurfaceLevel1)
+                            .border(
+                                1.dp,
+                                if (isOverlayActive) AppColors.CyberCyan else AppColors.BorderSubtle,
+                                CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PictureInPictureAlt,
+                            contentDescription = "Плавающий оверлей",
+                            tint = if (isOverlayActive) AppColors.CyberCyan else AppColors.TextSecondary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
                     IconButton(
                         onClick = { showShareDialog = true },
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(AppColors.SurfaceLevel1)
                             .border(1.dp, AppColors.BorderSubtle, CircleShape)
@@ -742,7 +790,7 @@ fun NowPlayingScreen(
                             imageVector = Icons.Default.Share,
                             contentDescription = "Поделиться треком",
                             tint = AppColors.HyperViolet,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
@@ -754,7 +802,7 @@ fun NowPlayingScreen(
                             }
                         },
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(if (currentTrack.isFavorite) AppColors.ExpenseContainer else AppColors.SurfaceLevel1)
                             .border(1.dp, if (currentTrack.isFavorite) AppColors.ExpenseRed.copy(alpha = 0.5f) else AppColors.BorderSubtle, CircleShape)
@@ -763,7 +811,7 @@ fun NowPlayingScreen(
                             imageVector = if (currentTrack.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Favorite",
                             tint = if (currentTrack.isFavorite) AppColors.ExpenseRed else AppColors.TextSecondary,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
@@ -771,14 +819,14 @@ fun NowPlayingScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Interactive Transport Bar (Time + Scrub bar + Controls)
+            // Interactive Transport Bar (Time + Scrub bar + Controls, >=48dp touch targets)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(14.dp))
                     .background(AppColors.SurfaceLevel1)
-                    .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -787,33 +835,33 @@ fun NowPlayingScreen(
                     text = formatMs(playbackPositionMs),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
                     ),
                     color = AppColors.CyberCyan
                 )
 
-                // Skip -10s
+                // Skip -10s (>=48dp touch target)
                 IconButton(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         val targetMs = (playbackPositionMs - 10000L).coerceAtLeast(0L)
                         val audioTargetMs = (targetMs - syncOffsetMs).coerceAtLeast(0L)
-                        // Мгновенное оптимистичное обновление локальных координат
                         playbackPositionMs = targetMs
                         localPlaybackPositionMs = targetMs
                         MediaSessionCollector.seekTo(audioTargetMs)
                     },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Replay10,
                         contentDescription = "-10s",
                         tint = AppColors.TextSecondary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
-                // Play / Pause toggle
+                // Play / Pause toggle (52dp focal button)
                 IconButton(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -821,7 +869,7 @@ fun NowPlayingScreen(
                         MediaSessionCollector.togglePlayPause()
                     },
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(52.dp)
                         .clip(CircleShape)
                         .background(AppColors.HyperViolet)
                 ) {
@@ -829,11 +877,11 @@ fun NowPlayingScreen(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Pause" else "Play",
                         tint = AppColors.AmoledBlack,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
 
-                // Skip +10s
+                // Skip +10s (>=48dp touch target)
                 IconButton(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -845,18 +893,17 @@ fun NowPlayingScreen(
                             playbackPositionMs + 10000L
                         }
                         val audioTargetMs = (targetMs - syncOffsetMs).coerceAtLeast(0L)
-                        // Мгновенное оптимистичное обновление локальных координат
                         playbackPositionMs = targetMs
                         localPlaybackPositionMs = targetMs
                         MediaSessionCollector.seekTo(audioTargetMs)
                     },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Forward10,
                         contentDescription = "+10s",
                         tint = AppColors.TextSecondary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -874,23 +921,24 @@ fun NowPlayingScreen(
                         Text(
                             text = lyricsCache?.provider?.uppercase() ?: "AUDIO",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 9.sp,
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = 0.5.sp
                             ),
-                            color = AppColors.TextTertiary,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            color = AppColors.TextSecondary,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         )
                     }
 
-                    // Кнопка отклонения "Не тот текст" (активна, когда текст найден и не является личной заметкой)
+                    // Кнопка отклонения "Не тот текст" (>=44dp touch target)
                     val isUserNote = lyricsCache?.provider == LyricsSourceIds.USER_NOTE || lyricsCache?.provider?.startsWith("note:") == true
                     if (lyricsCache != null && !isUserNote && (!lyricsCache!!.plainLyrics.isNullOrBlank() || !lyricsCache!!.syncedLyricsLrc.isNullOrBlank())) {
-                        Row(
+                        Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
+                                .defaultMinSize(minHeight = 44.dp)
+                                .clip(RoundedCornerShape(8.dp))
                                 .background(AppColors.SurfaceLevel2)
-                                .border(BorderStroke(1.dp, AppColors.BorderSubtle), RoundedCornerShape(6.dp))
+                                .border(BorderStroke(1.dp, AppColors.BorderSubtle), RoundedCornerShape(8.dp))
                                 .clickable(enabled = !isRejectingLyrics) {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     val trackKey = currentTrack.trackKey
@@ -925,25 +973,29 @@ fun NowPlayingScreen(
                                         }
                                     }
                                 }
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            if (isRejectingLyrics) {
-                                CircularProgressIndicator(
-                                    color = AppColors.HyperViolet,
-                                    strokeWidth = 1.5.dp,
-                                    modifier = Modifier.size(10.dp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                if (isRejectingLyrics) {
+                                    CircularProgressIndicator(
+                                        color = AppColors.HyperViolet,
+                                        strokeWidth = 1.5.dp,
+                                        modifier = Modifier.size(10.dp)
+                                    )
+                                }
+                                Text(
+                                    text = "✕ Не тот текст",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = AppColors.HyperViolet
                                 )
                             }
-                            Text(
-                                text = "✕ Не тот текст",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = AppColors.HyperViolet
-                            )
                         }
                     }
                 }
@@ -951,28 +1003,22 @@ fun NowPlayingScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Offset Calibration Bar: [-50мс] | [Тайминг: ±Xмс] | [+50мс]
+            // Offset Calibration Bar: [-50мс] | [Тайминг: ±Xмс] | [+50мс] (>=44dp Height)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(AppColors.SurfaceLevel1)
-                    .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(10.dp))
-                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                    .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // Button -50мс
-                Text(
-                    text = "[-50мс]",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
-                    ),
-                    color = AppColors.CyberCyan,
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .defaultMinSize(minHeight = 44.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             syncOffsetMs = (syncOffsetMs - SyncOffsetStore.STEP_OFFSET_MS).coerceIn(
@@ -981,40 +1027,50 @@ fun NowPlayingScreen(
                             )
                             currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, syncOffsetMs) }
                         }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                )
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "[-50мс]",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        ),
+                        color = AppColors.CyberCyan
+                    )
+                }
 
                 // Current offset indicator (Click to reset)
                 val offsetPrefix = if (syncOffsetMs > 0) "+" else ""
-                Text(
-                    text = "Тайминг: $offsetPrefix${syncOffsetMs}мс",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.sp
-                    ),
-                    color = if (syncOffsetMs == 0L) AppColors.TextSecondary else AppColors.HyperViolet,
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .defaultMinSize(minHeight = 44.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             syncOffsetMs = 0L
                             currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, 0L) }
                         }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                )
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Тайминг: $offsetPrefix${syncOffsetMs}мс",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp
+                        ),
+                        color = if (syncOffsetMs == 0L) AppColors.TextSecondary else AppColors.HyperViolet
+                    )
+                }
 
                 // Button +50мс
-                Text(
-                    text = "[+50мс]",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
-                    ),
-                    color = AppColors.CyberCyan,
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .defaultMinSize(minHeight = 44.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             syncOffsetMs = (syncOffsetMs + SyncOffsetStore.STEP_OFFSET_MS).coerceIn(
@@ -1023,8 +1079,19 @@ fun NowPlayingScreen(
                             )
                             currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, syncOffsetMs) }
                         }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                )
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "[+50мс]",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        ),
+                        color = AppColors.CyberCyan
+                    )
+                }
             }
         } else {
             Box(
@@ -1126,6 +1193,7 @@ fun NowPlayingScreen(
                                         // Перемотка реального трека в плеере
                                         MediaSessionCollector.seekTo(audioTargetMs)
                                     },
+                                    onStartTapSync = { showTapSyncStudio = true },
                                     modifier = Modifier.fillMaxSize()
                                 )
                             } else {
@@ -1138,10 +1206,11 @@ fun NowPlayingScreen(
                             }
                         }
                         NowPlayingMode.LYRICS -> {
-                            val text = lyricsCache?.plainLyrics
+                            val text = lyricsCache?.plainLyrics ?: currentTrack?.plainLyrics
                             if (!text.isNullOrBlank()) {
                                 PlainLyricsReadingView(
                                     lyricsText = text,
+                                    onStartTapSync = { showTapSyncStudio = true },
                                     modifier = Modifier.fillMaxSize()
                                 )
                             } else {
@@ -1725,6 +1794,7 @@ fun HighFidelityKaraokePlayer(
     playbackPositionMs: Long,
     isPlaying: Boolean,
     onSeekTo: (Long) -> Unit,
+    onStartTapSync: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val lines = remember(lrcText) {
@@ -1733,7 +1803,11 @@ fun HighFidelityKaraokePlayer(
 
     if (lines.isEmpty()) {
         if (!plainText.isNullOrBlank()) {
-            PlainLyricsReadingView(lyricsText = plainText, modifier = modifier)
+            PlainLyricsReadingView(
+                lyricsText = plainText,
+                onStartTapSync = onStartTapSync,
+                modifier = modifier
+            )
         } else {
             Box(
                 modifier = modifier.fillMaxSize(),
@@ -1879,6 +1953,7 @@ fun HighFidelityKaraokePlayer(
 @Composable
 private fun PlainLyricsReadingView(
     lyricsText: String,
+    onStartTapSync: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val clipboard = LocalClipboardManager.current
@@ -1935,6 +2010,46 @@ private fun PlainLyricsReadingView(
                     tint = if (isCopied) AppColors.ElectricMint else AppColors.TextSecondary,
                     modifier = Modifier.size(18.dp)
                 )
+            }
+        }
+
+        if (onStartTapSync != null) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onStartTapSync()
+                    },
+                color = AppColors.SurfaceLevel2,
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.HyperViolet.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = AppColors.CyberCyan,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "⏱ Создать караоке (Tap-to-Sync)",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        ),
+                        color = AppColors.HyperViolet
+                    )
+                }
             }
         }
 

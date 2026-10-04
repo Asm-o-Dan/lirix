@@ -4,7 +4,6 @@
     <string name="timeline_title">Lirix</string>
     <string name="permission_required_title">Notification Access Required</string>
     <string name="permission_required_desc">Lirix needs notification access to see which track is playing in your music app. Nothing leaves your device except lyrics and chords lookups.</string>
-
     <string name="grant_permission_btn">Grant Permission</string>
     <string name="clear_events_btn">Clear All</string>
     <string name="empty_events">No events recorded yet. Send a notification or play media to test.</string>

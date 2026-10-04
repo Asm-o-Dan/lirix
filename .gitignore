@@ -18,19 +18,6 @@ app/build/
 build_tmp/
 *.db
 .kotlin/
-
-# --- secrets / signing ---
-*.jks
-*.keystore
-keystore.properties
-.env
-.env.*
-secrets.*
-
-# --- local dumps / device data ---
-logcat*.txt
-*.apk
-*.aab
-.sdd/tools/
-scripts/ask_*.mjs
 screen_*.png
+*.pyc
+__pycache__/

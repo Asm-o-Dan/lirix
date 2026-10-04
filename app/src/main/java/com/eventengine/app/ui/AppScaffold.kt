@@ -52,8 +52,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * 4-Tab navigation enum for Music & Lyrics Hub.
- * Spec: TASK-UI-01 / .sdd/specs/media-ui/overview.md (v1)
+ * 3-Tab navigation enum for Music & Lyrics Hub.
+ * Spec: [ Плеер ] [ Медиатека ] [ Итоги ]
  */
 enum class AppTab(
     val route: String,
@@ -61,8 +61,7 @@ enum class AppTab(
     val icon: ImageVector
 ) {
     NOW_PLAYING("now_playing", "Плеер", Icons.Default.PlayArrow),
-    HISTORY("history", "История", Icons.Default.History),
-    LIBRARY("library", "Библиотека", Icons.Default.MusicNote),
+    LIBRARY("library", "Медиатека", Icons.Default.MusicNote),
     WRAPPED("wrapped", "Итоги", Icons.Default.EmojiEvents)
 }
 
@@ -196,12 +195,6 @@ fun AppScaffold(
                         onOpenTeachMode = {
                             activeTeachUrl = null
                             isTeachModeOpen = true
-                        }
-                    )
-                    AppTab.HISTORY -> HistoryScreen(
-                        onTrackSelected = { track ->
-                            viewingTrack = track
-                            currentTab = AppTab.NOW_PLAYING
                         }
                     )
                     AppTab.LIBRARY -> LibraryScreen(

@@ -1,0 +1,27 @@
+{
+  "app_name": "Lirix",
+  "version": "v1.1.0",
+  "package_name": "com.eventengine.app",
+  "repo_url": "https://github.com/Asm-o-Dan/lirix",
+  "git": {
+    "commit_hash": "9f2cfb1",
+    "commit_count": "110",
+    "last_tag": "v1.0.1",
+    "recent_commits": "* docs(sdd): add intake specs for Track C (floating overlay), Track D (scraper rules) and AnalogTurntable (9f2cfb1)\n* feat(chords): add interactive guitar fretboard diagrams and song chords ribbon (TASK-CHR-03) (3db0f07)\n* fix(ci): fix gradlew wrapper arguments order and enforce LF via .gitattributes (7eb2d87)\n* docs(sdd): mark TASK-CHR-02 as DONE (9e89257)\n* feat(chords): implement real-time chord transposition and font zoom (TASK-CHR-02) (01e00fd)"
+  },
+  "apk": {
+    "exists": true,
+    "path": "C:\\Users\\DaniilTuT\\Documents\\antigravity\\quick-nobel\\app\\build\\outputs\\apk\\debug\\app-debug.apk",
+    "size_mb": 16.92,
+    "size_bytes": 17736811,
+    "sha256": "25fc559fd5683c67ae80fc7c780915315d0219fa3707dcbc77196c78bd796d2e"
+  },
+  "key_features": [
+    "Плавающий оверлей поверх Spotify, VK и YouTube (SYSTEM_ALERT_WINDOW) с магнитным прилипанием к краям",
+    "Сворачиваемый винил (+200dp места под текст) и кинетический тонарм с иглой на Compose Canvas",
+    "Парсер аккордов с независимым транспонированием (±1..±11 полутонов) и интерактивными аппликатурами на грифе",
+    "Автономный офлайн-кэш текстов и умная автопрокрутка по BPM и длине строк",
+    "Scraper Community: экспорт и импорт правил извлечения текстов в JSON с проверкой SHA-256",
+    "Zero-telemetry, zero-ads, AMOLED Black интерфейс"
+  ]
+}

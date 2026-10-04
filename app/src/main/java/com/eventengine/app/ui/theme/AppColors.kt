@@ -37,8 +37,14 @@ object AppColors {
     val VectorBadge = Color(0xFFB388FF)
     val RrfBadge = Color(0xFF18FFFF)
 
-    // Text & Typography
+    // Turntable & Kinetic Hardware
+    val TurntableMetallic = Color(0xFF94A3B8)
+    val TurntablePivot = Color(0xFF1E2028)
+    val TurntableShaft = Color(0xFFCBD5E1)
+
+    // Text & Typography (Obsidian Pulse WCAG AA/AAA compliant)
     val TextPrimary = Color(0xFFF2F2F7)
     val TextSecondary = Color(0xFFA0A0B2)
-    val TextTertiary = Color(0xFF656578)
+    val TextTertiary = Color(0xFF8E8EA8) // WCAG AA 5.6:1 on #000000
+    val TextDisabled = Color(0xFF5A5A6E)
 }
