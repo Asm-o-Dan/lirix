@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -104,6 +105,8 @@ import com.eventengine.app.feature.MusicFeatureEngine
 import com.eventengine.app.feature.lyrics.AmDmChordParser
 import com.eventengine.app.feature.lyrics.ChordAutoscrollCalculator
 import com.eventengine.app.feature.lyrics.ChordTransposer
+import com.eventengine.app.feature.lyrics.GuitarChordDictionary
+import com.eventengine.app.feature.lyrics.GuitarChordDialog
 import com.eventengine.app.feature.share.ShareCardGenerator
 import com.eventengine.app.feature.share.ShareManager
 import com.eventengine.app.ui.components.ShareFormatDialog
@@ -273,12 +276,14 @@ fun NowPlayingScreen(
     val chordsScrollState = rememberScrollState()
     var transposeSemitones by rememberSaveable(currentTrack?.trackKey) { mutableIntStateOf(0) }
     var chordTextZoom by rememberSaveable { mutableFloatStateOf(1.0f) }
+    var selectedChordDiagram by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(currentTrack?.trackKey) {
         isEditingNotes = false
         isAutoscrollRunning = false
         isTouchPaused = false
         transposeSemitones = 0
+        selectedChordDiagram = null
     }
 
     var localPlaybackPositionMs by remember { mutableLongStateOf(0L) }
@@ -325,6 +330,20 @@ fun NowPlayingScreen(
                     chooserTitle = "Поделиться треком ${trackToShare.title}"
                 )
             }
+        )
+    }
+
+    if (selectedChordDiagram != null) {
+        val transposedText = remember(lyricsCache?.chordsAmDm, transposeSemitones) {
+            ChordTransposer.transposeText(lyricsCache?.chordsAmDm.orEmpty(), transposeSemitones)
+        }
+        val currentSongChords = remember(transposedText) {
+            GuitarChordDictionary.extractChordsFromText(transposedText)
+        }
+        GuitarChordDialog(
+            initialChordName = selectedChordDiagram!!,
+            availableChords = currentSongChords,
+            onDismissRequest = { selectedChordDiagram = null }
         )
     }
 
@@ -1372,6 +1391,58 @@ fun NowPlayingScreen(
                                                             }
                                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                                     )
+                                                }
+                                            }
+
+                                            // Row 3: Song Chords Ribbon (Interactive guitar fingerings)
+                                            val songChords = remember(displayedChords) {
+                                                GuitarChordDictionary.extractChordsFromText(displayedChords)
+                                            }
+                                            if (songChords.isNotEmpty()) {
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                LazyRow(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    item {
+                                                        Text(
+                                                            text = "Аппликатуры:",
+                                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                            color = AppColors.TextTertiary,
+                                                            modifier = Modifier.padding(end = 2.dp)
+                                                        )
+                                                    }
+                                                    items(songChords.size) { idx ->
+                                                        val chordName = songChords[idx]
+                                                        Surface(
+                                                            shape = RoundedCornerShape(6.dp),
+                                                            color = AppColors.SurfaceLevel3,
+                                                            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+                                                            modifier = Modifier.clickable {
+                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                selectedChordDiagram = chordName
+                                                            }
+                                                        ) {
+                                                            Row(
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            ) {
+                                                                Text(
+                                                                    text = "🎸 ",
+                                                                    fontSize = 9.sp
+                                                                )
+                                                                Text(
+                                                                    text = chordName,
+                                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                                        fontFamily = FontFamily.Monospace,
+                                                                        fontWeight = FontWeight.Bold
+                                                                    ),
+                                                                    color = AppColors.HyperViolet
+                                                                )
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
