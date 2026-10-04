@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Build APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Rename APK for Release
+        run: |
+          mkdir -p release-artifacts
+          cp app/build/outputs/apk/debug/app-debug.apk release-artifacts/lirix-${{ github.ref_name }}.apk
+          cd release-artifacts
+          sha256sum lirix-${{ github.ref_name }}.apk > SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-artifacts/lirix-${{ github.ref_name }}.apk
+            release-artifacts/SHA256SUMS.txt
+          generate_release_notes: true
+          name: "Lirix ${{ github.ref_name }}"
+          draft: false
+          prerelease: false

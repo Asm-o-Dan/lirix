@@ -9,9 +9,10 @@
 <p align="center">
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
+  <img alt="Build CI" src="https://github.com/Asm-o-Dan/lirix/actions/workflows/ci.yml/badge.svg">
   <img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-blue.svg">
   <img alt="Local first" src="https://img.shields.io/badge/privacy-100%25%20on%20device-A855F7">
-  <img alt="APK Size" src="https://img.shields.io/badge/APK%20Size-~10%20MB-success">
+  <img alt="APK Size" src="https://img.shields.io/badge/APK%20Size-~16%20MB-success">
 </p>
 
 ---
