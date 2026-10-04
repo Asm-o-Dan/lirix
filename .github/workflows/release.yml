@@ -28,13 +28,13 @@ jobs:
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --no-daemon
 
-      - name: Build APK
-        run: ./gradlew assembleDebug --no-daemon
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --no-daemon
 
       - name: Rename APK for Release
         run: |
           mkdir -p release-artifacts
-          cp app/build/outputs/apk/debug/app-debug.apk release-artifacts/lirix-${{ github.ref_name }}.apk
+          cp app/build/outputs/apk/release/app-release.apk release-artifacts/lirix-${{ github.ref_name }}.apk
           cd release-artifacts
           sha256sum lirix-${{ github.ref_name }}.apk > SHA256SUMS.txt
 
