@@ -10,7 +10,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.eventengine.app"
+        applicationId = "com.lirix.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -66,10 +66,6 @@ android {
         }
     }
 
-    androidResources {
-        noCompress += listOf("onnx")
-    }
-
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -103,9 +99,6 @@ dependencies {
 
     // Logging
     implementation(libs.timber)
-
-    // ML / ONNX Runtime Mobile
-    implementation(libs.onnxruntime.android)
 
     // Testing
     testImplementation(libs.junit)

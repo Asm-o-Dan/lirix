@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "verselog"
+rootProject.name = "lirix"
 include(":app")

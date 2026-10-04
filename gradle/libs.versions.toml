@@ -12,7 +12,6 @@ composeBom = "2024.10.01"
 room = "2.6.1"
 coroutines = "1.9.0"
 timber = "5.0.1"
-onnxruntime = "1.19.2"
 robolectric = "4.13"
 
 [libraries]
@@ -48,9 +47,6 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 
 # Logging
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
-
-# ML / ONNX Runtime Mobile
-onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

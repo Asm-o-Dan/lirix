@@ -1,106 +1,97 @@
-<h1 align="center">Verselog</h1>
+<h1 align="center">Lirix</h1>
 
 <p align="center">
-  <b>Your listening, with the words.</b><br/>
-  An Android companion that sees what's playing in <i>any</i> music app and gives you synced lyrics, guitar chords, and a year-round "Wrapped" for it.
+  <img src="docs/icon.png" width="128" height="128" alt="Lirix Logo" style="border-radius: 28px;" /><br/>
+  <b>Words & Chords for Any Music Player on Android.</b><br/>
+  An open-source Android companion that captures what's playing in <i>any</i> player (Spotify, VK Music, Yandex Music, YouTube ReVanced, Telegram, local MP3s) and gives you synced karaoke lyrics, guitar chords with smart autoscroll, and offline listening history.
 </p>
 
 <p align="center">
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
-  <img alt="Local first" src="https://img.shields.io/badge/data-stays%20on%20device-A855F7">
-  <img alt="Status" src="https://img.shields.io/badge/status-early%20beta-orange">
+  <img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-blue.svg">
+  <img alt="Local first" src="https://img.shields.io/badge/privacy-100%25%20on%20device-A855F7">
+  <img alt="APK Size" src="https://img.shields.io/badge/APK%20Size-~10%20MB-success">
 </p>
-
-<!--
-  TODO(before launch): add 3-4 screenshots/GIFs to docs/screenshots/ and embed them here.
-  Suggestion: karaoke tab, chords tab, "Wrong lyrics?" undo, Wrapped share card.
-  Avoid real album covers / copyrighted lyrics in public images.
--->
-
-## Why
-
-Streaming apps either don't show lyrics, hide them behind a paywall, or show them only inside their own player. Verselog sits *next to* your player instead of replacing it:
-
-- You keep using Spotify, YouTube Music, Yandex Music, VK Music, a local player — whatever.
-- Verselog reads the "now playing" metadata Android already exposes and shows lyrics, chords and stats for the current track.
-- When the lyrics it found are wrong, **you** can fix it in two taps instead of living with it.
-
-## Features
-
-**Now Playing**
-- **Karaoke** — time-synced (LRC) lyrics with tap-to-seek, ±10 s skip, and ±50 ms timing calibration per track.
-- **Reading mode** — plain lyrics when no timestamps exist.
-- **Chords** — chord sheets with chords kept aligned above the words (monospace), plus transposition.
-- **Notes** — your own notes per track.
-- Album art, vinyl-style player, transport controls that talk to the playing app.
-
-**"Wrong lyrics?"**
-- **✕ Not this text** rejects the current source, instantly cascades to the next one, and offers **Undo**.
-- If every source is exhausted you get an honest empty state with *Search the web* and *Reset rejected sources*.
-- **Share → Verselog** from your browser: send a link or paste lyrics text and attach it to the current track.
-- **Teach mode** — open any lyrics site in the built-in browser, tap the lyrics block(s), and Verselog saves a declarative extraction rule for that site (supports selecting several blocks, e.g. verses + chorus).
-- Chords are fetched independently, so you can get synced lyrics from one source and chords from another.
-
-**History, Library, Wrapped**
-- Listening history and a searchable library (favourites, tracks with lyrics).
-- Wrapped-style stats over selectable timeframes, "obsession" detection, and 26 achievements with tiers.
-- Shareable cards in Stories (9:16) and square formats.
-
-## Privacy
-
-- **No account, no analytics SDK, no ads.** Listening history lives in a local Room database on your phone.
-- The only network traffic is **lyrics/chords lookups** for the track you're playing (see sources below) and, if you use it, the Teach-mode browser.
-- Permissions, and why:
-
-| Permission | Why |
-|---|---|
-| Notification access (`BIND_NOTIFICATION_LISTENER_SERVICE`) | Read now-playing media metadata from your music app |
-| `INTERNET` | Fetch lyrics and chords |
-| `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE` | Keep the listener alive and show its status |
-| `RECEIVE_BOOT_COMPLETED` | Resume tracking after reboot |
-
-## Lyrics sources
-
-Verselog does not ship or host any lyrics. Text is fetched **on your device, on demand** from third-party sources and cached locally. Sources are tried as a cascade and each can be rejected per track:
-
-[LRCLIB](https://lrclib.net) (synced lyrics) · AmDm (chords) · Textpesni · Vse-pesni · Amalgama · Genius · LyricFind · your own custom rules
-
-> **Heads-up:** lyrics are copyrighted and some sources restrict automated access. You are responsible for complying with each source's terms and the law in your country. If you are a rights holder or site owner and want a source removed, open an issue.
-
-## Build
-
-Requirements: JDK 17+ and the Android SDK (Android Studio is the easiest way).
-
-```bash
-./gradlew assembleDebug          # APK -> app/build/outputs/apk/debug/
-./gradlew testDebugUnitTest      # 140+ unit tests
-```
-
-Then enable **Settings → Notifications → Device & app notifications → Verselog** (wording varies by vendor) so it can see what's playing.
-
-## Project status
-
-Early beta, one developer. Debug builds only so far; no store release yet. Expect rough edges — bug reports with the track name and the app you were playing from are the most useful thing you can send.
-
-## How it's built
-
-Kotlin, Jetpack Compose, Room (schema-versioned migrations with migration tests), coroutines/Flow. Developed spec-first: each feature starts as a written spec, gets failing tests, then an implementation — which is why the unit-test suite is unusually large for a project this size.
-
-## Roadmap
-
-- [ ] Rename the Android application id and publish a signed release
-- [ ] Community-shared site rules (so Teach mode fixes help everyone)
-- [ ] More chord sources
-- [ ] Localization beyond English/Russian
-- [ ] Optional encrypted backup/export of your history
-
-## Contributing
-
-Issues and PRs are welcome. Please open an issue first for anything bigger than a bug fix.
 
 ---
 
-### По-русски
+## ⚡ Highlights
 
-**Verselog** — Android-приложение, которое «слушает» что играет в *любом* плеере (Spotify, YouTube Music, Яндекс Музыка, VK Музыка…) и показывает синхронный текст (караоке), аккорды с транспонированием, заметки и годовой «Wrapped» по прослушиванию. Если текст не тот — нажмите **«✕ Не тот текст»**: приложение переберёт следующий источник, а действие можно отменить. Данные хранятся только на устройстве, аккаунта нет. Проект на ранней стадии (beta), сборка — `./gradlew assembleDebug`.
+Streaming apps in CIS and worldwide either lack synchronized lyrics, hide them behind subscriptions, or don't provide guitar chords at all. **Lirix** runs seamlessly alongside your favourite player:
+
+- **Karaoke & Synced Lyrics** — Time-synced LRC display with tap-to-seek, ±10 s jumps, and ±50 ms timing calibration.
+- **Guitar Chords with Smart Autoscroll** — Monospace chord sheets with tempo control (`[-] 1.00x [+]`, `[▶ / ⏸]`, reset), adaptively calculated based on track duration and chord length so you never have to scroll with dirty fingers while playing.
+- **Smart Cascade & Instant Fix** — Not the right lyrics? Tap **✕ Not this text** to reject and cascade to the next source, or use **Undo**.
+- **Interactive Teach Mode** — Built-in visual inspector. Open any lyrics or chords webpage in the app, switch between *Surfing* and *Inspector*, select multiple text blocks, and Lirix automatically creates an extraction rule for future tracks.
+- **Listening History & Offline Wrapped** — Track stats, streaks, obsession detection, and shareable 9:16 Stories cards saved locally on your phone.
+- **Zero Ads, Zero Trackers, Zero Accounts** — 100% offline-first Room database. No analytics SDKs.
+
+---
+
+## 🔒 Permissions & Privacy
+
+| Permission | Why it's needed |
+|---|---|
+| `BIND_NOTIFICATION_LISTENER_SERVICE` | Reads now-playing media metadata (artist, title, player state) from your music player notifications. |
+| `INTERNET` | Fetches lyrics and chords on-demand from public web providers (LRCLIB, AmDm, etc.). |
+| `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE` | Keeps the background notification listener active and shows current status. |
+| `RECEIVE_BOOT_COMPLETED` | Resumes listening service after device restart. |
+
+All your listening history, favorite songs, notes, and scraper rules remain strictly in a local SQLite database on your device.
+
+---
+
+## ⚖️ Legal Disclaimer & Terms of Use
+
+> **PLEASE READ CAREFULLY BEFORE USE OR CONTRIBUTION.**
+
+1. **Clean Client / Automated Viewer**: Lirix is an independent open-source client utility and does not host, cache, store, scrape in bulk, index, or distribute any copyrighted music recordings, lyrics text, or chord sheets on any server. All queries are performed **locally and on-demand** by the user's client device directly from publicly accessible web endpoints (e.g., [LRCLIB](https://lrclib.net), [AmDm.ru](https://amdm.ru)).
+2. **Personal & Educational Use**: This software is provided strictly for personal interoperability, accessibility, and educational purposes under the principles of fair use. Users are individually responsible for ensuring their usage complies with third-party service terms and local copyright laws.
+3. **Non-Affiliation**: Lirix is not affiliated with, endorsed by, or associated with LRCLIB, AmDm, Spotify, Yandex Music, VK, Google, or any artist or record label. All artist names, track titles, and trademarks are the property of their respective owners.
+4. **Warranty & Liability**: The software is provided "AS IS", without warranty of any kind. Under no circumstances shall the author(s) or copyright holders be held liable for any damages or legal claims arising from the use or distribution of this software (see [LICENSE](LICENSE) GNU General Public License v3.0).
+5. **Takedown & Removal Requests**: If you are a copyright holder or webmaster and wish to request the removal of a specific default provider endpoint, please contact `dgandapas1@gmail.com` or open an issue on GitHub.
+
+---
+
+## 🛠️ Building from Source
+
+Requirements:
+- JDK 17 or JDK 21 (Eclipse Temurin recommended)
+- Android SDK (API 35)
+
+```bash
+# Clone the repository
+git clone https://github.com/Asm-o-Dan/lirix.git
+cd lirix
+
+# Build debug APK (~10 MB)
+./gradlew assembleDebug
+
+# Run unit test suite (150+ tests)
+./gradlew testDebugUnitTest
+```
+
+The compiled APK will be generated at `app/build/outputs/apk/debug/app-debug.apk`.
+
+---
+
+## 🇷🇺 По-русски
+
+**Lirix («Лирикс»)** — легковесный (~10 МБ) open-source компаньон для Android, который перехватывает трек из уведомлений любого плеера (**VK Музыка, Яндекс Музыка, Spotify, YouTube ReVanced, Telegram, AIMP, Poweramp**) и в один тап открывает:
+
+1. **Синхронное караоке**: подстрочник со скроллом, перемоткой по тапу и ручной калибровкой задержки (±50 мс).
+2. **Аккорды с автоскроллом**: табулатуры и аккордовые сетки с AmDm с умным расчётом скорости под темп трека, ручным регулятором темпа (`[-] 1.00x [+]`) и паузой при касании пальцем экрана — идеально для игры на гитаре.
+3. **Визуальный «Teach Mode»**: если песни нет в базе, можно открыть страницу в браузере приложения, выделить нужные блоки текста (куплеты, припев), и Lirix сохранит селектор для сайта.
+4. **Приватность и оффлайн**: без рекламы, без аккаунтов, без телеметрии. База данных SQLite/Room хранится только на телефоне.
+
+### Установка:
+1. Скачайте свежий APK из раздела [Releases](https://github.com/Asm-o-Dan/lirix/releases).
+2. Разрешите доступ к уведомлениям: **Настройки → Приложения → Специальный доступ → Доступ к уведомлениям → Lirix**.
+3. Запустите музыку в любом плеере — откройте Lirix и наслаждайтесь словами и аккордами!
+
+---
+
+## 📄 License
+
+Lirix is licensed under the [GNU General Public License v3.0](LICENSE).
