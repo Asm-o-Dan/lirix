@@ -1,7 +1,7 @@
 <h1 align="center">Lirix</h1>
 
 <p align="center">
-  <img src="docs/icon.png" width="128" height="128" alt="Lirix Logo" style="border-radius: 28px;" /><br/>
+  <img src="./docs/icon.png" width="128" alt="Lirix Logo" /><br/>
   <b>Words & Chords for Any Music Player on Android.</b><br/>
   An open-source Android companion that captures what's playing in <i>any</i> player (Spotify, VK Music, Yandex Music, YouTube ReVanced, Telegram, local MP3s) and gives you synced karaoke lyrics, guitar chords with smart autoscroll, and offline listening history.
 </p>
