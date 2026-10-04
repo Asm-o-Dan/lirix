@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">Verselog</string>
+    <string name="notification_listener_service_name">Verselog Now Playing Listener</string>
+    <string name="timeline_title">Verselog</string>
+    <string name="permission_required_title">Notification Access Required</string>
+    <string name="permission_required_desc">Verselog needs notification access to see which track is playing in your music app. Nothing leaves your device except lyrics lookups.</string>
+
+    <string name="grant_permission_btn">Grant Permission</string>
+    <string name="clear_events_btn">Clear All</string>
+    <string name="empty_events">No events recorded yet. Send a notification or play media to test.</string>
+    <string name="clear_confirm_title">Очистить историю событий?</string>
+    <string name="clear_confirm_desc">Вы уверены, что хотите удалить все сохраненные события? Это действие нельзя отменить.</string>
+    <string name="delete_single_confirm_title">Удалить событие?</string>
+    <string name="delete_single_confirm_desc">Вы уверены, что хотите удалить выбранное событие? Это действие нельзя отменить.</string>
+    <string name="dialog_confirm_delete">Удалить</string>
+    <string name="dialog_cancel">Отмена</string>
+    <string name="reset_learning_btn">Сбросить персональное обучение</string>
+    <string name="reset_learning_confirm_title">Сбросить персональное обучение?</string>
+    <string name="reset_learning_confirm_desc">Все пользовательские эталоны и корректировки будут удалены. Базовые эталоны сохранятся. Это действие нельзя отменить.</string>
+    <string name="dialog_confirm_reset">Сбросить</string>
+</resources>

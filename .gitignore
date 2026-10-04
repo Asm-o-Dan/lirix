@@ -1,0 +1,36 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+app/schemas/
+app/build/
+build_tmp/
+*.db
+.kotlin/
+
+# --- secrets / signing ---
+*.jks
+*.keystore
+keystore.properties
+.env
+.env.*
+secrets.*
+
+# --- local dumps / device data ---
+logcat*.txt
+*.apk
+*.aab
+.sdd/tools/
+scripts/ask_*.mjs
+screen_*.png
