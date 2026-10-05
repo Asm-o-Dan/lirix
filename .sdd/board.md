@@ -56,7 +56,15 @@
 | TASK-RUL-01 | Модель и кодек переносимых правил ScraperRuleBundleCodec с валидацией | feature/lyrics/ScraperRuleBundleCodec.kt | lyrics-engine | TASK-UI-05 | Coder | DONE |
 | TASK-RUL-02 | UI диалоги экспорта и импорта правил в TeachModeScreen и LibraryScreen | ui/TeachModeScreen.kt, ui/LibraryScreen.kt | media-ui | TASK-RUL-01 | Coder | DONE |
 | TASK-LRC-01 | Движок LrcSyncEngine и валидация формата таймкодов караоке | feature/lyrics/LrcSyncEngine.kt | lyrics-engine | TASK-RUL-02 | Coder | DONE |
-| TASK-LRC-02 | UI полноэкранной студии LrcTapSyncStudioDialog и интеграция в NowPlayingScreen | ui/components/LrcTapSyncStudioDialog.kt, ui/NowPlayingScreen.kt | media-ui | TASK-LRC-01 | Coder | DONE |
+| TASK-TG-01 | Детерминированное управление Play/Pause и скоринг MediaController | ingestion/MediaSessionCollector.kt | media-ingress | SPEC-TG-01 | Coder | DONE |
+| TASK-REV-TG-01 | Ревью исправления паузы Telegram (Gate 7) | .sdd/reports/BUG_TG_01.review.md | review | TASK-TG-01 | Ревьюер | DONE |
+| ARCH-UI-06 | Архитектурный план разгрузки NowPlayingScreen и Auto-Hide Floating Capsule | .sdd/architecture_ui_capsule.md | media-ui | ADR-007 | Архитектор | READY |
+| SPEC-UI-06 | Спецификация меню ⋮ и плавающего навбара | .sdd/specs/media-ui/overflow_and_capsule.md | media-ui | ARCH-UI-06 | Спецификатор E | TODO |
+| TASK-UI-06-A | Компонент NowPlayingOverflowMenu и диалог калибровки | ui/components/NowPlayingOverflowMenu.kt | media-ui | SPEC-UI-06 | Coder | TODO |
+| TASK-UI-06-B | Рефакторинг NowPlayingScreen: очистка шапки, перенос кнопок в меню | ui/NowPlayingScreen.kt | media-ui | TASK-UI-06-A | Coder | TODO |
+| TASK-UI-06-C | Рефакторинг AppScaffold: авто-скрывающийся плавающий навбар-капсула | ui/AppScaffold.kt | media-ui | TASK-UI-06-B | Coder | TODO |
+| TASK-REV-06 | Ревью, сборка Release APK и проверка на устройстве | .sdd/reports/UI-06.review.md | review | TASK-UI-06-C | Ревьюер / QA | TODO |
+
 
 
 

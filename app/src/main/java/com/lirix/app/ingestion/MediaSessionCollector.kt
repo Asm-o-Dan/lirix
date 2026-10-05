@@ -412,22 +412,56 @@ class MediaSessionCollector(private val context: Context) {
             return getControllers(packageName).firstOrNull()
         }
 
+        fun resolveTargetController(controllers: List<MediaController>): MediaController? {
+            if (controllers.isEmpty()) return null
+
+            var bestController: MediaController? = null
+            var maxScore = -1
+
+            for (controller in controllers) {
+                val state = controller.playbackState
+                val actions = state?.actions ?: 0L
+
+                val isPlaying = state?.state == PlaybackState.STATE_PLAYING
+                val hasPlayPauseAction = (actions and (PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE)) != 0L
+                val hasPositiveActions = actions > 0L
+                val hasSeekToAction = (actions and PlaybackState.ACTION_SEEK_TO) != 0L
+                val hasMetadata = controller.metadata != null
+
+                val score = (if (isPlaying) 10000 else 0) +
+                        (if (hasPlayPauseAction) 1000 else 0) +
+                        (if (hasPositiveActions) 100 else 0) +
+                        (if (hasSeekToAction) 50 else 0) +
+                        (if (hasMetadata) 10 else 0)
+
+                if (score > maxScore) {
+                    maxScore = score
+                    bestController = controller
+                }
+            }
+
+            return bestController
+        }
+
         fun togglePlayPause(): Boolean {
             val snapshot = _livePlaybackFlow.value
             val targetPackage = snapshot?.packageName
             val controllers = getControllers(targetPackage)
-            if (controllers.isEmpty()) return false
+            if (controllers.isEmpty()) {
+                Timber.tag(TAG).w("togglePlayPause: no controllers found for package %s", targetPackage)
+                return false
+            }
 
-            val playingControllers = controllers.filter { it.playbackState?.state == PlaybackState.STATE_PLAYING }
-            val isCurrentlyPlaying = playingControllers.isNotEmpty() || (snapshot?.isPlaying == true)
+            val targetController = resolveTargetController(controllers) ?: return false
+
+            val isCurrentlyPlaying = (targetController.playbackState?.state == PlaybackState.STATE_PLAYING) ||
+                    (snapshot?.isPlaying == true)
             val nextPlaying = !isCurrentlyPlaying
-            val primaryController = playingControllers.firstOrNull() ?: controllers.first()
 
             val currentPos = snapshot?.currentPositionMs()
-                ?: primaryController.playbackState?.position
+                ?: targetController.playbackState?.position
                 ?: 0L
 
-            // 1. ОПТИМИСТИЧНОЕ ОБНОВЛЕНИЕ SNAPSHOT (мгновенный отклик UI)
             if (snapshot != null) {
                 _livePlaybackFlow.value = snapshot.copy(
                     isPlaying = nextPlaying,
@@ -435,50 +469,49 @@ class MediaSessionCollector(private val context: Context) {
                     lastPositionUpdateTimeMs = android.os.SystemClock.elapsedRealtime()
                 )
             }
-            instance?.syncHeartbeat(nextPlaying, primaryController.packageName)
+            instance?.syncHeartbeat(nextPlaying, targetController.packageName)
 
-            // 2. ОТПРАВКА КОМАНДЫ ВО ВСЕ СЕССИИ ДАННОГО ПРИЛОЖЕНИЯ
-            // Приложения вроде Telegram/AyuGram создают несколько параллельных MediaSession,
-            // поэтому для гарантированной паузы отправляем команду всем играющим сессиям пакета.
-            val targetControllers = if (isCurrentlyPlaying) {
-                if (playingControllers.isNotEmpty()) playingControllers else controllers
-            } else {
-                listOf(primaryController)
-            }
-
-            var anySuccess = false
-            for (controller in targetControllers) {
-                try {
-                    if (isCurrentlyPlaying) {
-                        controller.transportControls.pause()
-                    } else {
-                        controller.transportControls.play()
-                    }
-                    anySuccess = true
-                } catch (e: Exception) {
-                    Timber.tag(TAG).w(e, "transportControls failed on %s", controller.packageName)
+            var transportSuccess = false
+            try {
+                if (isCurrentlyPlaying) {
+                    targetController.transportControls.pause()
+                } else {
+                    targetController.transportControls.play()
                 }
-                val fallbackOk = sendMediaButtonFallback(controller, isCurrentlyPlaying)
-                if (fallbackOk) anySuccess = true
+                transportSuccess = true
+            } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "transportControls failed on %s", targetController.packageName)
             }
 
-            return anySuccess
+            return if (transportSuccess) {
+                true
+            } else {
+                sendMediaButtonFallback(targetController, isCurrentlyPlaying)
+            }
         }
 
-        private fun sendMediaButtonFallback(controller: MediaController, wasPlaying: Boolean): Boolean {
+        internal fun sendMediaButtonFallback(controller: MediaController, wasPlaying: Boolean): Boolean {
             return try {
-                val keyCode = if (wasPlaying) KeyEvent.KEYCODE_MEDIA_PAUSE else KeyEvent.KEYCODE_MEDIA_PLAY
-                val downEvent = KeyEvent(KeyEvent.ACTION_DOWN, keyCode)
-                val upEvent = KeyEvent(KeyEvent.ACTION_UP, keyCode)
+                val primaryKeyCode = if (wasPlaying) KeyEvent.KEYCODE_MEDIA_PAUSE else KeyEvent.KEYCODE_MEDIA_PLAY
+                val downEvent = KeyEvent(KeyEvent.ACTION_DOWN, primaryKeyCode)
+                val upEvent = KeyEvent(KeyEvent.ACTION_UP, primaryKeyCode)
                 val downHandled = controller.dispatchMediaButtonEvent(downEvent)
                 val upHandled = controller.dispatchMediaButtonEvent(upEvent)
                 val directHandled = downHandled || upHandled
 
-                // Дополнительный fallback: KEYCODE_MEDIA_PLAY_PAUSE
                 if (!directHandled) {
-                    val toggleDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
-                    val toggleUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
-                    controller.dispatchMediaButtonEvent(toggleDown) || controller.dispatchMediaButtonEvent(toggleUp)
+                    if (wasPlaying) {
+                        // ПАУЗА: разрешен ТОЛЬКО идемпотентный код STOP.
+                        // Отправка KEYCODE_MEDIA_PLAY_PAUSE КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНА!
+                        val stopDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_STOP)
+                        val stopUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_STOP)
+                        controller.dispatchMediaButtonEvent(stopDown) || controller.dispatchMediaButtonEvent(stopUp)
+                    } else {
+                        // ВОСПРОИЗВЕДЕНИЕ: переключатель допустим как резерв
+                        val toggleDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+                        val toggleUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+                        controller.dispatchMediaButtonEvent(toggleDown) || controller.dispatchMediaButtonEvent(toggleUp)
+                    }
                 } else true
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "dispatchMediaButtonEvent failed completely")
