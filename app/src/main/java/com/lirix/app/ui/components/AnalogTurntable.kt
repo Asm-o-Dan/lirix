@@ -289,37 +289,36 @@ fun AnalogTurntable(
             }
         }
 
-        // Ergonomic Collapse / Expand Pill Indicator (>=48dp Touch Target)
+        // Sleek Minimalist Collapse / Expand Pill Indicator
         Box(
             modifier = Modifier
-                .padding(vertical = 4.dp)
-                .defaultMinSize(minHeight = 44.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .padding(top = 2.dp, bottom = 4.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(AppColors.SurfaceLevel1)
-                .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(12.dp))
+                .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(10.dp))
                 .clickable {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onToggleCollapse()
                 }
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Icon(
                     imageVector = if (isCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                     contentDescription = if (isCollapsed) "Показать винил" else "Скрыть винил",
                     tint = if (isCollapsed) AppColors.CyberCyan else AppColors.TextSecondary,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(14.dp)
                 )
                 Text(
-                    text = if (isCollapsed) "Показать винил" else "Скрыть винил",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontSize = 11.sp,
+                    text = if (isCollapsed) "Винил" else "Скрыть винил",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.3.sp
+                        letterSpacing = 0.2.sp
                     ),
                     color = if (isCollapsed) AppColors.CyberCyan else AppColors.TextSecondary
                 )

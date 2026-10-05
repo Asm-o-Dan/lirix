@@ -277,6 +277,16 @@ fun NowPlayingScreen(
         selectedChordDiagram = null
     }
 
+    LaunchedEffect(lyricsCache) {
+        val hasLrc = !lyricsCache?.syncedLyricsLrc.isNullOrBlank()
+        val hasPlain = !lyricsCache?.plainLyrics.isNullOrBlank()
+        if (!hasLrc && hasPlain && selectedMode == NowPlayingMode.KARAOKE) {
+            selectedMode = NowPlayingMode.LYRICS
+        } else if (hasLrc && selectedMode == NowPlayingMode.LYRICS) {
+            selectedMode = NowPlayingMode.KARAOKE
+        }
+    }
+
     var localPlaybackPositionMs by remember { mutableLongStateOf(0L) }
     var localIsPlaying by remember { mutableStateOf(false) }
 
@@ -883,14 +893,17 @@ fun NowPlayingScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Interactive Transport Bar (Time + Scrub bar + Controls, >=48dp touch targets)
+            // 1. Ergonomic Transport Bar (Time + Replay10 + Play/Pause 56dp + Forward10 + Duration)
+            val totalTrackDuration = currentTrack.totalDurationMs.takeIf { it > 0L }
+                ?: (livePlayback?.durationMs ?: 0L)
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(AppColors.SurfaceLevel1)
-                    .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(14.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(16.dp))
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -900,12 +913,12 @@ fun NowPlayingScreen(
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        fontSize = 13.sp
                     ),
                     color = AppColors.CyberCyan
                 )
 
-                // Skip -10s (>=48dp touch target)
+                // Skip -10s
                 IconButton(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -915,17 +928,17 @@ fun NowPlayingScreen(
                         localPlaybackPositionMs = targetMs
                         MediaSessionCollector.seekTo(audioTargetMs)
                     },
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Replay10,
                         contentDescription = "-10s",
                         tint = AppColors.TextSecondary,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
-                // Play / Pause toggle (52dp focal button)
+                // Play / Pause toggle (54dp prominent gradient button)
                 IconButton(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -933,26 +946,28 @@ fun NowPlayingScreen(
                         MediaSessionCollector.togglePlayPause()
                     },
                     modifier = Modifier
-                        .size(52.dp)
+                        .size(54.dp)
                         .clip(CircleShape)
-                        .background(AppColors.HyperViolet)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(AppColors.HyperViolet, AppColors.HyperVioletDark)
+                            )
+                        )
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Pause" else "Play",
                         tint = AppColors.AmoledBlack,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(30.dp)
                     )
                 }
 
-                // Skip +10s (>=48dp touch target)
+                // Skip +10s
                 IconButton(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        val duration = currentTrack.totalDurationMs.takeIf { it > 0L }
-                            ?: (livePlayback?.durationMs ?: 0L)
-                        val targetMs = if (duration > 0L) {
-                            (playbackPositionMs + 10000L).coerceAtMost(duration)
+                        val targetMs = if (totalTrackDuration > 0L) {
+                            (playbackPositionMs + 10000L).coerceAtMost(totalTrackDuration)
                         } else {
                             playbackPositionMs + 10000L
                         }
@@ -961,200 +976,206 @@ fun NowPlayingScreen(
                         localPlaybackPositionMs = targetMs
                         MediaSessionCollector.seekTo(audioTargetMs)
                     },
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Forward10,
                         contentDescription = "+10s",
                         tint = AppColors.TextSecondary,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
-                // Provider badge & rejection button
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    // Provider badge
-                    Surface(
-                        color = AppColors.SurfaceLevel2,
-                        shape = RoundedCornerShape(6.dp),
-                        border = BorderStroke(1.dp, AppColors.BorderSubtle)
-                    ) {
-                        Text(
-                            text = lyricsCache?.provider?.uppercase() ?: "AUDIO",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.5.sp
-                            ),
-                            color = AppColors.TextSecondary,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                        )
-                    }
-
-                    // Кнопка отклонения "Не тот текст" (>=44dp touch target)
-                    val isUserNote = lyricsCache?.provider == LyricsSourceIds.USER_NOTE || lyricsCache?.provider?.startsWith("note:") == true
-                    if (lyricsCache != null && !isUserNote && (!lyricsCache!!.plainLyrics.isNullOrBlank() || !lyricsCache!!.syncedLyricsLrc.isNullOrBlank())) {
-                        Box(
-                            modifier = Modifier
-                                .defaultMinSize(minHeight = 44.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(AppColors.SurfaceLevel2)
-                                .border(BorderStroke(1.dp, AppColors.BorderSubtle), RoundedCornerShape(8.dp))
-                                .clickable(enabled = !isRejectingLyrics) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    val trackKey = currentTrack.trackKey
-                                    val oldProvider = lyricsCache?.provider.orEmpty()
-                                    isRejectingLyrics = true
-
-                                    scope.launch(Dispatchers.IO) {
-                                        val nextResult = engine.rejectCurrentLyrics(trackKey, oldProvider)
-
-                                        lyricsCache = if (nextResult.hasLyrics) {
-                                            db.lyricsDao().getLyrics(trackKey)
-                                        } else null
-                                        hasRejections = db.lyricsDao().getRejectionsCountForTrack(trackKey) > 0
-                                        isRejectingLyrics = false
-
-                                        val snackbarResult = snackbarHostState.showSnackbar(
-                                            message = if (nextResult.hasLyrics) {
-                                                "Текст заменён на ${nextResult.source}"
-                                            } else {
-                                                "Источник отклонён. Других текстов нет"
-                                            },
-                                            actionLabel = "Отменить",
-                                            duration = SnackbarDuration.Short
-                                        )
-
-                                        if (snackbarResult == SnackbarResult.ActionPerformed) {
-                                            val restored = engine.undoLyricsRejection(trackKey, oldProvider)
-                                            lyricsCache = if (restored.hasLyrics) {
-                                                db.lyricsDao().getLyrics(trackKey)
-                                            } else null
-                                            hasRejections = db.lyricsDao().getRejectionsCountForTrack(trackKey) > 0
-                                        }
-                                    }
-                                }
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                if (isRejectingLyrics) {
-                                    CircularProgressIndicator(
-                                        color = AppColors.HyperViolet,
-                                        strokeWidth = 1.5.dp,
-                                        modifier = Modifier.size(10.dp)
-                                    )
-                                }
-                                Text(
-                                    text = "✕ Не тот текст",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = AppColors.HyperViolet
-                                )
-                            }
-                        }
-                    }
-                }
+                // Total Duration
+                Text(
+                    text = if (totalTrackDuration > 0L) formatMs(totalTrackDuration) else "--:--",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    ),
+                    color = AppColors.TextTertiary
+                )
             }
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Offset Calibration Bar: [-50мс] | [Тайминг: ±Xмс] | [+50мс] (>=44dp Height)
+            // 2. Lyrics Source & Calibration Sub-bar
+            val hasSyncedLrc = !lyricsCache?.syncedLyricsLrc.isNullOrBlank()
+            val isUserNote = lyricsCache?.provider == LyricsSourceIds.USER_NOTE || lyricsCache?.provider?.startsWith("note:") == true
+            val canReject = lyricsCache != null && !isUserNote && (!lyricsCache!!.plainLyrics.isNullOrBlank() || hasSyncedLrc)
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(AppColors.SurfaceLevel1)
                     .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Button -50мс
-                Box(
-                    modifier = Modifier
-                        .defaultMinSize(minHeight = 44.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            syncOffsetMs = (syncOffsetMs - SyncOffsetStore.STEP_OFFSET_MS).coerceIn(
-                                SyncOffsetStore.MIN_OFFSET_MS,
-                                SyncOffsetStore.MAX_OFFSET_MS
-                            )
-                            currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, syncOffsetMs) }
-                        }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
+                // Provider source badge
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(if (hasSyncedLrc) AppColors.CyberCyan else AppColors.TextTertiary)
+                    )
                     Text(
-                        text = "[-50мс]",
+                        text = lyricsCache?.provider?.uppercase() ?: "AUDIO",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp
                         ),
-                        color = AppColors.CyberCyan
+                        color = if (hasSyncedLrc) AppColors.CyberCyan else AppColors.TextSecondary
                     )
                 }
 
-                // Current offset indicator (Click to reset)
-                val offsetPrefix = if (syncOffsetMs > 0) "+" else ""
-                Box(
-                    modifier = Modifier
-                        .defaultMinSize(minHeight = 44.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            syncOffsetMs = 0L
-                            currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, 0L) }
-                        }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Тайминг: $offsetPrefix${syncOffsetMs}мс",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp
-                        ),
-                        color = if (syncOffsetMs == 0L) AppColors.TextSecondary else AppColors.HyperViolet
-                    )
+                // If Synced LRC: compact timing calibration controls
+                if (hasSyncedLrc) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "-50мс",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = AppColors.CyberCyan,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(AppColors.SurfaceLevel2)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    syncOffsetMs = (syncOffsetMs - SyncOffsetStore.STEP_OFFSET_MS).coerceIn(
+                                        SyncOffsetStore.MIN_OFFSET_MS,
+                                        SyncOffsetStore.MAX_OFFSET_MS
+                                    )
+                                    currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, syncOffsetMs) }
+                                }
+                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                        )
+
+                        val offsetPrefix = if (syncOffsetMs > 0) "+" else ""
+                        Text(
+                            text = "$offsetPrefix${syncOffsetMs}мс",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = if (syncOffsetMs == 0L) AppColors.TextSecondary else AppColors.HyperViolet,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable {
+                                    if (syncOffsetMs != 0L) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        syncOffsetMs = 0L
+                                        currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, 0L) }
+                                    }
+                                }
+                                .padding(horizontal = 4.dp, vertical = 3.dp)
+                        )
+
+                        Text(
+                            text = "+50мс",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = AppColors.CyberCyan,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(AppColors.SurfaceLevel2)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    syncOffsetMs = (syncOffsetMs + SyncOffsetStore.STEP_OFFSET_MS).coerceIn(
+                                        SyncOffsetStore.MIN_OFFSET_MS,
+                                        SyncOffsetStore.MAX_OFFSET_MS
+                                    )
+                                    currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, syncOffsetMs) }
+                                }
+                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                        )
+                    }
                 }
 
-                // Button +50мс
-                Box(
-                    modifier = Modifier
-                        .defaultMinSize(minHeight = 44.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            syncOffsetMs = (syncOffsetMs + SyncOffsetStore.STEP_OFFSET_MS).coerceIn(
-                                SyncOffsetStore.MIN_OFFSET_MS,
-                                SyncOffsetStore.MAX_OFFSET_MS
+                // Rejection button "✕ Не тот текст" (Horizontal, maxLines=1, guaranteed no letter-wrapping)
+                if (canReject) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(AppColors.SurfaceLevel2)
+                            .border(BorderStroke(1.dp, AppColors.BorderSubtle), RoundedCornerShape(8.dp))
+                            .clickable(enabled = !isRejectingLyrics) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                val trackKey = currentTrack.trackKey
+                                val oldProvider = lyricsCache?.provider.orEmpty()
+                                isRejectingLyrics = true
+
+                                scope.launch(Dispatchers.IO) {
+                                    val nextResult = engine.rejectCurrentLyrics(trackKey, oldProvider)
+                                    lyricsCache = if (nextResult.hasLyrics) {
+                                        db.lyricsDao().getLyrics(trackKey)
+                                    } else null
+                                    hasRejections = db.lyricsDao().getRejectionsCountForTrack(trackKey) > 0
+                                    isRejectingLyrics = false
+
+                                    val snackbarResult = snackbarHostState.showSnackbar(
+                                        message = if (nextResult.hasLyrics) {
+                                            "Текст заменён на ${nextResult.source}"
+                                        } else {
+                                            "Источник отклонён. Других текстов нет"
+                                        },
+                                        actionLabel = "Отменить",
+                                        duration = SnackbarDuration.Short
+                                    )
+
+                                    if (snackbarResult == SnackbarResult.ActionPerformed) {
+                                        val restored = engine.undoLyricsRejection(trackKey, oldProvider)
+                                        lyricsCache = if (restored.hasLyrics) {
+                                            db.lyricsDao().getLyrics(trackKey)
+                                        } else null
+                                        hasRejections = db.lyricsDao().getRejectionsCountForTrack(trackKey) > 0
+                                    }
+                                }
+                            }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (isRejectingLyrics) {
+                                CircularProgressIndicator(
+                                    color = AppColors.HyperViolet,
+                                    strokeWidth = 1.5.dp,
+                                    modifier = Modifier.size(10.dp)
+                                )
+                            }
+                            Text(
+                                text = "✕ Не тот текст",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                maxLines = 1,
+                                softWrap = false,
+                                color = AppColors.HyperViolet
                             )
-                            currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, syncOffsetMs) }
                         }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "[+50мс]",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        ),
-                        color = AppColors.CyberCyan
-                    )
+                    }
                 }
             }
         } else {

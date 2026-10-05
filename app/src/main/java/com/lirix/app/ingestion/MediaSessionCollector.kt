@@ -368,13 +368,7 @@ class MediaSessionCollector(private val context: Context) {
         @Volatile
         internal var sessionManager: MediaSessionManager? = null
 
-        fun getActiveController(packageName: String? = null): MediaController? {
-            if (packageName != null) {
-                val cached = activeMediaControllers[packageName]
-                if (cached != null) return cached
-            }
-
-            // Динамический опрос MediaSessionManager при отсутствии в кэше
+        fun getControllers(packageName: String? = null): List<MediaController> {
             try {
                 val manager = sessionManager ?: (appContext?.getSystemService(Context.MEDIA_SESSION_SERVICE) as? MediaSessionManager)
                 val ctx = appContext
@@ -385,33 +379,52 @@ class MediaSessionCollector(private val context: Context) {
 
                 if (sessions != null) {
                     for (controller in sessions) {
-                        activeMediaControllers[controller.packageName] = controller
+                        val existing = activeMediaControllers[controller.packageName]
+                        // Only overwrite if existing is null or new one is PLAYING while old one is not
+                        if (existing == null ||
+                            (controller.playbackState?.state == PlaybackState.STATE_PLAYING && existing.playbackState?.state != PlaybackState.STATE_PLAYING) ||
+                            (controller.playbackState != null && existing.playbackState == null)
+                        ) {
+                            activeMediaControllers[controller.packageName] = controller
+                        }
                     }
-                    if (packageName != null) {
-                        val found = activeMediaControllers[packageName]
-                        if (found != null) return found
+                    val filtered = if (packageName != null) sessions.filter { it.packageName == packageName } else sessions
+                    if (filtered.isNotEmpty()) {
+                        return filtered.sortedWith(
+                            compareByDescending<MediaController> { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+                                .thenByDescending { it.playbackState != null }
+                                .thenByDescending { it.metadata != null }
+                        )
                     }
-                    // Если пакет не задан или не найден, вернуть плеер с состоянием PLAYING или первый активный
-                    return sessions.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
-                        ?: sessions.firstOrNull()
                 }
             } catch (e: Exception) {
                 Timber.tag(TAG).w(e, "Could not refresh active sessions from MediaSessionManager")
             }
 
-            return activeMediaControllers.values.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
-                ?: activeMediaControllers.values.firstOrNull()
+            val cachedList = activeMediaControllers.values.filter { packageName == null || it.packageName == packageName }
+            return cachedList.sortedWith(
+                compareByDescending<MediaController> { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+                    .thenByDescending { it.playbackState != null }
+            )
+        }
+
+        fun getActiveController(packageName: String? = null): MediaController? {
+            return getControllers(packageName).firstOrNull()
         }
 
         fun togglePlayPause(): Boolean {
             val snapshot = _livePlaybackFlow.value
-            val controller = getActiveController(snapshot?.packageName) ?: return false
+            val targetPackage = snapshot?.packageName
+            val controllers = getControllers(targetPackage)
+            if (controllers.isEmpty()) return false
 
-            val isCurrentlyPlaying = snapshot?.isPlaying
-                ?: (controller.playbackState?.state == PlaybackState.STATE_PLAYING)
+            val playingControllers = controllers.filter { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+            val isCurrentlyPlaying = playingControllers.isNotEmpty() || (snapshot?.isPlaying == true)
             val nextPlaying = !isCurrentlyPlaying
+            val primaryController = playingControllers.firstOrNull() ?: controllers.first()
+
             val currentPos = snapshot?.currentPositionMs()
-                ?: controller.playbackState?.position
+                ?: primaryController.playbackState?.position
                 ?: 0L
 
             // 1. ОПТИМИСТИЧНОЕ ОБНОВЛЕНИЕ SNAPSHOT (мгновенный отклик UI)
@@ -422,20 +435,34 @@ class MediaSessionCollector(private val context: Context) {
                     lastPositionUpdateTimeMs = android.os.SystemClock.elapsedRealtime()
                 )
             }
-            instance?.syncHeartbeat(nextPlaying, controller.packageName)
+            instance?.syncHeartbeat(nextPlaying, primaryController.packageName)
 
-            // 2. ОТПРАВКА КОМАНДЫ ВО ВНЕШНИЙ ПЛЕЕР (Цепочка: transportControls -> dispatchMediaButtonEvent)
-            return try {
-                if (isCurrentlyPlaying) {
-                    controller.transportControls.pause()
-                } else {
-                    controller.transportControls.play()
-                }
-                true
-            } catch (e: Exception) {
-                Timber.tag(TAG).w(e, "transportControls play/pause failed, trying KeyEvent fallback")
-                sendMediaButtonFallback(controller, isCurrentlyPlaying)
+            // 2. ОТПРАВКА КОМАНДЫ ВО ВСЕ СЕССИИ ДАННОГО ПРИЛОЖЕНИЯ
+            // Приложения вроде Telegram/AyuGram создают несколько параллельных MediaSession,
+            // поэтому для гарантированной паузы отправляем команду всем играющим сессиям пакета.
+            val targetControllers = if (isCurrentlyPlaying) {
+                if (playingControllers.isNotEmpty()) playingControllers else controllers
+            } else {
+                listOf(primaryController)
             }
+
+            var anySuccess = false
+            for (controller in targetControllers) {
+                try {
+                    if (isCurrentlyPlaying) {
+                        controller.transportControls.pause()
+                    } else {
+                        controller.transportControls.play()
+                    }
+                    anySuccess = true
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w(e, "transportControls failed on %s", controller.packageName)
+                }
+                val fallbackOk = sendMediaButtonFallback(controller, isCurrentlyPlaying)
+                if (fallbackOk) anySuccess = true
+            }
+
+            return anySuccess
         }
 
         private fun sendMediaButtonFallback(controller: MediaController, wasPlaying: Boolean): Boolean {
@@ -445,7 +472,14 @@ class MediaSessionCollector(private val context: Context) {
                 val upEvent = KeyEvent(KeyEvent.ACTION_UP, keyCode)
                 val downHandled = controller.dispatchMediaButtonEvent(downEvent)
                 val upHandled = controller.dispatchMediaButtonEvent(upEvent)
-                downHandled || upHandled
+                val directHandled = downHandled || upHandled
+
+                // Дополнительный fallback: KEYCODE_MEDIA_PLAY_PAUSE
+                if (!directHandled) {
+                    val toggleDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+                    val toggleUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+                    controller.dispatchMediaButtonEvent(toggleDown) || controller.dispatchMediaButtonEvent(toggleUp)
+                } else true
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "dispatchMediaButtonEvent failed completely")
                 false

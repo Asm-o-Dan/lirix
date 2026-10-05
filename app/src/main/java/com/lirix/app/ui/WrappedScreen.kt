@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -194,6 +195,7 @@ fun WrappedScreen() {
             .fillMaxSize()
             .background(AppColors.AmoledBlack)
             .padding(horizontal = 16.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 1. Header with dynamic badge and prominent share CTA
@@ -203,7 +205,7 @@ fun WrappedScreen() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Box(
                             modifier = Modifier
@@ -224,48 +226,52 @@ fun WrappedScreen() {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "Музыкальный Wrapped",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontSize = 26.sp,
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = (-0.5).sp
                         ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         color = AppColors.TextPrimary
                     )
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(AppColors.HyperViolet, AppColors.CyberCyan)
+                            )
+                        )
+                        .clickable { showSectionPicker = true }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(AppColors.HyperViolet, AppColors.CyberCyan)
-                                )
-                            )
-                            .clickable { showSectionPicker = true }
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = "Поделиться",
-                                tint = AppColors.AmoledBlack,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = "ПОСТЕР",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 11.sp
-                                ),
-                                color = AppColors.AmoledBlack
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Поделиться постером",
+                            tint = AppColors.AmoledBlack,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "ПОСТЕР",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 11.sp
+                            ),
+                            maxLines = 1,
+                            softWrap = false,
+                            color = AppColors.AmoledBlack
+                        )
                     }
                 }
             }
