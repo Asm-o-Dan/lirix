@@ -126,11 +126,14 @@ import com.eventengine.app.feature.LyricsSourceIds
 import com.eventengine.app.feature.music.ParsedTrackInfo
 import com.eventengine.app.ui.components.rememberAlbumArtBitmap
 import com.eventengine.app.ingestion.MediaSessionCollector
+import com.eventengine.app.ingestion.NotificationListener
 import com.eventengine.app.ingestion.SyncOffsetStore
 import com.eventengine.app.storage.AppDatabase
 import com.eventengine.app.storage.LyricsCacheEntity
 import com.eventengine.app.storage.TrackEntity
+import com.eventengine.app.ui.components.NotificationPermissionDialog
 import com.eventengine.app.ui.theme.AppColors
+import androidx.compose.material.icons.filled.Security
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -281,6 +284,46 @@ fun NowPlayingScreen(
     var playbackPositionMs by remember { mutableLongStateOf(0L) }
     var showShareDialog by remember { mutableStateOf(false) }
     var showTapSyncStudio by remember { mutableStateOf(false) }
+
+    var isNotificationPermissionGranted by remember {
+        mutableStateOf(NotificationListener.isPermissionGranted(context))
+    }
+    var showPermissionDialog by rememberSaveable {
+        mutableStateOf(!NotificationListener.isPermissionGranted(context))
+    }
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                val granted = NotificationListener.isPermissionGranted(context)
+                isNotificationPermissionGranted = granted
+                if (granted) {
+                    showPermissionDialog = false
+                    try {
+                        android.service.notification.NotificationListenerService.requestRebind(
+                            android.content.ComponentName(context, NotificationListener::class.java)
+                        )
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    if (showPermissionDialog) {
+        NotificationPermissionDialog(
+            onDismissRequest = { showPermissionDialog = false },
+            onPermissionGrantedCheck = {
+                val granted = NotificationListener.isPermissionGranted(context)
+                isNotificationPermissionGranted = granted
+                if (granted) showPermissionDialog = false
+            }
+        )
+    }
 
     if (showTapSyncStudio && currentTrack != null) {
         val plainLyricsText = lyricsCache?.plainLyrics ?: currentTrack.plainLyrics.orEmpty()
@@ -744,6 +787,27 @@ fun NowPlayingScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    if (!isNotificationPermissionGranted) {
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                showPermissionDialog = true
+                            },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(AppColors.AmberGold.copy(alpha = 0.18f))
+                                .border(1.dp, AppColors.AmberGold, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = "Настроить доступ к уведомлениям",
+                                tint = AppColors.AmberGold,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
                     // Floating Lyrics Overlay Toggle (Track C)
                     IconButton(
                         onClick = {
@@ -1094,18 +1158,88 @@ fun NowPlayingScreen(
                 }
             }
         } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Музыка не играет\nВключите трек в любимом плеере",
-                    color = AppColors.TextSecondary,
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyLarge
-                )
+            if (!isNotificationPermissionGranted) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(AppColors.SurfaceLevel1)
+                        .border(
+                            BorderStroke(
+                                1.5.dp,
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        AppColors.AmberGold.copy(alpha = 0.8f),
+                                        AppColors.HyperViolet.copy(alpha = 0.8f)
+                                    )
+                                )
+                            ),
+                            RoundedCornerShape(20.dp)
+                        )
+                        .padding(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(AppColors.AmberGold.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = AppColors.AmberGold,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Требуется доступ к плееру",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = AppColors.TextPrimary,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Чтобы Lirix автоматически подхватывал треки из Spotify, VK или Яндекс Музыки, включите доступ к уведомлениям.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AppColors.TextSecondary,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Button(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                showPermissionDialog = true
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.HyperViolet),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "Настроить доступ к музыке",
+                                color = AppColors.AmoledBlack,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Музыка не играет\nВключите трек в любимом плеере",
+                        color = AppColors.TextSecondary,
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
             }
         }
 
