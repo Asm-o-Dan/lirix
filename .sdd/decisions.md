@@ -55,7 +55,17 @@
   3. Release Artifact: `app/build\outputs\apk\debug\app-debug.apk` built successfully with Java 21 Temurin.
 - **Next Phase:** Phase 8 Acceptance & Device Deployment.
 
-
-
-
-
+## ADR-006: Production Release v1.1.1 Signing, Permission Onboarding Flow, and Play Protect Hardening
+- **Date:** 2026-10-04
+- **Status:** APPROVED (Gates 6, 7 & 8 Passed)
+- **Context:** User reported that sideloaded release APK did not prompt for notification permissions on initial launch, preventing now-playing media detection, and was blocked/warned by Google Play Protect and Xiaomi Security due to debug keystore signing and cleartext traffic flags.
+- **Root Cause:**
+  1. `release.yml` mistakenly built `assembleDebug` and renamed `app-debug.apk` with `1.0.0-debug` version and default Android debug key (`CN=Android Debug`).
+  2. `NotificationListener.isPermissionGranted` was never checked on app launch to prompt the user, leaving the app in IDLE state without guidance.
+  3. Android 13+ (API 33+) marks sideloaded notification listeners as "Restricted Settings" by default, preventing toggle without unlocking in App Info.
+- **Decisions:**
+  1. **Release Keystore & Versioning:** Generated `app/lirix-release.jks` (RSA 2048, 10,000 days validity, v1/v2/v3 signatures). Bumped `versionCode = 2`, `versionName = "1.1.1"`. Configured `signingConfigs.release` in `app/build.gradle.kts`.
+  2. **Security Hardening:** Removed `android:usesCleartextTraffic="true"` from `AndroidManifest.xml` (all network calls use HTTPS).
+  3. **Permission Onboarding UX:** Built `NotificationPermissionDialog` and interactive IDLE card in `NowPlayingScreen` with direct intents to notification settings and step-by-step guidance for Android 13+ "Restricted Settings" unlock. Added lifecycle resume re-check.
+  4. **CI/CD Workflow Update:** Updated `.github/workflows/release.yml` to compile `assembleRelease` and package signed `app-release.apk`.
+- **Verdict:** All unit tests green. Production release build succeeds and passes `apksigner` verification with v2/v3 schemes.
