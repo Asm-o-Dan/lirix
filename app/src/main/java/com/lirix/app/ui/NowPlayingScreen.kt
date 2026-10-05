@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPictureAlt
@@ -53,11 +54,14 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Share
 import com.lirix.app.service.FloatingLyricsService
+import com.lirix.app.ui.components.NowPlayingOverflowMenu
+import com.lirix.app.ui.components.TimingCalibrationDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -294,6 +298,8 @@ fun NowPlayingScreen(
     var playbackPositionMs by remember { mutableLongStateOf(0L) }
     var showShareDialog by remember { mutableStateOf(false) }
     var showTapSyncStudio by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showCalibrationDialog by remember { mutableStateOf(false) }
 
     var isNotificationPermissionGranted by remember {
         mutableStateOf(NotificationListener.isPermissionGranted(context))
@@ -804,7 +810,7 @@ fun NowPlayingScreen(
                                 showPermissionDialog = true
                             },
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(44.dp)
                                 .clip(CircleShape)
                                 .background(AppColors.AmberGold.copy(alpha = 0.18f))
                                 .border(1.dp, AppColors.AmberGold, CircleShape)
@@ -813,59 +819,9 @@ fun NowPlayingScreen(
                                 imageVector = Icons.Default.Security,
                                 contentDescription = "Настроить доступ к уведомлениям",
                                 tint = AppColors.AmberGold,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                    }
-
-                    // Floating Lyrics Overlay Toggle (Track C)
-                    IconButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            if (!FloatingLyricsService.isPermissionGranted(context)) {
-                                FloatingLyricsService.requestPermission(context)
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        message = "Предоставьте разрешение «Поверх других приложений»",
-                                        duration = SnackbarDuration.Short
-                                    )
-                                }
-                            } else {
-                                FloatingLyricsService.toggle(context)
-                            }
-                        },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(if (isOverlayActive) AppColors.CyberCyan.copy(alpha = 0.18f) else AppColors.SurfaceLevel1)
-                            .border(
-                                1.dp,
-                                if (isOverlayActive) AppColors.CyberCyan else AppColors.BorderSubtle,
-                                CircleShape
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PictureInPictureAlt,
-                            contentDescription = "Плавающий оверлей",
-                            tint = if (isOverlayActive) AppColors.CyberCyan else AppColors.TextSecondary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { showShareDialog = true },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(AppColors.SurfaceLevel1)
-                            .border(1.dp, AppColors.BorderSubtle, CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "Поделиться треком",
-                            tint = AppColors.HyperViolet,
-                            modifier = Modifier.size(22.dp)
-                        )
                     }
 
                     IconButton(
@@ -876,7 +832,7 @@ fun NowPlayingScreen(
                             }
                         },
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
                             .background(if (currentTrack.isFavorite) AppColors.ExpenseContainer else AppColors.SurfaceLevel1)
                             .border(1.dp, if (currentTrack.isFavorite) AppColors.ExpenseRed.copy(alpha = 0.5f) else AppColors.BorderSubtle, CircleShape)
@@ -885,7 +841,91 @@ fun NowPlayingScreen(
                             imageVector = if (currentTrack.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Favorite",
                             tint = if (currentTrack.isFavorite) AppColors.ExpenseRed else AppColors.TextSecondary,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    Box {
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                showOverflowMenu = true
+                            },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(AppColors.SurfaceLevel1)
+                                .border(1.dp, AppColors.BorderSubtle, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Дополнительные действия",
+                                tint = AppColors.TextPrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        val hasSyncedLrc = !lyricsCache?.syncedLyricsLrc.isNullOrBlank()
+                        val isUserNote = lyricsCache?.provider == LyricsSourceIds.USER_NOTE || lyricsCache?.provider?.startsWith("note:") == true
+                        val canReject = lyricsCache != null && !isUserNote && (!lyricsCache!!.plainLyrics.isNullOrBlank() || hasSyncedLrc)
+
+                        NowPlayingOverflowMenu(
+                            expanded = showOverflowMenu,
+                            onDismissRequest = { showOverflowMenu = false },
+                            isOverlayActive = isOverlayActive,
+                            onToggleOverlay = {
+                                if (!FloatingLyricsService.isPermissionGranted(context)) {
+                                    FloatingLyricsService.requestPermission(context)
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = "Предоставьте разрешение «Поверх других приложений»",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    }
+                                } else {
+                                    FloatingLyricsService.toggle(context)
+                                }
+                            },
+                            onShareClick = { showShareDialog = true },
+                            onRejectSourceClick = {
+                                val trackKey = currentTrack.trackKey
+                                val oldProvider = lyricsCache?.provider.orEmpty()
+                                if (canReject && !isRejectingLyrics) {
+                                    isRejectingLyrics = true
+                                    scope.launch(Dispatchers.IO) {
+                                        val nextResult = engine.rejectCurrentLyrics(trackKey, oldProvider)
+                                        lyricsCache = if (nextResult.hasLyrics) {
+                                            db.lyricsDao().getLyrics(trackKey)
+                                        } else null
+                                        hasRejections = db.lyricsDao().getRejectionsCountForTrack(trackKey) > 0
+                                        isRejectingLyrics = false
+
+                                        val snackbarResult = snackbarHostState.showSnackbar(
+                                            message = if (nextResult.hasLyrics) {
+                                                "Текст заменён на ${nextResult.source}"
+                                            } else {
+                                                "Источник отклонён. Других текстов нет"
+                                            },
+                                            actionLabel = "Отменить",
+                                            duration = SnackbarDuration.Short
+                                        )
+
+                                        if (snackbarResult == SnackbarResult.ActionPerformed) {
+                                            val restored = engine.undoLyricsRejection(trackKey, oldProvider)
+                                            lyricsCache = if (restored.hasLyrics) {
+                                                db.lyricsDao().getLyrics(trackKey)
+                                            } else null
+                                            hasRejections = db.lyricsDao().getRejectionsCountForTrack(trackKey) > 0
+                                        }
+                                    }
+                                }
+                            },
+                            onCalibrateClick = { showCalibrationDialog = true },
+                            onTeachModeClick = { onOpenTeachMode?.invoke() },
+                            isVinylCollapsed = isVinylCollapsed,
+                            onToggleVinyl = {
+                                isVinylCollapsed = !isVinylCollapsed
+                            }
                         )
                     }
                 }
@@ -998,186 +1038,7 @@ fun NowPlayingScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
 
-            // 2. Lyrics Source & Calibration Sub-bar
-            val hasSyncedLrc = !lyricsCache?.syncedLyricsLrc.isNullOrBlank()
-            val isUserNote = lyricsCache?.provider == LyricsSourceIds.USER_NOTE || lyricsCache?.provider?.startsWith("note:") == true
-            val canReject = lyricsCache != null && !isUserNote && (!lyricsCache!!.plainLyrics.isNullOrBlank() || hasSyncedLrc)
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(AppColors.SurfaceLevel1)
-                    .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Provider source badge
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(if (hasSyncedLrc) AppColors.CyberCyan else AppColors.TextTertiary)
-                    )
-                    Text(
-                        text = lyricsCache?.provider?.uppercase() ?: "AUDIO",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 0.5.sp
-                        ),
-                        color = if (hasSyncedLrc) AppColors.CyberCyan else AppColors.TextSecondary
-                    )
-                }
-
-                // If Synced LRC: compact timing calibration controls
-                if (hasSyncedLrc) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = "-50мс",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = AppColors.CyberCyan,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(AppColors.SurfaceLevel2)
-                                .clickable {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    syncOffsetMs = (syncOffsetMs - SyncOffsetStore.STEP_OFFSET_MS).coerceIn(
-                                        SyncOffsetStore.MIN_OFFSET_MS,
-                                        SyncOffsetStore.MAX_OFFSET_MS
-                                    )
-                                    currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, syncOffsetMs) }
-                                }
-                                .padding(horizontal = 6.dp, vertical = 3.dp)
-                        )
-
-                        val offsetPrefix = if (syncOffsetMs > 0) "+" else ""
-                        Text(
-                            text = "$offsetPrefix${syncOffsetMs}мс",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = if (syncOffsetMs == 0L) AppColors.TextSecondary else AppColors.HyperViolet,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable {
-                                    if (syncOffsetMs != 0L) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        syncOffsetMs = 0L
-                                        currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, 0L) }
-                                    }
-                                }
-                                .padding(horizontal = 4.dp, vertical = 3.dp)
-                        )
-
-                        Text(
-                            text = "+50мс",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = AppColors.CyberCyan,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(AppColors.SurfaceLevel2)
-                                .clickable {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    syncOffsetMs = (syncOffsetMs + SyncOffsetStore.STEP_OFFSET_MS).coerceIn(
-                                        SyncOffsetStore.MIN_OFFSET_MS,
-                                        SyncOffsetStore.MAX_OFFSET_MS
-                                    )
-                                    currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, syncOffsetMs) }
-                                }
-                                .padding(horizontal = 6.dp, vertical = 3.dp)
-                        )
-                    }
-                }
-
-                // Rejection button "✕ Не тот текст" (Horizontal, maxLines=1, guaranteed no letter-wrapping)
-                if (canReject) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(AppColors.SurfaceLevel2)
-                            .border(BorderStroke(1.dp, AppColors.BorderSubtle), RoundedCornerShape(8.dp))
-                            .clickable(enabled = !isRejectingLyrics) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                val trackKey = currentTrack.trackKey
-                                val oldProvider = lyricsCache?.provider.orEmpty()
-                                isRejectingLyrics = true
-
-                                scope.launch(Dispatchers.IO) {
-                                    val nextResult = engine.rejectCurrentLyrics(trackKey, oldProvider)
-                                    lyricsCache = if (nextResult.hasLyrics) {
-                                        db.lyricsDao().getLyrics(trackKey)
-                                    } else null
-                                    hasRejections = db.lyricsDao().getRejectionsCountForTrack(trackKey) > 0
-                                    isRejectingLyrics = false
-
-                                    val snackbarResult = snackbarHostState.showSnackbar(
-                                        message = if (nextResult.hasLyrics) {
-                                            "Текст заменён на ${nextResult.source}"
-                                        } else {
-                                            "Источник отклонён. Других текстов нет"
-                                        },
-                                        actionLabel = "Отменить",
-                                        duration = SnackbarDuration.Short
-                                    )
-
-                                    if (snackbarResult == SnackbarResult.ActionPerformed) {
-                                        val restored = engine.undoLyricsRejection(trackKey, oldProvider)
-                                        lyricsCache = if (restored.hasLyrics) {
-                                            db.lyricsDao().getLyrics(trackKey)
-                                        } else null
-                                        hasRejections = db.lyricsDao().getRejectionsCountForTrack(trackKey) > 0
-                                    }
-                                }
-                            }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            if (isRejectingLyrics) {
-                                CircularProgressIndicator(
-                                    color = AppColors.HyperViolet,
-                                    strokeWidth = 1.5.dp,
-                                    modifier = Modifier.size(10.dp)
-                                )
-                            }
-                            Text(
-                                text = "✕ Не тот текст",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                maxLines = 1,
-                                softWrap = false,
-                                color = AppColors.HyperViolet
-                            )
-                        }
-                    }
-                }
-            }
         } else {
             if (!isNotificationPermissionGranted) {
                 Box(
@@ -1935,6 +1796,24 @@ fun NowPlayingScreen(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 16.dp)
         )
+
+        if (showCalibrationDialog) {
+            TimingCalibrationDialog(
+                currentOffsetMs = syncOffsetMs,
+                onOffsetChange = { newOffset ->
+                    syncOffsetMs = newOffset.coerceIn(
+                        SyncOffsetStore.MIN_OFFSET_MS,
+                        SyncOffsetStore.MAX_OFFSET_MS
+                    )
+                    currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, syncOffsetMs) }
+                },
+                onResetOffset = {
+                    syncOffsetMs = 0L
+                    currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, 0L) }
+                },
+                onDismissRequest = { showCalibrationDialog = false }
+            )
+        }
     }
 }
 

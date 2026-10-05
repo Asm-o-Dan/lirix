@@ -1,18 +1,33 @@
 package com.lirix.app.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Brush
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.History
@@ -40,6 +55,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.rememberCoroutineScope
 import com.lirix.app.classifier.SharedMediaPayload
 import com.lirix.app.feature.lyrics.AmDmChordParser
@@ -108,6 +124,8 @@ fun AppScaffold(
         }
     }
 
+    var isCapsuleVisible by rememberSaveable { mutableStateOf(true) }
+
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -115,60 +133,86 @@ fun AppScaffold(
         containerColor = AppColors.AmoledBlack,
         contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            AnimatedVisibility(
+                visible = isCapsuleVisible,
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(280)
+                ) + fadeIn(animationSpec = tween(240)),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(240)
+                ) + fadeOut(animationSpec = tween(200))
             ) {
-                NavigationBar(
-                    containerColor = AppColors.SurfaceLevel1.copy(alpha = 0.94f),
-                    tonalElevation = 0.dp,
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(26.dp))
-                        .border(
-                            BorderStroke(
-                                1.5.dp,
-                                Brush.horizontalGradient(
-                                    listOf(
-                                        AppColors.HyperViolet.copy(alpha = 0.6f),
-                                        AppColors.CyberCyan.copy(alpha = 0.6f)
-                                    )
-                                )
-                            ),
-                            RoundedCornerShape(26.dp)
-                        )
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    AppTab.entries.forEach { tab ->
-                        val isSelected = currentTab == tab
-                        NavigationBarItem(
-                            selected = isSelected,
-                            onClick = {
-                                if (currentTab != tab) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    currentTab = tab
-                                }
-                            },
-                            icon = {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(AppColors.SurfaceLevel1.copy(alpha = 0.94f))
+                            .border(
+                                BorderStroke(
+                                    1.2.dp,
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            AppColors.HyperViolet.copy(alpha = 0.8f),
+                                            AppColors.CyberCyan.copy(alpha = 0.8f)
+                                        )
+                                    )
+                                ),
+                                RoundedCornerShape(24.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        AppTab.entries.forEach { tab ->
+                            val isSelected = currentTab == tab
+                            val bgModifier = if (isSelected) {
+                                Modifier
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(AppColors.SurfaceLevel2)
+                                    .border(1.dp, AppColors.CyberCyan.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+                            } else {
+                                Modifier.clip(RoundedCornerShape(18.dp))
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .then(bgModifier)
+                                    .clickable {
+                                        if (currentTab != tab) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            currentTab = tab
+                                        }
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
                                 Icon(
                                     imageVector = tab.icon,
                                     contentDescription = tab.title,
-                                    tint = if (isSelected) AppColors.CyberCyan else AppColors.TextTertiary
+                                    tint = if (isSelected) AppColors.CyberCyan else AppColors.TextTertiary,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                            },
-                            label = {
-                                Text(
-                                    text = tab.title,
-                                    color = if (isSelected) AppColors.TextPrimary else AppColors.TextTertiary,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.ExtraBold else androidx.compose.ui.text.font.FontWeight.Medium
+                                if (isSelected) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = tab.title,
+                                        color = AppColors.TextPrimary,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                                            fontSize = 12.sp
+                                        )
                                     )
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = AppColors.CyberCyanGlow.copy(alpha = 0.25f)
-                            )
-                        )
+                                }
+                            }
+                        }
                     }
                 }
             }
