@@ -112,7 +112,7 @@ suspend fun recordPlaybackSignal(
 **Код вызова:**
 ```kotlin
 val db = AppDatabase.getInstance(context)
-val musicEngine = com.eventengine.app.feature.MusicFeatureEngine(db.musicDao())
+val musicEngine = com.lirix.app.feature.MusicFeatureEngine(db.musicDao())
 
 if (!title.isNullOrBlank()) {
     val cleanArtist = artist.orEmpty().ifBlank { "Unknown Artist" }
@@ -137,7 +137,7 @@ if (!title.isNullOrBlank()) {
 **Код вызова:**
 ```kotlin
 if (isOngoing) {
-    val parsed = com.eventengine.app.feature.MusicTrackParser.parse(
+    val parsed = com.lirix.app.feature.MusicTrackParser.parse(
         mediaTrack = null,
         mediaArtist = null,
         title = title,
@@ -145,7 +145,7 @@ if (isOngoing) {
     )
     if (parsed.title.isNotBlank()) {
         val db = AppDatabase.getInstance(applicationContext)
-        val musicEngine = com.eventengine.app.feature.MusicFeatureEngine(db.musicDao())
+        val musicEngine = com.lirix.app.feature.MusicFeatureEngine(db.musicDao())
         musicEngine.recordPlaybackSignal(
             title = parsed.title,
             artist = parsed.artist.ifBlank { "Unknown Artist" },
@@ -155,7 +155,7 @@ if (isOngoing) {
             timestamp = now
         )
 
-        com.eventengine.app.feature.MusicLyricsNotificationManager.showLyricsPrompt(
+        com.lirix.app.feature.MusicLyricsNotificationManager.showLyricsPrompt(
             context = applicationContext,
             title = parsed.title,
             artist = parsed.artist,

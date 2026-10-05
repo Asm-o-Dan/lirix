@@ -121,7 +121,7 @@ fun HighFidelityKaraokePlayer(
 
 ## 5. Можно использовать
 
-- Дизайн-токены `AppColors.HyperViolet`, `AppColors.HyperVioletGlow`, `AppColors.AmoledBlack`, `AppColors.CyberCyan` из `com.eventengine.app.ui.theme.AppColors`.
+- Дизайн-токены `AppColors.HyperViolet`, `AppColors.HyperVioletGlow`, `AppColors.AmoledBlack`, `AppColors.CyberCyan` из `com.lirix.app.ui.theme.AppColors`.
 - Стандартные анимации Compose: `animateFloatAsState`, `animateScrollToItem`, `Crossfade`.
 - `HapticFeedbackType.TextHandleMove` из `androidx.compose.ui.hapticfeedback`.
 

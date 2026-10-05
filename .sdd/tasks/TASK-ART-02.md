@@ -28,7 +28,7 @@
 
 ### 2.1 Кэш и Composable-загрузчик в `ui/components/AlbumArtImage.kt` (создать)
 ```kotlin
-package com.eventengine.app.ui.components
+package com.lirix.app.ui.components
 
 import android.graphics.BitmapFactory
 import android.util.LruCache
@@ -60,7 +60,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.eventengine.app.ui.theme.AppColors
+import com.lirix.app.ui.theme.AppColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File

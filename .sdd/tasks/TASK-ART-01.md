@@ -26,7 +26,7 @@
 
 ### 2.1 Класс `AlbumArtStorage` (создать в `storage/AlbumArtStorage.kt`)
 ```kotlin
-package com.eventengine.app.storage
+package com.lirix.app.storage
 
 import android.content.Context
 import android.graphics.Bitmap

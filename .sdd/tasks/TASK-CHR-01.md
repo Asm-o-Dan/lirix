@@ -41,7 +41,7 @@
 Детерминированный класс без зависимостей от Android SDK для изолированного модульного тестирования:
 
 ```kotlin
-package com.eventengine.app.feature.lyrics
+package com.lirix.app.feature.lyrics
 
 object ChordAutoscrollCalculator {
     const val DEFAULT_SECONDS_PER_LINE = 2.8f

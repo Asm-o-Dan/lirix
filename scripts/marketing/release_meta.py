@@ -65,7 +65,7 @@ def collect_release_meta(version="v1.1.0"):
     data = {
         "app_name": "Lirix",
         "version": version,
-        "package_name": "com.eventengine.app",
+        "package_name": "com.lirix.app",
         "repo_url": "https://github.com/Asm-o-Dan/lirix",
         "git": git_info,
         "apk": apk_info,

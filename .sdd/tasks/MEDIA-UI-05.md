@@ -5,7 +5,7 @@
 
 ## 1. Сигнатура компонента:
 ```kotlin
-package com.eventengine.app.ui.components
+package com.lirix.app.ui.components
 
 @Composable
 fun AnalogTurntable(

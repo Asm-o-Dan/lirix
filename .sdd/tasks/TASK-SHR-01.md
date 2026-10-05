@@ -233,7 +233,7 @@ IconButton(
      - Генератор не падает при отсутствии обложки (корректный неоновый фоллбек) или отсутствии цитаты.
 2. **Шеринг через FileProvider:**
    - Файл сохраняется в `cacheDir/shares/share_*.png`.
-   - `FileProvider.getUriForFile` формирует валидный `content://com.eventengine.app.fileprovider/...` URI.
+   - `FileProvider.getUriForFile` формирует валидный `content://com.lirix.app.fileprovider/...` URI.
    - Запускается системный диалог `Intent.createChooser` с передачей `image/png`.
 3. **UI и UX:**
    - На экранах `WrappedScreen` и `NowPlayingScreen` присутствуют кнопки «Поделиться».

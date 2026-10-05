@@ -1,7 +1,7 @@
 {
   "app_name": "Lirix",
   "version": "v1.1.0",
-  "package_name": "com.eventengine.app",
+  "package_name": "com.lirix.app",
   "repo_url": "https://github.com/Asm-o-Dan/lirix",
   "git": {
     "commit_hash": "9f2cfb1",

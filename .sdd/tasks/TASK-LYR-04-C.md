@@ -30,15 +30,15 @@
 ### 2.1 Конфигурация правила `CustomRuleLyricsProvider.kt`
 
 ```kotlin
-package com.eventengine.app.feature.lyrics
+package com.lirix.app.feature.lyrics
 
-import com.eventengine.app.feature.HttpTextClient
-import com.eventengine.app.feature.JsonHelper
-import com.eventengine.app.feature.LyricsProvider
-import com.eventengine.app.feature.LyricsResult
-import com.eventengine.app.feature.LyricsSourceIds
-import com.eventengine.app.storage.CustomLyricsRuleEntity
-import com.eventengine.app.storage.TrackEntity
+import com.lirix.app.feature.HttpTextClient
+import com.lirix.app.feature.JsonHelper
+import com.lirix.app.feature.LyricsProvider
+import com.lirix.app.feature.LyricsResult
+import com.lirix.app.feature.LyricsSourceIds
+import com.lirix.app.storage.CustomLyricsRuleEntity
+import com.lirix.app.storage.TrackEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject

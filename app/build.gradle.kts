@@ -6,15 +6,15 @@ plugins {
 }
 
 android {
-    namespace = "com.eventengine.app"
+    namespace = "com.lirix.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.eventengine.app"
+        applicationId = "com.lirix.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.1"
+        versionCode = 3
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

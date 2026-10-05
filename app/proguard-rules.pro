@@ -1,12 +1,12 @@
-# ProGuard / R8 rules for Android Event Engine
+# ProGuard / R8 rules for Lirix
 
 # Keep Room generated classes
 -keep class * extends androidx.room.RoomDatabase
 -dontwarn androidx.room.paging.**
 
 # Keep Domain models & Entities
--keep class com.eventengine.app.domain.** { *; }
--keep class com.eventengine.app.storage.** { *; }
+-keep class com.lirix.app.domain.** { *; }
+-keep class com.lirix.app.storage.** { *; }
 
 # Strip verbose and debug logs in release builds (Architecture Section 8.2)
 -assumenosideeffects class android.util.Log {

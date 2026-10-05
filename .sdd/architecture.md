@@ -250,7 +250,7 @@
 - `NotificationListener.kt` *(переводится на строгий `MediaIngressFilter`)*
 - `AppDatabase.kt` *(обновляется схема)*
 - `Converters.kt`
-- `MainActivity.kt`, `EventEngineApp.kt`, `Theme.kt`, `AppColors.kt`
+- `MainActivity.kt`, `LirixApp.kt`, `Theme.kt`, `AppColors.kt`
 - `LyricsViewerDialog.kt` *(переиспользуется в плеере)*
 - `LyricsAndTrackParserTest.kt`, `MediaDebounceTest.kt`, `CrossSourceCorrelatorTest.kt`
 

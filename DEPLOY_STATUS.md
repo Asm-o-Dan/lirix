@@ -1,7 +1,7 @@
 # Отчет инженера по развертыванию и сборке (DevOps / Android Build & Release Specialist)
 
 ## 1. Сводка выполнения: Track C — Плавающий оверлей караоке (Floating Lyrics Overlay)
-- **Проект**: Lirix / Android Event Engine (`com.eventengine.app.debug`)
+- **Проект**: Lirix / Lirix (`com.lirix.app.debug`)
 - **Статус сборки и тестов**: **УСПЕШНО СОБРАН APK И ВСЕ ЮНИТ-ТЕСТЫ ЗЕЛЕНЫЕ (BUILD SUCCESSFUL)**
 - **Реализованные задачи**:
   - `TASK-FLT-01`: Системный сервис `FloatingLyricsService` на `SYSTEM_ALERT_WINDOW` с защитой Foreground Service (`mediaPlayback`).
@@ -33,11 +33,11 @@
 ### 2.3 Авторизация и запуск
 - Выдано разрешение `NotificationListener`:
   ```powershell
-  adb -s 2440cbe2 shell cmd notification allow_listener com.eventengine.app.debug/com.eventengine.app.ingestion.NotificationListener 0
+  adb -s 2440cbe2 shell cmd notification allow_listener com.lirix.app.debug/com.lirix.app.ingestion.NotificationListener 0
   ```
 - Выдано разрешение `SYSTEM_ALERT_WINDOW` для оверлея:
   ```powershell
-  adb -s 2440cbe2 shell appops set com.eventengine.app.debug SYSTEM_ALERT_WINDOW allow
+  adb -s 2440cbe2 shell appops set com.lirix.app.debug SYSTEM_ALERT_WINDOW allow
   ```
 - Перезапущена `MainActivity`.
 - **Новый активный PID**: **`25628`**.
@@ -46,7 +46,7 @@
 
 ## 3. Живой лог Logcat
 ```text
-09-25 11:53:39.890 25628 25628 I EventEngineApp: Android Event Engine application initialized.
+09-25 11:53:39.890 25628 25628 I LirixApp: Lirix application initialized.
 09-25 11:53:39.924 25628 25628 I MediaSessionCollector: MediaSessionCollector started listening successfully.
 09-25 11:53:40.592 25628 25812 I MediaSessionCollector: Recorded Media Event: [com.shaiban.audioplayer.mplayer] Михаил Злобин - Глава 18 (UPDATE)
 ```

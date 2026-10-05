@@ -26,7 +26,7 @@
 Добавить Room-сущность `CustomLyricsRuleEntity`:
 
 ```kotlin
-package com.eventengine.app.storage
+package com.lirix.app.storage
 
 import androidx.room.Entity
 import androidx.room.Index
