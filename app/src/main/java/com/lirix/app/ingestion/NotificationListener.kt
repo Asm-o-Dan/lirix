@@ -74,6 +74,7 @@ class NotificationListener : NotificationListenerService() {
         super.onNotificationRemoved(sbn)
         if (sbn == null) return
         val pkg = sbn.packageName.orEmpty()
+        mediaSessionCollector?.onNotificationDismissed(pkg)
         if (CrossSourceCorrelator.isMediaActive(pkg) ||
             pkg.contains("music") || pkg.contains("spotify") || pkg.contains("audio")
         ) {

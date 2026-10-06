@@ -152,7 +152,7 @@ fun LrcTapSyncStudioDialog(
                     .fillMaxSize()
                     .statusBarsPadding()
                     .navigationBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp)
             ) {
                 // 1. Top Bar: Header, Song Info, Close & Save Shortcuts
                 Row(
@@ -282,7 +282,7 @@ fun LrcTapSyncStudioDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -325,7 +325,7 @@ fun LrcTapSyncStudioDialog(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         // ACTIVE / FOCUS LINE (Line 0)
                         val currentItem = lines.getOrNull(currentIndex)
@@ -343,7 +343,7 @@ fun LrcTapSyncStudioDialog(
                                         ),
                                         shape = RoundedCornerShape(16.dp)
                                     )
-                                    .padding(horizontal = 14.dp, vertical = 16.dp),
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -381,7 +381,7 @@ fun LrcTapSyncStudioDialog(
                                         color = AppColors.ElectricMint,
                                         shape = RoundedCornerShape(16.dp)
                                     )
-                                    .padding(horizontal = 14.dp, vertical = 18.dp),
+                                    .padding(horizontal = 14.dp, vertical = 14.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -412,7 +412,7 @@ fun LrcTapSyncStudioDialog(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         // Next Line (Line + 1)
                         val nextItem = lines.getOrNull(currentIndex + 1)
@@ -533,7 +533,7 @@ fun LrcTapSyncStudioDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // 5. Massive Ergonomic Action Button (TAP TO SYNC)
                 val isAllFinished = currentIndex >= lines.size && lines.isNotEmpty()
@@ -546,8 +546,8 @@ fun LrcTapSyncStudioDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
-                        .clip(RoundedCornerShape(18.dp))
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(16.dp))
                         .background(buttonBrush)
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -574,14 +574,14 @@ fun LrcTapSyncStudioDialog(
                             imageVector = if (isAllFinished) Icons.Default.Check else Icons.Default.TouchApp,
                             contentDescription = null,
                             tint = Color.Black,
-                            modifier = Modifier.size(26.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = if (isAllFinished) "СОХРАНИТЬ КАРАОКЕ" else "ТАП • СЛЕДУЮЩАЯ СТРОКА",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Black,
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 letterSpacing = 0.5.sp
                             ),
                             color = Color.Black
@@ -612,7 +612,7 @@ fun LrcTapSyncStudioDialog(
                         enabled = canUndo,
                         modifier = Modifier
                             .weight(1f)
-                            .defaultMinSize(minHeight = 40.dp),
+                            .defaultMinSize(minHeight = 38.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = AppColors.TextPrimary,
@@ -648,7 +648,7 @@ fun LrcTapSyncStudioDialog(
                         enabled = markedCount > 0,
                         modifier = Modifier
                             .weight(1f)
-                            .defaultMinSize(minHeight = 40.dp),
+                            .defaultMinSize(minHeight = 38.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = AppColors.ExpenseRed,

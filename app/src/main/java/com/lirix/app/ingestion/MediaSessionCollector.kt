@@ -118,7 +118,7 @@ class MediaSessionCollector(private val context: Context) {
     }
 
     private fun updateControllers(controllers: List<MediaController>?) {
-        if (controllers == null) return
+        if (controllers.isNullOrEmpty()) return
 
         for (controller in controllers) {
             val pkg = controller.packageName
@@ -137,9 +137,12 @@ class MediaSessionCollector(private val context: Context) {
 
             controller.registerCallback(callback)
             activeControllers[pkg] = callback
+        }
 
-            // Capture current snapshot
-            handleMetadataChange(controller, controller.metadata)
+        // Выбираем ОДИН наилучший контроллер через resolveTargetController
+        val bestTarget = resolveTargetController(controllers)
+        if (bestTarget != null) {
+            handleMetadataChange(bestTarget, bestTarget.metadata)
         }
     }
 
@@ -163,12 +166,18 @@ class MediaSessionCollector(private val context: Context) {
         if (state == null) return
         activeMediaControllers[controller.packageName] = controller
 
+        val current = _livePlaybackFlow.value
+        val isPlaying = state.state == PlaybackState.STATE_PLAYING
+        if (current != null && current.isPlaying && current.packageName != controller.packageName && !isPlaying) {
+            // Защита активного воспроизведения: фоновая неиграющая сессия не может сбить текущий плеер
+            return
+        }
+
         val metadata = controller.metadata
         val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)?.trim().orEmpty()
         val artist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)?.trim().orEmpty()
         val album = metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM)?.trim().orEmpty()
         val duration = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
-        val isPlaying = state.state == PlaybackState.STATE_PLAYING
         val basePos = state.position
         val updateTime = if (state.lastPositionUpdateTime > 0L) state.lastPositionUpdateTime else android.os.SystemClock.elapsedRealtime()
         val speed = if (state.playbackSpeed > 0f) state.playbackSpeed else 1.0f
@@ -204,12 +213,18 @@ class MediaSessionCollector(private val context: Context) {
         if (metadata == null) return
         activeMediaControllers[controller.packageName] = controller
 
+        val current = _livePlaybackFlow.value
+        val isPlaying = controller.playbackState?.state == PlaybackState.STATE_PLAYING
+        if (current != null && current.isPlaying && current.packageName != controller.packageName && !isPlaying) {
+            // Защита активного воспроизведения
+            return
+        }
+
         val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE)?.trim().orEmpty()
         val artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)?.trim().orEmpty()
         val album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM)?.trim().orEmpty()
         val duration = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION)
         val state = controller.playbackState
-        val isPlaying = state?.state == PlaybackState.STATE_PLAYING
         val basePos = state?.position ?: 0L
         val updateTime = if ((state?.lastPositionUpdateTime ?: 0L) > 0L) state!!.lastPositionUpdateTime else android.os.SystemClock.elapsedRealtime()
         val speed = if ((state?.playbackSpeed ?: 0f) > 0f) state!!.playbackSpeed else 1.0f
@@ -352,6 +367,19 @@ class MediaSessionCollector(private val context: Context) {
         _livePlaybackFlow.value = null
         instance = null
         com.lirix.app.feature.MusicLyricsNotificationManager.cancelLyricsPrompt(context)
+    }
+
+    fun onNotificationDismissed(packageName: String) {
+        val current = _livePlaybackFlow.value
+        if (current != null && current.packageName == packageName && !current.isPlaying) {
+            val remaining = activeMediaControllers.values.filter { it.packageName != packageName }
+            val best = resolveTargetController(remaining)
+            if (best != null && best.playbackState?.state == PlaybackState.STATE_PLAYING) {
+                handleMetadataChange(best, best.metadata)
+            } else {
+                _livePlaybackFlow.value = null
+            }
+        }
     }
 
     companion object {

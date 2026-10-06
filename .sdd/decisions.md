@@ -91,3 +91,18 @@
   1. `MediaSessionCollector.seekTo`: Query controllers for package, filter by `(actions and PlaybackState.ACTION_SEEK_TO) != 0L`, and dispatch `seekTo` to capable controller(s).
   2. `MusicFeatureEngine`: Exclude `PAUSED` from `isCompleted = true` (only `STOPPED` marks completion). Track resumption must not increment `playCount`.
 - **Next Phase:** Transition to Phase 1 (Architecture & Delegation to Subagents).
+
+## ADR-010: Target MediaSession Arbitration and Ghost/Zombie Session Suppression
+- **Date:** 2026-10-06
+- **Status:** APPROVED (Gate 0 Passed)
+- **Context:**
+  When opening Lirix, an inactive/closed session (e.g. YouTube in PAUSED/STOPPED state without notification in status bar) overwrote the active playing Telegram session in `_livePlaybackFlow`.
+  Root causes:
+  1. `MediaSessionCollector.updateControllers()` looped over all controllers and called `handleMetadataChange()` for each, causing the last processed controller to blindly overwrite `_livePlaybackFlow.value`, regardless of playback state.
+  2. Non-playing controllers were allowed to overwrite active playing sessions (`isPlaying == true`) of other apps.
+  3. When media notifications are dismissed in the system notification shade, dead sessions lingered as zombie snapshots.
+- **Decisions:**
+  1. **Strict Arbitration in `updateControllers`**: Register callbacks for all controllers, but select the initial snapshot using `resolveTargetController(controllers)` — playing sessions (`STATE_PLAYING`) have absolute priority (+10000 score).
+  2. **Active Playback Protection**: A non-playing controller event (`isPlaying == false`) must never overwrite `_livePlaybackFlow` if the current snapshot is playing (`current.isPlaying == true`) from another package.
+  3. **Notification Removal Sync**: When a notification is dismissed for a package, if that package was shown in `_livePlaybackFlow` and is not playing, clear it or fall back to an active playing session.
+- **Next Phase:** Transition to Phase 2 (Specification SPEC-ING-03) and Phase 4 (Task Card TASK-ING-03).

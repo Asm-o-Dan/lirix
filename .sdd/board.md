@@ -78,6 +78,9 @@
 | TASK-BUG-09B | Реализация корректного статуса сессии при PAUSED в MusicFeatureEngine.kt | feature/MusicFeatureEngine.kt | media-core | SPEC-BUG-09B | Coder B | DONE |
 | TASK-QA-09 | Тесты на сохранение playCount=1 при паузе >60с и seekTo controller selection | test/MusicDatabaseTest.kt | QA | TASK-BUG-09A..B | QA | DONE |
 | TASK-REV-09 | Ревью кода, сборка Release APK и проверка на устройстве | .sdd/reports/BUG-09.review.md | review | TASK-QA-09 | Ревьюер | DONE |
+| TASK-UI-07 | Видимость кнопок «Шаг назад» и «Сбросить» в LrcTapSyncStudioDialog (safe insets & padding) | ui/components/LrcTapSyncStudioDialog.kt | media-ui | TASK-REV-09 | Coder (UI) | DONE |
+| SPEC-ING-03 | Спецификация арбитража сессий и подавления зомби-сессий | .sdd/specs/media-ingress/target_session_arbitration.md | media-ingress | ADR-010 | Спецификатор A | DONE |
+| TASK-ING-03 | Реализация арбитража сессий и защиты активного плеера при старте | ingestion/MediaSessionCollector.kt, ingestion/NotificationListener.kt | media-ingress | SPEC-ING-03 | Coder A | DONE |
 
 
 
