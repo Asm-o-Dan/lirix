@@ -118,7 +118,35 @@ class MediaSessionCollector(private val context: Context) {
     }
 
     private fun updateControllers(controllers: List<MediaController>?) {
-        if (controllers.isNullOrEmpty()) return
+        if (controllers.isNullOrEmpty()) {
+            // Все сессии закрыты: разрегистрируем колбэки и переходим в IDLE
+            for ((pkg, callback) in activeControllers) {
+                try {
+                    activeMediaControllers[pkg]?.unregisterCallback(callback)
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w(e, "Error unregistering callback for %s", pkg)
+                }
+            }
+            activeControllers.clear()
+            activeMediaControllers.clear()
+            _livePlaybackFlow.value = null
+            return
+        }
+
+        // Очистка сессий, которые пропали из системы
+        val currentPkgs = controllers.map { it.packageName }.toSet()
+        val removedPkgs = activeMediaControllers.keys - currentPkgs
+        for (pkg in removedPkgs) {
+            val cb = activeControllers.remove(pkg)
+            if (cb != null) {
+                try {
+                    activeMediaControllers[pkg]?.unregisterCallback(cb)
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w(e, "Error unregistering removed session for %s", pkg)
+                }
+            }
+            activeMediaControllers.remove(pkg)
+        }
 
         for (controller in controllers) {
             val pkg = controller.packageName
@@ -139,10 +167,13 @@ class MediaSessionCollector(private val context: Context) {
             activeControllers[pkg] = callback
         }
 
-        // Выбираем ОДИН наилучший контроллер через resolveTargetController
-        val bestTarget = resolveTargetController(controllers)
-        if (bestTarget != null) {
-            handleMetadataChange(bestTarget, bestTarget.metadata)
+        // Если текущий отображаемый трек принадлежал удаленному пакету, переключаем на живой
+        val currentSnapshot = _livePlaybackFlow.value
+        if (currentSnapshot == null || currentSnapshot.packageName in removedPkgs || !currentSnapshot.isPlaying) {
+            val bestTarget = resolveTargetController(controllers)
+            if (bestTarget != null) {
+                handleMetadataChange(bestTarget, bestTarget.metadata)
+            }
         }
     }
 
@@ -500,6 +531,36 @@ class MediaSessionCollector(private val context: Context) {
             return bestController
         }
 
+        fun resolveSkipController(controllers: List<MediaController>, isNext: Boolean): MediaController? {
+            if (controllers.isEmpty()) return null
+
+            val targetAction = if (isNext) PlaybackState.ACTION_SKIP_TO_NEXT else PlaybackState.ACTION_SKIP_TO_PREVIOUS
+            var bestController: MediaController? = null
+            var maxScore = -1
+
+            for (controller in controllers) {
+                val state = controller.playbackState
+                val actions = state?.actions ?: 0L
+
+                val hasSkipAction = (actions and targetAction) != 0L
+                val isPlaying = state?.state == PlaybackState.STATE_PLAYING
+                val hasPlaybackState = state != null
+                val hasMetadata = controller.metadata != null
+
+                val score = (if (hasSkipAction) 10000 else 0) +
+                        (if (isPlaying) 1000 else 0) +
+                        (if (hasPlaybackState) 100 else 0) +
+                        (if (hasMetadata) 10 else 0)
+
+                if (score > maxScore) {
+                    maxScore = score
+                    bestController = controller
+                }
+            }
+
+            return bestController
+        }
+
         fun togglePlayPause(): Boolean {
             val snapshot = _livePlaybackFlow.value
             val targetPackage = snapshot?.packageName
@@ -579,11 +640,10 @@ class MediaSessionCollector(private val context: Context) {
         }
 
         fun skipToNext(): Boolean {
-
             val snapshot = _livePlaybackFlow.value
             val targetPackage = snapshot?.packageName
             val controllers = getControllers(targetPackage)
-            val controller = resolveTargetController(controllers) ?: return false
+            val controller = resolveSkipController(controllers, isNext = true) ?: resolveTargetController(controllers) ?: return false
 
             return try {
                 controller.transportControls.skipToNext()
@@ -600,7 +660,7 @@ class MediaSessionCollector(private val context: Context) {
             val snapshot = _livePlaybackFlow.value
             val targetPackage = snapshot?.packageName
             val controllers = getControllers(targetPackage)
-            val controller = resolveTargetController(controllers) ?: return false
+            val controller = resolveSkipController(controllers, isNext = false) ?: resolveTargetController(controllers) ?: return false
 
             return try {
                 controller.transportControls.skipToPrevious()

@@ -348,5 +348,18 @@ class LivePlaybackSyncTest {
         val resultNull = com.lirix.app.ingestion.MediaSessionCollector.resolveSeekController(emptyList)
         org.junit.Assert.assertNull("Empty list must return null", resultNull)
     }
+
+    // ------------------------------------------------------------------------
+    // TASK-ING-04: resolveSkipController Scoring & Action Filtering Tests
+    // ------------------------------------------------------------------------
+
+    @Test
+    fun testResolveSkipController_emptyList_returnsNull() {
+        val emptyList = emptyList<android.media.session.MediaController>()
+        val nextResult = com.lirix.app.ingestion.MediaSessionCollector.resolveSkipController(emptyList, isNext = true)
+        val prevResult = com.lirix.app.ingestion.MediaSessionCollector.resolveSkipController(emptyList, isNext = false)
+        org.junit.Assert.assertNull("Empty list for next must return null", nextResult)
+        org.junit.Assert.assertNull("Empty list for prev must return null", prevResult)
+    }
 }
 

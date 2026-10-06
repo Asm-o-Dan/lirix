@@ -81,6 +81,11 @@
 | TASK-UI-07 | Видимость кнопок «Шаг назад» и «Сбросить» в LrcTapSyncStudioDialog (safe insets & padding) | ui/components/LrcTapSyncStudioDialog.kt | media-ui | TASK-REV-09 | Coder (UI) | DONE |
 | SPEC-ING-03 | Спецификация арбитража сессий и подавления зомби-сессий | .sdd/specs/media-ingress/target_session_arbitration.md | media-ingress | ADR-010 | Спецификатор A | DONE |
 | TASK-ING-03 | Реализация арбитража сессий и защиты активного плеера при старте | ingestion/MediaSessionCollector.kt, ingestion/NotificationListener.kt | media-ingress | SPEC-ING-03 | Coder A | DONE |
+| SPEC-BUG-11 | Спецификация Skip-контроллеров и очистки жизненного цикла сессий | .sdd/specs/media-ingress/skip_and_lifecycle_cleanup.md | media-ingress | ADR-011 | Спецификатор A | DONE |
+| TASK-ING-04 | Реализация resolveSkipController и очистки сессий в MediaSessionCollector.kt | ingestion/MediaSessionCollector.kt | media-ingress | SPEC-BUG-11 | Coder A | DONE |
+| TASK-UI-08 | Ограничение максимальной высоты списка треков в ShareLyricsAttachDialog.kt | ui/components/ShareLyricsAttachDialog.kt | media-ui | SPEC-BUG-11 | Coder (UI) | DONE |
+| TASK-QA-11 | Тесты на выбор skip-контроллеров и переход в IDLE при закрытии сессий | test/LivePlaybackSyncTest.kt | QA | TASK-ING-04 | QA | DONE |
+| TASK-REV-11 | Ревью кода, сборка Release APK и проверка на устройстве | .sdd/reports/BUG-11.review.md | review | TASK-QA-11 | Ревьюер | TODO |
 
 
 

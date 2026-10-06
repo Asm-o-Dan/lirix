@@ -106,3 +106,17 @@
   2. **Active Playback Protection**: A non-playing controller event (`isPlaying == false`) must never overwrite `_livePlaybackFlow` if the current snapshot is playing (`current.isPlaying == true`) from another package.
   3. **Notification Removal Sync**: When a notification is dismissed for a package, if that package was shown in `_livePlaybackFlow` and is not playing, clear it or fall back to an active playing session.
 - **Next Phase:** Transition to Phase 2 (Specification SPEC-ING-03) and Phase 4 (Task Card TASK-ING-03).
+
+## ADR-011: Comprehensive Ingress Robustness: Skip Controller Selection, Session Cleanup & Lifecycle Leaks Fix
+- **Date:** 2026-10-06
+- **Status:** APPROVED (Gate 0 Passed via /goal)
+- **Context:**
+  Systematic audit of similar edge cases revealed:
+  1. `skipToNext()` and `skipToPrevious()` used generic `resolveTargetController()`, which fails in multi-session apps (Telegram/AyuGram) where one controller lacks `ACTION_SKIP_TO_NEXT`/`PREVIOUS`.
+  2. `updateControllers()` failed to clean up removed controllers when apps close (`controllers.isNullOrEmpty()` early return), leaving dead references and leaking callbacks in `activeControllers`.
+  3. `ShareLyricsAttachDialog` modal list could overflow screen vertically on compact devices when keyboard is opened.
+- **Decisions:**
+  1. **Specialized Skip Controller Selection**: Implement `resolveSkipController(controllers, isNext: Boolean)` filtering by `PlaybackState.ACTION_SKIP_TO_NEXT` and `ACTION_SKIP_TO_PREVIOUS`.
+  2. **Deterministic Lifecycle Cleanup**: Unregister callbacks and prune `activeMediaControllers`/`activeControllers` when sessions disappear. Transition to IDLE snapshot when all sessions terminate.
+  3. **Dialog Safety**: Constrain `ShareLyricsAttachDialog` recent tracks list to prevent vertical overflow.
+- **Next Phase:** Transition to Specification & Task Decomposition.
