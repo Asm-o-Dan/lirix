@@ -238,7 +238,7 @@ class MusicDatabaseTest {
         val pausedSession = musicDao.getLastSessionForPackage("com.spotify.music")
         assertNotNull(pausedSession)
         assertEquals(20000L, pausedSession!!.durationMs)
-        assertTrue("Session must be marked completed on PAUSED", pausedSession.isCompleted)
+        assertFalse("Session must remain open (not completed) on PAUSED", pausedSession.isCompleted)
     }
 
     // ------------------------------------------------------------------------
@@ -464,6 +464,60 @@ class MusicDatabaseTest {
         )
         assertNotNull(trackA2)
         assertEquals("Replaying Track A after 60s cooldown must increment playCount to 2", 2, trackA2!!.playCount)
+    }
+
+    // ------------------------------------------------------------------------
+    // TASK-BUG-09: Pause Session Lifecycle & PlayCount Inflation Protection
+    // ------------------------------------------------------------------------
+
+    @Test
+    fun test_pause_longer_than_cooldown_does_not_increment_playCount() = runBlocking {
+        val engine = com.lirix.app.feature.MusicFeatureEngine(musicDao)
+        val t0 = 5_000_000L
+        val pkg = "org.telegram.messenger"
+
+        // 1. Initial PLAYING signal
+        val track1 = engine.recordPlaybackSignal(
+            title = "Somewhere I Belong",
+            artist = "Linkin Park",
+            album = "Meteora",
+            sourcePackage = pkg,
+            playbackState = "PLAYING",
+            timestamp = t0
+        )
+        assertNotNull(track1)
+        assertEquals(1, track1!!.playCount)
+
+        // 2. Pause after 15s
+        val tPause = t0 + 15_000L
+        engine.recordPlaybackSignal(
+            title = "Somewhere I Belong",
+            artist = "Linkin Park",
+            album = "Meteora",
+            sourcePackage = pkg,
+            playbackState = "PAUSED",
+            timestamp = tPause
+        )
+        val pausedSession = musicDao.getLastSessionForPackage(pkg)
+        assertNotNull(pausedSession)
+        assertFalse("Paused session must NOT be marked isCompleted", pausedSession!!.isCompleted)
+
+        // 3. Resume after 80s (> 60s cooldown passed) on the same track
+        val tResume = tPause + 80_000L
+        val trackResume = engine.recordPlaybackSignal(
+            title = "Somewhere I Belong",
+            artist = "Linkin Park",
+            album = "Meteora",
+            sourcePackage = pkg,
+            playbackState = "PLAYING",
+            timestamp = tResume
+        )
+        assertNotNull(trackResume)
+        assertEquals("Resuming playback after pause (>60s) must NOT increment playCount", 1, trackResume!!.playCount)
+
+        val trackInDb = musicDao.getTrackByKey(track1.trackKey)
+        assertNotNull(trackInDb)
+        assertEquals("Database playCount must remain 1 after long pause and resume", 1, trackInDb!!.playCount)
     }
 }
 

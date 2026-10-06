@@ -81,4 +81,13 @@
   4. **IPC Ingress Safety:** Implement `skipToNext()` and `skipToPrevious()` in `MediaSessionCollector` using `resolveTargetController()` with single-controller targeting and `dispatchMediaButtonEvent` fallback.
 - **Next Phase:** Transition to Phase 1 (Architecture) & Phase 2 (Specification).
 
-
+## ADR-009: Telegram SeekTo Controller Resolution & PlayCount Pause Inflation Prevention
+- **Date:** 2026-10-06
+- **Status:** APPROVED (Gate 0 Passed)
+- **Context:**
+  1. Seeking in Telegram/AyuGram external player fails because multiple MediaControllers exist (`MediaSessionHelper` without `ACTION_SEEK_TO` vs `telegramAudioPlayer` with `ACTION_SEEK_TO`). Collector picked the first one blindly.
+  2. Pausing track marked session `isCompleted = true`, causing subsequent resumption to trigger `isTrackReplayAfterCompletion = true` and falsely incrementing `playCount`.
+- **Decisions:**
+  1. `MediaSessionCollector.seekTo`: Query controllers for package, filter by `(actions and PlaybackState.ACTION_SEEK_TO) != 0L`, and dispatch `seekTo` to capable controller(s).
+  2. `MusicFeatureEngine`: Exclude `PAUSED` from `isCompleted = true` (only `STOPPED` marks completion). Track resumption must not increment `playCount`.
+- **Next Phase:** Transition to Phase 1 (Architecture & Delegation to Subagents).

@@ -71,10 +71,13 @@
 | TASK-GST-01-C | Свайпы по винилу (Track Next/Prev) и дабл-тап по карточке (Play/Pause) | ui/NowPlayingScreen.kt, ui/components/AnalogTurntable.kt | media-ui | TASK-GST-01-A..B | Coder | DONE |
 | TASK-REV-GST-01 | Ревью, прогон тестов, сборка APK и верификация жестов | .sdd/reports/GST-01.review.md | review | TASK-GST-01-C | Ревьюер / QA | DONE |
 | TASK-LIB-02 | Полнотекстовый поиск по текстам песен и заметкам со сниппетами | ui/LibraryScreen.kt | media-ui | TASK-LIB-01 | Coder | DONE |
-
-
-
-
+| ARCH-BUG-09 | Архитектура: точный поиск seekTo-контроллера и модель жизненного цикла сессий без паузы | .sdd/architecture_seek_and_pause.md | Arch | ADR-009 | Архитектор | DONE |
+| SPEC-BUG-09A | Спецификация резолвинга MediaController с ACTION_SEEK_TO в MediaSessionCollector | .sdd/specs/media-ingress/seek_controller_resolution.md | media-ingress | ARCH-BUG-09 | Спецификатор A | DONE |
+| SPEC-BUG-09B | Спецификация предотвращения накрутки playCount при паузе в MusicFeatureEngine | .sdd/specs/media-core/pause_session_lifecycle.md | media-core | ARCH-BUG-09 | Спецификатор B | DONE |
+| TASK-BUG-09A | Реализация выбора seekTo контроллера в MediaSessionCollector.kt | ingestion/MediaSessionCollector.kt | media-ingress | SPEC-BUG-09A | Coder A | DONE |
+| TASK-BUG-09B | Реализация корректного статуса сессии при PAUSED в MusicFeatureEngine.kt | feature/MusicFeatureEngine.kt | media-core | SPEC-BUG-09B | Coder B | DONE |
+| TASK-QA-09 | Тесты на сохранение playCount=1 при паузе >60с и seekTo controller selection | test/MusicDatabaseTest.kt | QA | TASK-BUG-09A..B | QA | DONE |
+| TASK-REV-09 | Ревью кода, сборка Release APK и проверка на устройстве | .sdd/reports/BUG-09.review.md | review | TASK-QA-09 | Ревьюер | DONE |
 
 
 

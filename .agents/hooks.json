@@ -1,0 +1,16 @@
+{
+  "sdd-subagent-guard": {
+    "PreToolUse": [
+      {
+        "matcher": "invoke_subagent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python hooks/prevent_subagent.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

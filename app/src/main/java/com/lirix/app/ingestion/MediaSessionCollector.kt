@@ -443,6 +443,35 @@ class MediaSessionCollector(private val context: Context) {
             return bestController
         }
 
+        fun resolveSeekController(controllers: List<MediaController>): MediaController? {
+            if (controllers.isEmpty()) return null
+
+            var bestController: MediaController? = null
+            var maxScore = -1
+
+            for (controller in controllers) {
+                val state = controller.playbackState
+                val actions = state?.actions ?: 0L
+
+                val hasSeekToAction = (actions and PlaybackState.ACTION_SEEK_TO) != 0L
+                val isPlaying = state?.state == PlaybackState.STATE_PLAYING
+                val hasPlaybackState = state != null
+                val hasMetadata = controller.metadata != null
+
+                val score = (if (hasSeekToAction) 10000 else 0) +
+                        (if (isPlaying) 1000 else 0) +
+                        (if (hasPlaybackState) 100 else 0) +
+                        (if (hasMetadata) 10 else 0)
+
+                if (score > maxScore) {
+                    maxScore = score
+                    bestController = controller
+                }
+            }
+
+            return bestController
+        }
+
         fun togglePlayPause(): Boolean {
             val snapshot = _livePlaybackFlow.value
             val targetPackage = snapshot?.packageName
@@ -557,9 +586,10 @@ class MediaSessionCollector(private val context: Context) {
         }
 
         fun seekTo(positionMs: Long): Boolean {
-
             val snapshot = _livePlaybackFlow.value
-            val controller = getActiveController(snapshot?.packageName)
+            val targetPackage = snapshot?.packageName
+            val controllers = getControllers(targetPackage)
+            val controller = resolveSeekController(controllers) ?: resolveTargetController(controllers)
 
             val validDuration = snapshot?.durationMs ?: controller?.metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
             val clampedPosition = if (validDuration > 0L) {
@@ -579,7 +609,7 @@ class MediaSessionCollector(private val context: Context) {
             // 2. ОТПРАВКА ВО ВНЕШНИЙ ПЛЕЕР
             return try {
                 controller?.transportControls?.seekTo(clampedPosition)
-                true
+                controller != null
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Failed to seekTo %d on controller", clampedPosition)
                 false

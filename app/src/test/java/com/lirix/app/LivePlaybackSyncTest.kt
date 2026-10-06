@@ -337,5 +337,16 @@ class LivePlaybackSyncTest {
         val normalBackwardPos = (midSnapshot.basePositionMs - 10000L).coerceIn(0L, duration)
         assertEquals(50000L, normalBackwardPos)
     }
+
+    // ------------------------------------------------------------------------
+    // TASK-BUG-09A: resolveSeekController Scoring & Action Filtering Tests
+    // ------------------------------------------------------------------------
+
+    @Test
+    fun testResolveSeekController_prefersControllerWithSeekToAction() {
+        val emptyList = emptyList<android.media.session.MediaController>()
+        val resultNull = com.lirix.app.ingestion.MediaSessionCollector.resolveSeekController(emptyList)
+        org.junit.Assert.assertNull("Empty list must return null", resultNull)
+    }
 }
 

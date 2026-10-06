@@ -108,7 +108,7 @@ class MusicFeatureEngine(
             val updated = lastSession.copy(
                 endTimeMs = timestamp,
                 durationMs = lastSession.durationMs + effectiveDuration,
-                isCompleted = (playbackState == "PAUSED" || playbackState == "STOPPED")
+                isCompleted = (playbackState == "STOPPED")
             )
             musicDao.updateSession(updated)
         } else {
@@ -228,7 +228,7 @@ class MusicFeatureEngine(
             val updatedSession = lastSession.copy(
                 endTimeMs = now,
                 durationMs = lastSession.durationMs + effectiveDuration,
-                isCompleted = (playbackState == "PAUSED" || playbackState == "STOPPED")
+                isCompleted = (playbackState == "STOPPED")
             )
             musicDao.updateSession(updatedSession)
         } else {
