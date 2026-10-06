@@ -121,7 +121,11 @@ fun LibraryScreen(
             val q = searchQuery.trim().lowercase()
             list = list.filter {
                 it.title.lowercase().contains(q) ||
-                    it.artist.lowercase().contains(q)
+                    it.artist.lowercase().contains(q) ||
+                    it.album.lowercase().contains(q) ||
+                    it.plainLyrics?.lowercase()?.contains(q) == true ||
+                    it.syncedLyrics?.lowercase()?.contains(q) == true ||
+                    it.userNotes.lowercase().contains(q)
             }
         }
         list
@@ -136,7 +140,10 @@ fun LibraryScreen(
             recentTracks.filter {
                 it.title.lowercase().contains(q) ||
                     it.artist.lowercase().contains(q) ||
-                    it.album.lowercase().contains(q)
+                    it.album.lowercase().contains(q) ||
+                    it.plainLyrics?.lowercase()?.contains(q) == true ||
+                    it.syncedLyrics?.lowercase()?.contains(q) == true ||
+                    it.userNotes.lowercase().contains(q)
             }
         }
     }
@@ -446,6 +453,7 @@ fun LibraryScreen(
                                 items(filteredLibraryTracks, key = { it.trackKey }) { track ->
                                     LibraryTrackCard(
                                         track = track,
+                                        searchQuery = searchQuery,
                                         onFavoriteToggle = {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             scope.launch(Dispatchers.IO) {
@@ -556,6 +564,7 @@ fun LibraryScreen(
                                 items(filteredHistoryTracks, key = { it.trackKey }) { track ->
                                     UnifiedHistoryTrackCard(
                                         track = track,
+                                        searchQuery = searchQuery,
                                         onFavoriteClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             scope.launch(Dispatchers.IO) {
@@ -586,6 +595,7 @@ fun LibraryScreen(
 @Composable
 private fun LibraryTrackCard(
     track: TrackEntity,
+    searchQuery: String = "",
     onFavoriteToggle: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -651,6 +661,36 @@ private fun LibraryTrackCard(
                     BadgeChip(text = "★ Любимое", color = AppColors.AmberGold)
                 }
             }
+
+            if (searchQuery.isNotBlank()) {
+                val lyricsSnippet = extractSearchSnippet(track.plainLyrics ?: track.syncedLyrics, searchQuery)
+                val notesSnippet = extractSearchSnippet(track.userNotes, searchQuery)
+                if (lyricsSnippet != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "🎵 $lyricsSnippet",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 11.sp,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                        ),
+                        color = AppColors.CyberCyan,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                } else if (notesSnippet != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "📝 $notesSnippet",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 11.sp,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                        ),
+                        color = AppColors.ElectricMint,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
 
         // Quick favorite toggle (>=48dp touch target)
@@ -671,6 +711,7 @@ private fun LibraryTrackCard(
 @Composable
 private fun UnifiedHistoryTrackCard(
     track: TrackEntity,
+    searchQuery: String = "",
     onFavoriteClick: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -755,6 +796,36 @@ private fun UnifiedHistoryTrackCard(
                     )
                 )
             }
+
+            if (searchQuery.isNotBlank()) {
+                val lyricsSnippet = extractSearchSnippet(track.plainLyrics ?: track.syncedLyrics, searchQuery)
+                val notesSnippet = extractSearchSnippet(track.userNotes, searchQuery)
+                if (lyricsSnippet != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "🎵 $lyricsSnippet",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 11.sp,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                        ),
+                        color = AppColors.CyberCyan,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                } else if (notesSnippet != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "📝 $notesSnippet",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 11.sp,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                        ),
+                        color = AppColors.ElectricMint,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
 
         // Favorite Button (>=48dp touch target)
@@ -770,6 +841,20 @@ private fun UnifiedHistoryTrackCard(
             )
         }
     }
+}
+
+/**
+ * Extracts a compact surrounding text snippet around the search query for contextual preview.
+ */
+private fun extractSearchSnippet(text: String?, query: String): String? {
+    if (text.isNullOrBlank() || query.isBlank()) return null
+    val idx = text.indexOf(query, ignoreCase = true)
+    if (idx < 0) return null
+    val start = (idx - 16).coerceAtLeast(0)
+    val end = (idx + query.length + 24).coerceAtMost(text.length)
+    val prefix = if (start > 0) "…" else ""
+    val suffix = if (end < text.length) "…" else ""
+    return prefix + text.substring(start, end).replace('\n', ' ').trim() + suffix
 }
 
 @Composable

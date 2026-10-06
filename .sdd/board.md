@@ -70,6 +70,7 @@
 | TASK-GST-01-B | HorizontalPager и свайп вкладок режимов в NowPlayingScreen | ui/NowPlayingScreen.kt | media-ui | SPEC-GST-01 | Coder | DONE |
 | TASK-GST-01-C | Свайпы по винилу (Track Next/Prev) и дабл-тап по карточке (Play/Pause) | ui/NowPlayingScreen.kt, ui/components/AnalogTurntable.kt | media-ui | TASK-GST-01-A..B | Coder | DONE |
 | TASK-REV-GST-01 | Ревью, прогон тестов, сборка APK и верификация жестов | .sdd/reports/GST-01.review.md | review | TASK-GST-01-C | Ревьюер / QA | DONE |
+| TASK-LIB-02 | Полнотекстовый поиск по текстам песен и заметкам со сниппетами | ui/LibraryScreen.kt | media-ui | TASK-LIB-01 | Coder | DONE |
 
 
 
