@@ -512,14 +512,52 @@ class MediaSessionCollector(private val context: Context) {
                         val toggleUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
                         controller.dispatchMediaButtonEvent(toggleDown) || controller.dispatchMediaButtonEvent(toggleUp)
                     }
-                } else true
+                } else {
+                    true
+                }
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "dispatchMediaButtonEvent failed completely")
                 false
             }
         }
 
+        fun skipToNext(): Boolean {
+
+            val snapshot = _livePlaybackFlow.value
+            val targetPackage = snapshot?.packageName
+            val controllers = getControllers(targetPackage)
+            val controller = resolveTargetController(controllers) ?: return false
+
+            return try {
+                controller.transportControls.skipToNext()
+                true
+            } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "transportControls.skipToNext failed, using fallback")
+                val down = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_NEXT)
+                val up = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_NEXT)
+                controller.dispatchMediaButtonEvent(down) || controller.dispatchMediaButtonEvent(up)
+            }
+        }
+
+        fun skipToPrevious(): Boolean {
+            val snapshot = _livePlaybackFlow.value
+            val targetPackage = snapshot?.packageName
+            val controllers = getControllers(targetPackage)
+            val controller = resolveTargetController(controllers) ?: return false
+
+            return try {
+                controller.transportControls.skipToPrevious()
+                true
+            } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "transportControls.skipToPrevious failed, using fallback")
+                val down = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS)
+                val up = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PREVIOUS)
+                controller.dispatchMediaButtonEvent(down) || controller.dispatchMediaButtonEvent(up)
+            }
+        }
+
         fun seekTo(positionMs: Long): Boolean {
+
             val snapshot = _livePlaybackFlow.value
             val controller = getActiveController(snapshot?.packageName)
 

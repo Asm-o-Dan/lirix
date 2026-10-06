@@ -69,3 +69,16 @@
   3. **Permission Onboarding UX:** Built `NotificationPermissionDialog` and interactive IDLE card in `NowPlayingScreen` with direct intents to notification settings and step-by-step guidance for Android 13+ "Restricted Settings" unlock. Added lifecycle resume re-check.
   4. **CI/CD Workflow Update:** Updated `.github/workflows/release.yml` to compile `assembleRelease` and package signed `app-release.apk`.
 - **Verdict:** All unit tests green. Production release build succeeds and passes `apksigner` verification with v2/v3 schemes.
+
+## ADR-008: Gesture-Driven Navigation and Playback Control (Gate 0 Passed)
+- **Date:** 2026-10-06
+- **Status:** APPROVED (Gate 0 Passed via /grill-me)
+- **Context:** User requested natural swipe and touch gesture support to reduce reliance on small click targets.
+- **Decisions:**
+  1. **Mode Tabs Swipe:** Migrate `NowPlayingScreen` content container to `HorizontalPager(state = pagerState)`. Mode tabs in segmented control mirror pager state bidirectionally with haptic tick.
+  2. **Track Skipping Gesture:** Horizontal swipe gestures across the vinyl turntable dispatch `skipToNext()` (swipe left) and `skipToPrevious()` (swipe right).
+  3. **Double-Tap Playback:** Double-tap on the lyrics/chords content card toggles `Play/Pause`.
+  4. **IPC Ingress Safety:** Implement `skipToNext()` and `skipToPrevious()` in `MediaSessionCollector` using `resolveTargetController()` with single-controller targeting and `dispatchMediaButtonEvent` fallback.
+- **Next Phase:** Transition to Phase 1 (Architecture) & Phase 2 (Specification).
+
+

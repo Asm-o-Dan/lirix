@@ -32,10 +32,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.input.pointer.pointerInput
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -255,6 +261,22 @@ fun NowPlayingScreen(
     }
 
     var selectedMode by remember { mutableStateOf(NowPlayingMode.KARAOKE) }
+    val pagerState = rememberPagerState(initialPage = selectedMode.ordinal) { NowPlayingMode.entries.size }
+
+    LaunchedEffect(pagerState.currentPage) {
+        val newMode = NowPlayingMode.entries.getOrNull(pagerState.currentPage) ?: NowPlayingMode.KARAOKE
+        if (selectedMode != newMode) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            selectedMode = newMode
+        }
+    }
+
+    LaunchedEffect(selectedMode) {
+        if (pagerState.currentPage != selectedMode.ordinal) {
+            pagerState.animateScrollToPage(selectedMode.ordinal)
+        }
+    }
+
     var lyricsCache by remember { mutableStateOf<LyricsCacheEntity?>(null) }
     var isLoadingLyrics by remember { mutableStateOf(false) }
     var isLoadingChords by remember { mutableStateOf(false) }
@@ -672,22 +694,47 @@ fun NowPlayingScreen(
         if (currentTrack != null) {
             Spacer(modifier = Modifier.height(2.dp))
 
-            // Collapsible Analog Turntable with Kinetic Tonearm
-            AnalogTurntable(
-                isPlaying = isPlaying,
-                albumArtBitmap = vinylCenterArt,
-                isCollapsed = isVinylCollapsed,
-                onToggleCollapse = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    isVinylCollapsed = !isVinylCollapsed
-                },
-                onTogglePlayPause = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    val newLocal = !isPlaying
-                    localIsPlaying = newLocal
-                    MediaSessionCollector.togglePlayPause()
+            // Collapsible Analog Turntable with Kinetic Tonearm & Track-Skipping Swipe Gestures
+            var vinylSwipeDragAmount by remember { mutableFloatStateOf(0f) }
+            Box(
+                modifier = Modifier.pointerInput(currentTrack.trackKey) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { vinylSwipeDragAmount = 0f },
+                        onDragEnd = {
+                            if (vinylSwipeDragAmount < -120f) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                MediaSessionCollector.skipToNext()
+                            } else if (vinylSwipeDragAmount > 120f) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                MediaSessionCollector.skipToPrevious()
+                            }
+                            vinylSwipeDragAmount = 0f
+                        },
+                        onDragCancel = { vinylSwipeDragAmount = 0f },
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            vinylSwipeDragAmount += dragAmount
+                        }
+                    )
                 }
-            )
+            ) {
+                AnalogTurntable(
+                    isPlaying = isPlaying,
+                    albumArtBitmap = vinylCenterArt,
+                    isCollapsed = isVinylCollapsed,
+                    onToggleCollapse = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        isVinylCollapsed = !isVinylCollapsed
+                    },
+                    onTogglePlayPause = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        val newLocal = !isPlaying
+                        localIsPlaying = newLocal
+                        MediaSessionCollector.togglePlayPause()
+                    }
+                )
+            }
+
 
             Spacer(modifier = Modifier.height(6.dp))
 
@@ -1173,6 +1220,16 @@ fun NowPlayingScreen(
                 .clip(RoundedCornerShape(20.dp))
                 .background(AppColors.SurfaceLevel1)
                 .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(20.dp))
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            val newLocal = !isPlaying
+                            localIsPlaying = newLocal
+                            MediaSessionCollector.togglePlayPause()
+                        }
+                    )
+                }
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -1191,7 +1248,12 @@ fun NowPlayingScreen(
                     )
                 }
             } else {
-                Crossfade(targetState = selectedMode, label = "ModeContent") { mode ->
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    key = { page -> NowPlayingMode.entries[page].name }
+                ) { page ->
+                    val mode = NowPlayingMode.entries[page]
                     when (mode) {
                         NowPlayingMode.KARAOKE -> {
                             val hasAnyLyrics = !lyricsCache?.syncedLyricsLrc.isNullOrBlank() || !lyricsCache?.plainLyrics.isNullOrBlank()

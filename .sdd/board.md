@@ -64,6 +64,12 @@
 | TASK-UI-06-B | Рефакторинг NowPlayingScreen: очистка шапки, перенос кнопок в меню | ui/NowPlayingScreen.kt | media-ui | TASK-UI-06-A | Coder | DONE |
 | TASK-UI-06-C | Рефакторинг AppScaffold: авто-скрывающийся плавающий навбар-капсула | ui/AppScaffold.kt | media-ui | TASK-UI-06-B | Coder | DONE |
 | TASK-REV-06 | Ревью, сборка Release APK и проверка на устройстве | .sdd/reports/UI-06.review.md | review | TASK-UI-06-C | Ревьюер / QA | DONE |
+| ARCH-GST-01 | Архитектурный проект системы жестов (HorizontalPager, Vinyl Swipe, DoubleTap) | .sdd/architecture_gestures.md | Arch | ADR-008 | Архитектор | DONE |
+| SPEC-GST-01 | Спецификация жестов навигации и управления | .sdd/specs/media-ui/gestures_spec.md | media-ui | ARCH-GST-01 | Спецификатор | DONE |
+| TASK-GST-01-A | Реализация skipToNext и skipToPrevious в MediaSessionCollector | ingestion/MediaSessionCollector.kt | media-ingress | SPEC-GST-01 | Coder | DONE |
+| TASK-GST-01-B | HorizontalPager и свайп вкладок режимов в NowPlayingScreen | ui/NowPlayingScreen.kt | media-ui | SPEC-GST-01 | Coder | DONE |
+| TASK-GST-01-C | Свайпы по винилу (Track Next/Prev) и дабл-тап по карточке (Play/Pause) | ui/NowPlayingScreen.kt, ui/components/AnalogTurntable.kt | media-ui | TASK-GST-01-A..B | Coder | DONE |
+| TASK-REV-GST-01 | Ревью, прогон тестов, сборка APK и верификация жестов | .sdd/reports/GST-01.review.md | review | TASK-GST-01-C | Ревьюер / QA | DONE |
 
 
 

@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -238,38 +240,54 @@ fun TimingCalibrationDialog(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
                         onClick = { onOffsetChange(currentOffsetMs - 50) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.TextPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("-50мс")
+                        Text("-50мс", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                     OutlinedButton(
                         onClick = { onOffsetChange(currentOffsetMs - 10) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.TextPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("-10мс")
+                        Text("-10мс", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     OutlinedButton(
                         onClick = { onOffsetChange(currentOffsetMs + 10) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.TextPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("+10мс")
+                        Text("+10мс", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                     OutlinedButton(
                         onClick = { onOffsetChange(currentOffsetMs + 50) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.TextPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("+50мс")
+                        Text("+50мс", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
+
 
                 Spacer(modifier = Modifier.height(12.dp))
 
