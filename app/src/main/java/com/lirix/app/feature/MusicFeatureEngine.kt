@@ -33,6 +33,7 @@ class MusicFeatureEngine(
     private val musicDao: MusicDao,
     private val lyricsDao: LyricsDao? = null,
     private val lyricsAdapter: LyricsProvider = AggregatedLyricsProvider(
+        lyricsDao = lyricsDao,
         onLyricsDiscovered = { trackKey, plain, synced ->
             musicDao.updateLyrics(trackKey, plain, synced)
         }

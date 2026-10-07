@@ -85,7 +85,5 @@
 | TASK-ING-04 | Реализация resolveSkipController и очистки сессий в MediaSessionCollector.kt | ingestion/MediaSessionCollector.kt | media-ingress | SPEC-BUG-11 | Coder A | DONE |
 | TASK-UI-08 | Ограничение максимальной высоты списка треков в ShareLyricsAttachDialog.kt | ui/components/ShareLyricsAttachDialog.kt | media-ui | SPEC-BUG-11 | Coder (UI) | DONE |
 | TASK-QA-11 | Тесты на выбор skip-контроллеров и переход в IDLE при закрытии сессий | test/LivePlaybackSyncTest.kt | QA | TASK-ING-04 | QA | DONE |
-| TASK-REV-11 | Ревью кода, сборка Release APK и проверка на устройстве | .sdd/reports/BUG-11.review.md | review | TASK-QA-11 | Ревьюер | TODO |
-
-
-
+| TASK-TEACH-03 | Ремонт WebView инспектора (touch capture), проброс трека в TeachMode и dual-write сохранение текста | assets/teach_inspector.js, ui/TeachModeScreen.kt, ui/NowPlayingScreen.kt, ui/AppScaffold.kt | lyrics-engine | SPEC-TEACH-03 | Coder | DONE |
+| TASK-MYCHORDS-01 | Реализация резервного парсера текстов и аккордов MyChords.net (MyChordsParser, cascade & hybrid chords) | feature/lyrics/MyChordsParser.kt, feature/LyricsProvider.kt, test/MyChordsParserTest.kt | lyrics-engine | SPEC-MYCHORDS-01 | Coder | DONE |

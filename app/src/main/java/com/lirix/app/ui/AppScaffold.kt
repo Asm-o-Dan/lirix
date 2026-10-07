@@ -94,6 +94,7 @@ fun AppScaffold(
 ) {
     var currentTab by rememberSaveable { mutableStateOf(AppTab.NOW_PLAYING) }
     var viewingTrack by remember { mutableStateOf<TrackEntity?>(null) }
+    var activeTeachTrack by remember { mutableStateOf<TrackEntity?>(null) }
     var activeTeachUrl by remember { mutableStateOf<String?>(null) }
     var isTeachModeOpen by remember { mutableStateOf(false) }
     var pendingSharedLyricsText by remember { mutableStateOf<String?>(null) }
@@ -236,7 +237,8 @@ fun AppScaffold(
                             onLyricsDialogConsumed()
                             viewingTrack = null
                         },
-                        onOpenTeachMode = {
+                        onOpenTeachMode = { track ->
+                            activeTeachTrack = track
                             activeTeachUrl = null
                             isTeachModeOpen = true
                         }
@@ -286,7 +288,7 @@ fun AppScaffold(
             if (isTeachModeOpen) {
                 TeachModeScreen(
                     initialUrl = activeTeachUrl,
-                    targetTrack = viewingTrack,
+                    targetTrack = activeTeachTrack ?: viewingTrack,
                     onClose = {
                         isTeachModeOpen = false
                         activeTeachUrl = null

@@ -175,7 +175,7 @@ fun NowPlayingScreen(
     initialTrack: ParsedTrackInfo? = null,
     selectedTrack: TrackEntity? = null,
     onTrackConsumed: () -> Unit = {},
-    onOpenTeachMode: (() -> Unit)? = null
+    onOpenTeachMode: ((TrackEntity?) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -548,7 +548,7 @@ fun NowPlayingScreen(
                 isLoadingLyrics = false
             } else {
                 val rejected = db.lyricsDao().getRejectedSourceIds(track.trackKey).toSet()
-                val fetched = AggregatedLyricsProvider().getLyrics(track, rejectedSourceIds = rejected)
+                val fetched = AggregatedLyricsProvider(lyricsDao = db.lyricsDao()).getLyrics(track, rejectedSourceIds = rejected)
                 if (fetched.hasLyrics && fetched.sourceId !in rejected) {
                     val plain = fetched.plainLyrics ?: fetched.lyricsText
                     val synced = fetched.syncedLyrics
@@ -616,7 +616,7 @@ fun NowPlayingScreen(
     val onSearchWeb: () -> Unit = {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         if (onOpenTeachMode != null) {
-            onOpenTeachMode()
+            onOpenTeachMode(currentTrack)
         } else {
             val query = "${currentTrack?.title.orEmpty()} ${currentTrack?.artist.orEmpty()} текст песни".trim()
             try {
@@ -657,7 +657,7 @@ fun NowPlayingScreen(
                     db.musicDao().insertOrUpdateTrack(track)
                 }
                 val rejected = db.lyricsDao().getRejectedSourceIds(track.trackKey).toSet()
-                val fetched = AggregatedLyricsProvider().getLyrics(track, rejectedSourceIds = rejected)
+                val fetched = AggregatedLyricsProvider(lyricsDao = db.lyricsDao()).getLyrics(track, rejectedSourceIds = rejected)
                 if (fetched.hasLyrics && fetched.sourceId !in rejected) {
                     val plain = fetched.plainLyrics ?: fetched.lyricsText
                     val synced = fetched.syncedLyrics
@@ -968,7 +968,7 @@ fun NowPlayingScreen(
                                 }
                             },
                             onCalibrateClick = { showCalibrationDialog = true },
-                            onTeachModeClick = { onOpenTeachMode?.invoke() },
+                            onTeachModeClick = { onOpenTeachMode?.invoke(currentTrack) },
                             isVinylCollapsed = isVinylCollapsed,
                             onToggleVinyl = {
                                 isVinylCollapsed = !isVinylCollapsed

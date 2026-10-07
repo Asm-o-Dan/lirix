@@ -120,3 +120,54 @@
   2. **Deterministic Lifecycle Cleanup**: Unregister callbacks and prune `activeMediaControllers`/`activeControllers` when sessions disappear. Transition to IDLE snapshot when all sessions terminate.
   3. **Dialog Safety**: Constrain `ShareLyricsAttachDialog` recent tracks list to prevent vertical overflow.
 - **Next Phase:** Transition to Specification & Task Decomposition.
+
+## ADR-012: Ремонт WebView Инспектора и Сквозная Привязка Правил Обучения (Teach Mode)
+
+### Контекст
+Пользователь столкнулся с двумя критическими проблемами в режиме обучения (`TeachMode`):
+1. **Инспектор элементов не реагирует на тапы на мобильном устройстве:**
+   В `app/src/main/assets/teach_inspector.js` слушатель зарегистрирован только на событие `click`. На мобильных устройствах WebView событие `click` эмулируется с задержкой 300мс, либо блокируется сайтами со сложной иерархией через `stopPropagation`/`pointer-events`. Необходим перехват `pointerup` / `touchend` на стадии capture с вычислением элемента через `document.elementFromPoint`.
+2. **«Сохранить правило» не подгружает текст песни в плеере:**
+   - В `NowPlayingScreen.kt` меню «Режим обучения» передает `onOpenTeachMode?.invoke()`, а `AppScaffold.kt` передает в `TeachModeScreen` параметр `targetTrack = viewingTrack`, который в момент воспроизведения равен `null`. Из-за этого скрыта кнопка «Привязать к треку», а кнопка «Сохранить правило» сохраняет селектор в базу, но не привязывает извлеченный текст к треку и кэшу.
+   - Кроме того, в `NowPlayingScreen.kt` экземпляры `AggregatedLyricsProvider()` вызываются с конструктором по умолчанию без передачи `lyricsDao`, поэтому кастомные правила из БД вообще не опрашиваются при загрузке песни.
+
+### Решение
+1. **Ingress & Inspector (`teach_inspector.js`)**:
+   - Добавить слушатели `touchend` и `pointerup` на фазе capture (`true`) для надежного захвата целевого элемента (`elementFromPoint`) при касании пальцем на мобильном экране.
+2. **UI Navigation Flow (`NowPlayingScreen.kt` + `AppScaffold.kt`)**:
+   - Обновить сигнатуру `onOpenTeachMode: ((TrackEntity?) -> Unit)?` и передавать `currentTrack`.
+   - В `AppScaffold` сохранять переданный `activeTeachTrack` и пробрасывать его в `TeachModeScreen(targetTrack = activeTeachTrack ?: viewingTrack)`.
+3. **Core & Cache Integration (`TeachModeScreen.kt`)**:
+   - При нажатии «Сохранить правило»: если есть `selectedText` и `targetTrack`, выполнять атомарную запись в `music_tracks` (`musicDao().updateLyrics`) и `lyrics_cache` (`lyricsDao().saveLyrics`), вызывать `onLyricsAttached(selectedText)` и закрывать экран, чтобы текст мгновенно появился в плеере.
+4. **Provider Wiring (`NowPlayingScreen.kt` & `MusicFeatureEngine.kt`)**:
+   - Передавать `db.lyricsDao()` во все экземпляры `AggregatedLyricsProvider(lyricsDao = db.lyricsDao())`.
+
+## ADR-013: Внедрение резервного парсера текстов и аккордов MyChords.net
+
+### Контекст
+Пользователь запросил:
+«https://mychords.net/ru/dai_darogu/275290-day-darogu-supersession.html
+Надо сделать парсер текстов и аккордов с этого сайта если с амдм не получится»
+
+AmDm.ru является ценным источником, однако многие современные и независимые треки отсутствуют в его базе или имеют неполную верстку. MyChords.net содержит огромную базу русскоязычных и зарубежных треков с аккордами и удобной версткой.
+
+### Архитектурное Решение
+1. **Зона `lyrics-engine` (`MyChordsParser.kt`)**:
+   - Создать независимый утилитный парсер `MyChordsParser.kt` по аналогии с `AmDmChordParser.kt`.
+   - Логика извлечения:
+     - Находит блок `<div[^>]*class=["'][^"']*w-words__text[^"']*["'][^>]*>([\s\S]*?)</div>`.
+     - Преобразует строчные контейнеры `<div class="pline">` и `<span class="subline">` в сплошной текст с сохранением переносов строк и точных пробелов для выравнивания аккордов над текстом.
+     - Очищает оставшиеся HTML-теги (`<[^>]+>`) и экранирует HTML-сущности (`&nbsp;`, `&quot;`, `&amp;` и др.).
+     - Возвращает как чистый текст песни (`plainLyrics`), так и текст с аккордами (`chords`).
+2. **Scraper & Cascade Integration (`LyricsProvider.kt`)**:
+   - Добавить идентификатор источника: `LyricsSourceIds.MYCHORDS = "builtin:mychords"`.
+   - Реализовать метод `scrapeMyChordsDetails(artist: String, title: String): MyChordsScrapeResult?` в `FallbackLyricsScraper`:
+     - Поиск через официальный endpoint автодополнения: `https://mychords.net/ru/ajax/autocomplete?q={artist+title}` (заголовок `X-Requested-With: XMLHttpRequest`).
+     - Если автодополнение находит URL песни, загружает страницу песни и парсит через `MyChordsParser`.
+     - Если автодополнение не сработало, производит резервный поиск через поисковую форму `https://mychords.net/ru/search?q={query}`.
+   - Включить `MyChords` в каскад:
+     - В `getLyrics`: если AmDm не нашел текст или отклонен (`LyricsSourceIds.AMDM`), опрашивается `MyChords`.
+     - В гибридном режиме поиска аккордов (`fetchAmDmChords` -> расширить до `fetchChordTabs`): если трек найден в LRCLIB или другом источнике, но у него нет аккордов, сначала проверяется AmDm, а если аккорды не найдены — проверяется MyChords.net!
+3. **Безопасность и автономность**:
+   - Полная изоляция от сетевых сбоев (`try-catch`, логгирование через Timber).
+   - Поддержка в TDD unit-тестах.

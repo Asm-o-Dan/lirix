@@ -465,9 +465,29 @@ fun TeachModeScreen(
 
                                 scope.launch(Dispatchers.IO) {
                                     db.lyricsDao().saveRule(entity)
+                                    if (selectedText.isNotBlank() && targetTrack != null) {
+                                        val trackKey = targetTrack.trackKey
+                                        db.musicDao().updateLyrics(trackKey, selectedText, null)
+                                        db.lyricsDao().saveLyrics(
+                                            LyricsCacheEntity(
+                                                trackKey = trackKey,
+                                                plainLyrics = selectedText,
+                                                syncedLyricsLrc = null,
+                                                chordsAmDm = AmDmChordParser.parseAmDmHtml(selectedText),
+                                                userNotes = targetTrack.userNotes,
+                                                provider = "teach:$cleanDomain"
+                                            )
+                                        )
+                                    }
                                 }
                                 onRuleSaved(entity)
-                                Toast.makeText(context, "Правило для $cleanDomain сохранено!", Toast.LENGTH_SHORT).show()
+                                if (selectedText.isNotBlank() && targetTrack != null) {
+                                    onLyricsAttached(selectedText)
+                                    Toast.makeText(context, "Правило сохранено и текст привязан к песне!", Toast.LENGTH_SHORT).show()
+                                    onClose()
+                                } else {
+                                    Toast.makeText(context, "Правило для $cleanDomain сохранено!", Toast.LENGTH_SHORT).show()
+                                }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = AppColors.HyperViolet),
                             shape = RoundedCornerShape(10.dp),

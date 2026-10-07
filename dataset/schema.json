@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AndroidEventEngineNotificationDataset",
+  "description": "Schema for validating Android Event Engine golden dataset entries",
+  "type": "object",
+  "required": ["version", "description", "target_categories", "samples"],
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "target_categories": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "samples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "package_name",
+          "source_type",
+          "title",
+          "text",
+          "category",
+          "intent",
+          "is_hard_case"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "package_name": { "type": "string" },
+          "source_type": {
+            "type": "string",
+            "enum": ["notification", "mediasession", "sms", "system"]
+          },
+          "title": { "type": ["string", "null"] },
+          "text": { "type": "string" },
+          "sub_text": { "type": ["string", "null"] },
+          "category": {
+            "type": "string",
+            "enum": [
+              "finance.income",
+              "finance.expense.food",
+              "finance.expense.transport",
+              "finance.expense.shopping",
+              "finance.transfer",
+              "music",
+              "study.lesson",
+              "study.deadline",
+              "message",
+              "advertisement",
+              "authentication",
+              "other"
+            ]
+          },
+          "intent": { "type": "string" },
+          "entities": {
+            "type": "object",
+            "properties": {
+              "amount": { "type": ["number", "null"] },
+              "currency": { "type": ["string", "null"] },
+              "merchant": { "type": ["string", "null"] },
+              "sender": { "type": ["string", "null"] },
+              "recipient": { "type": ["string", "null"] },
+              "channel": { "type": ["string", "null"] },
+              "artist": { "type": ["string", "null"] },
+              "track": { "type": ["string", "null"] },
+              "playback_state": { "type": ["string", "null"] },
+              "auth_code": { "type": ["string", "null"] },
+              "deadline": { "type": ["string", "null"] },
+              "subject": { "type": ["string", "null"] }
+            },
+            "additionalProperties": true
+          },
+          "is_hard_case": { "type": "boolean" },
+          "hard_case_reason": { "type": ["string", "null"] },
+          "expected_precision_critical": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

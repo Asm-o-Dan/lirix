@@ -2,6 +2,7 @@ package com.lirix.app.feature
 
 import com.lirix.app.feature.lyrics.AmDmChordParser
 import com.lirix.app.feature.lyrics.CustomRuleLyricsProvider
+import com.lirix.app.feature.lyrics.MyChordsParser
 import com.lirix.app.storage.CustomLyricsRuleEntity
 import com.lirix.app.storage.LyricsDao
 import com.lirix.app.storage.TrackEntity
@@ -36,6 +37,7 @@ object LyricsSourceIds {
     const val ROOM_CACHE = "cache:room"
     const val LRCLIB = "builtin:lrclib"
     const val AMDM = "builtin:amdm"
+    const val MYCHORDS = "builtin:mychords"
     const val VSE_PESNI = "builtin:vse-pesni"
     const val NONE = "none"
 }
@@ -287,10 +289,19 @@ data class AmDmScrapeResult(
 )
 
 /**
- * Fallback Web Scraper for Russian & Foreign tracks (Genius, Amalgama-Lab, Textpesni).
+ * Scraped content from MyChords.net containing plain lyrics and formatted chords.
+ */
+data class MyChordsScrapeResult(
+    val plainLyrics: String,
+    val chords: String?
+)
+
+/**
+ * Fallback Web Scraper for Russian & Foreign tracks (Genius, Amalgama-Lab, Textpesni, MyChords).
  */
 class FallbackLyricsScraper(
-    private val httpGet: suspend (String) -> String? = { url -> HttpTextClient.get(url) }
+    private val httpGet: suspend (String) -> String? = { url -> HttpTextClient.get(url) },
+    private val httpGetWithHeaders: suspend (String, Map<String, String>) -> String? = { url, headers -> HttpTextClient.get(url, headers) }
 ) : LyricsProvider {
 
     override suspend fun getLyrics(track: TrackEntity): LyricsResult = getLyrics(track, emptySet(), false)
@@ -328,6 +339,21 @@ class FallbackLyricsScraper(
                     plainLyrics = amdmResult.plainLyrics,
                     sourceId = LyricsSourceIds.AMDM,
                     chords = amdmResult.chords
+                )
+            }
+        }
+
+        // 2.5. MyChords.net (Fallback for AmDm: Russian and foreign songs, chords & lyrics)
+        if (LyricsSourceIds.MYCHORDS !in rejectedSourceIds) {
+            val myChordsResult = scrapeMyChordsDetails(cleanArtist, cleanTitle)
+            if (myChordsResult != null) {
+                return LyricsResult(
+                    hasLyrics = true,
+                    lyricsText = myChordsResult.plainLyrics,
+                    source = "MyChords",
+                    plainLyrics = myChordsResult.plainLyrics,
+                    sourceId = LyricsSourceIds.MYCHORDS,
+                    chords = myChordsResult.chords
                 )
             }
         }
@@ -505,6 +531,46 @@ class FallbackLyricsScraper(
 
     suspend fun scrapeAmDm(artist: String, title: String): String? {
         return scrapeAmDmDetails(artist, title)?.plainLyrics
+    }
+
+    suspend fun scrapeMyChordsDetails(artist: String, title: String): MyChordsScrapeResult? {
+        val query = listOf(artist, title).filter { it.isNotBlank() }.joinToString(" ")
+        if (query.isBlank()) return null
+        try {
+            val q = URLEncoder.encode(query, "UTF-8")
+            val autocompleteUrl = "https://mychords.net/ru/ajax/autocomplete?q=$q"
+            val headers = mapOf("X-Requested-With" to "XMLHttpRequest")
+            val jsonResponse = httpGetWithHeaders(autocompleteUrl, headers) ?: return null
+
+            var songUrl: String? = null
+            // JSON format: {"suggestions":[{"value":"...","data":{"url":"..."}}]}
+            val urlPattern = Regex(""""url"\s*:\s*"([^"]+)"""")
+            val urlMatches = urlPattern.findAll(jsonResponse)
+            for (match in urlMatches) {
+                val candidatePath = match.groupValues[1]
+                if (candidatePath.contains("/ru/") && candidatePath.endsWith(".html")) {
+                    songUrl = if (candidatePath.startsWith("http")) candidatePath else "https://mychords.net$candidatePath"
+                    break
+                }
+            }
+
+            if (songUrl == null) {
+                // Fallback: search for candidate URL anywhere in suggestions
+                val fallbackPattern = Regex("""/ru/[^"'\s]+\.html""")
+                val fallbackMatch = fallbackPattern.find(jsonResponse)
+                if (fallbackMatch != null) {
+                    val path = fallbackMatch.value
+                    songUrl = if (path.startsWith("http")) path else "https://mychords.net$path"
+                }
+            }
+
+            val targetUrl = songUrl ?: return null
+            val pageHtml = httpGet(targetUrl) ?: return null
+            return MyChordsParser.parseMyChordsHtml(pageHtml)
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "MyChords scrape error: %s", e.message)
+        }
+        return null
     }
 
     suspend fun scrapeVsePesni(artist: String, title: String): String? {
@@ -927,8 +993,8 @@ class AggregatedLyricsProvider(
                     } else {
                         ruleResult
                     }
-                    if (effectiveResult.chords.isNullOrBlank() && LyricsSourceIds.AMDM !in rejectedSourceIds) {
-                        val chords = fetchAmDmChords(track, rejectedSourceIds, forceNetwork)
+                    if (effectiveResult.chords.isNullOrBlank() && (LyricsSourceIds.AMDM !in rejectedSourceIds || LyricsSourceIds.MYCHORDS !in rejectedSourceIds)) {
+                        val chords = fetchChordTabs(track, rejectedSourceIds, forceNetwork)
                         if (!chords.isNullOrBlank()) {
                             effectiveResult = effectiveResult.copy(chords = chords)
                         }
@@ -948,9 +1014,9 @@ class AggregatedLyricsProvider(
                 } else {
                     lrcResult
                 }
-                // Hybrid mode: fetch chords from AmDm if not provided by LRCLIB
-                if (effectiveResult.chords.isNullOrBlank() && LyricsSourceIds.AMDM !in rejectedSourceIds) {
-                    val chords = fetchAmDmChords(track, rejectedSourceIds, forceNetwork)
+                // Hybrid mode: fetch chords from AmDm / MyChords if not provided by LRCLIB
+                if (effectiveResult.chords.isNullOrBlank() && (LyricsSourceIds.AMDM !in rejectedSourceIds || LyricsSourceIds.MYCHORDS !in rejectedSourceIds)) {
+                    val chords = fetchChordTabs(track, rejectedSourceIds, forceNetwork)
                     if (!chords.isNullOrBlank()) {
                         effectiveResult = effectiveResult.copy(chords = chords)
                     }
@@ -969,8 +1035,8 @@ class AggregatedLyricsProvider(
                 } else {
                     fallbackResult
                 }
-                if (effectiveResult.chords.isNullOrBlank() && effectiveResult.sourceId != LyricsSourceIds.AMDM && LyricsSourceIds.AMDM !in rejectedSourceIds) {
-                    val chords = fetchAmDmChords(track, rejectedSourceIds, forceNetwork)
+                if (effectiveResult.chords.isNullOrBlank() && effectiveResult.sourceId != LyricsSourceIds.AMDM && effectiveResult.sourceId != LyricsSourceIds.MYCHORDS && (LyricsSourceIds.AMDM !in rejectedSourceIds || LyricsSourceIds.MYCHORDS !in rejectedSourceIds)) {
+                    val chords = fetchChordTabs(track, rejectedSourceIds, forceNetwork)
                     if (!chords.isNullOrBlank()) {
                         effectiveResult = effectiveResult.copy(chords = chords)
                     }
@@ -993,23 +1059,36 @@ class AggregatedLyricsProvider(
         )
     }
 
-    private suspend fun fetchAmDmChords(
+    private suspend fun fetchChordTabs(
         track: TrackEntity,
         rejectedSourceIds: Set<String>,
         forceNetwork: Boolean
     ): String? {
-        if (LyricsSourceIds.AMDM in rejectedSourceIds || fallbackScraper == null) return null
+        if (fallbackScraper == null) return null
         return try {
             if (fallbackScraper is FallbackLyricsScraper) {
                 val cleanArtist = LrcLibLyricsProvider.cleanArtistName(track.artist)
                 val cleanTitle = LrcLibLyricsProvider.cleanTrackName(track.title)
-                fallbackScraper.scrapeAmDmDetails(cleanArtist, cleanTitle)?.chords
+
+                // 1. Try AmDm first
+                if (LyricsSourceIds.AMDM !in rejectedSourceIds) {
+                    val amdmChords = fallbackScraper.scrapeAmDmDetails(cleanArtist, cleanTitle)?.chords
+                    if (!amdmChords.isNullOrBlank()) return amdmChords
+                }
+
+                // 2. Cascade to MyChords if AmDm yields no chords
+                if (LyricsSourceIds.MYCHORDS !in rejectedSourceIds) {
+                    val myChordsChords = fallbackScraper.scrapeMyChordsDetails(cleanArtist, cleanTitle)?.chords
+                    if (!myChordsChords.isNullOrBlank()) return myChordsChords
+                }
+
+                null
             } else {
                 val res = fallbackScraper.getLyrics(track, rejectedSourceIds, forceNetwork)
                 res.chords
             }
         } catch (e: Exception) {
-            Timber.w(e, "Error fetching fallback AmDm chords for %s", track.title)
+            Timber.w(e, "Error fetching fallback chord tabs for %s", track.title)
             null
         }
     }

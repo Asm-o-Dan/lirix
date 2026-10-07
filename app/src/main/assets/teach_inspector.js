@@ -102,15 +102,7 @@
         }
     }
 
-    document.addEventListener("click", function(e) {
-        if (!window.__teachModeEnabled) {
-            return; // Режим серфинга: разрешаем стандартное поведение ссылок
-        }
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        var target = e.target;
+    function handleElementClick(target) {
         while (target && target !== document.body && /^(SPAN|B|I|EM|STRONG|FONT|A)$/i.test(target.tagName)) {
             target = target.parentElement;
         }
@@ -144,5 +136,34 @@
         }
 
         notifySelectionChange();
+    }
+
+    function handleTouchInspect(e) {
+        if (!window.__teachModeEnabled) return;
+        var touch = e.changedTouches ? e.changedTouches[0] : e;
+        if (!touch) return;
+        var target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (target) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleElementClick(target);
+        }
+    }
+
+    document.addEventListener("click", function(e) {
+        if (!window.__teachModeEnabled) {
+            return; // Режим серфинга: разрешаем стандартное поведение ссылок
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        handleElementClick(e.target);
     }, true);
+
+    window.addEventListener("touchend", handleTouchInspect, { capture: true, passive: false });
+    window.addEventListener("pointerup", function(e) {
+        if (e.pointerType === "touch" || e.pointerType === "pen") {
+            handleTouchInspect(e);
+        }
+    }, { capture: true, passive: false });
 })();

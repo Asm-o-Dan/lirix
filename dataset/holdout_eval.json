@@ -1,0 +1,4184 @@
+{
+  "version": "1.1.0",
+  "description": "Android Event Engine Sprint 1 Holdout Evaluation Set (20% Stratified)",
+  "target_categories": [
+    "finance.income",
+    "finance.expense.food",
+    "finance.expense.transport",
+    "finance.expense.shopping",
+    "finance.transfer",
+    "music",
+    "study.lesson",
+    "study.deadline",
+    "message",
+    "advertisement",
+    "authentication",
+    "other"
+  ],
+  "samples": [
+    {
+      "id": "s1_fin_inc_0066",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Пополнение карты через СБП: +3 823 ₽ из Банка ВТБ",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "sbp_incoming",
+      "entities": {
+        "channel": "СБП",
+        "amount": 3823.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0043",
+      "package_name": "ru.raiffeisennews",
+      "source_type": "notification",
+      "title": "Райффайзен",
+      "text": "Входящий перевод +2 144 ₽ от Максим Р. по номеру счета",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "transfer_received",
+      "entities": {
+        "sender": "Максим Р.",
+        "amount": 2144.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0016",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Входящий перевод СБП +173 ₽ от Дмитрий К.. Сообщение: За кофе и обед",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "transfer_received",
+      "entities": {
+        "sender": "Дмитрий К.",
+        "channel": "СБП",
+        "amount": 173.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "fin_inc_010",
+      "package_name": "com.ftc.faktura.multibank",
+      "source_type": "notification",
+      "title": "Агропромбанк",
+      "text": "Зачисление перевода APB Online: +500.00 PRB от Смирнов А.В.",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "transfer_received",
+      "entities": {
+        "amount": 500.0,
+        "currency": "PRB",
+        "sender": "Смирнов А.В."
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0100",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Проценты по вкладу 'Лучший %': +1 405 ₽ зачислены на счет •• 4145",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "interest_credited",
+      "entities": {
+        "amount": 1405.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0059",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Начислен кэшбэк +3 312 ₽ по программе лояльности. Доступно: 22 560 ₽",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "cashback_credited",
+      "entities": {
+        "amount": 3312.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "fin_inc_002",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Возврат 1000",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "refund_received",
+      "entities": {
+        "amount": 1000.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Минималистичное уведомление возврата (Hard Case: 'Возврат 1000')",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0074",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Пополнение 4 407",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "account_topup",
+      "entities": {
+        "amount": 4407.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Сверхкраткий текст пополнения счета (Hard Case: 'Сбер: Пополнение 1000')",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0077",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Возврат покупки 4 626 ₽ от магазина 'Яндекс Маркет'. Деньги поступили на счет",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "refund_received",
+      "entities": {
+        "merchant": "Яндекс Маркет",
+        "amount": 4626.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Возврат средств за отмену покупки, классифицируется в finance.income",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0083",
+      "package_name": "ru.raiffeisennews",
+      "source_type": "notification",
+      "title": "Райффайзен",
+      "text": "Входящий перевод +164 ₽ от Максим Р. по номеру счета",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "transfer_received",
+      "entities": {
+        "sender": "Максим Р.",
+        "amount": 164.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0081",
+      "package_name": "com.ftc.faktura.multibank",
+      "source_type": "notification",
+      "title": "Агропромбанк",
+      "text": "Пополнение счета на 4 918 PRB через кассу отделения №3",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "cash_deposit",
+      "entities": {
+        "amount": 4918.0,
+        "currency": "PRB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0084",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Выплата дивидендов по акциям Озон Технологии: +237 ₽ на брокерский счет",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "dividends_credited",
+      "entities": {
+        "amount": 237.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "fin_inc_011",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбербанк",
+      "text": "Авито Доставка: покупатель подтвердил получение. +4 300 ₽ переведены на карту *0912",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "marketplace_sale",
+      "entities": {
+        "amount": 4300.0,
+        "currency": "RUB",
+        "merchant": "Авито"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0042",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Авито Доставка: выплата за проданный товар +2 071 ₽ на карту •• 1999",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "marketplace_payout",
+      "entities": {
+        "merchant": "Авито",
+        "amount": 2071.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0068",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Пополнение счета наличными в банкомате №259: +3 969 ₽",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "atm_deposit",
+      "entities": {
+        "amount": 3969.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0067",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Возврат налога (вычет за обучение): +3 896 ₽ от Федерального казначейства",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "tax_refund",
+      "entities": {
+        "amount": 3896.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0053",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Возврат 2 874",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "refund_received",
+      "entities": {
+        "amount": 2874.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Сверхкраткий текст возврата средств (Hard Case: 'Возврат 1000')",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0057",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Возврат покупки 3 166 ₽ от магазина 'Яндекс Маркет'. Деньги поступили на счет",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "refund_received",
+      "entities": {
+        "merchant": "Яндекс Маркет",
+        "amount": 3166.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Возврат средств за отмену покупки, классифицируется в finance.income",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0034",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Пополнение 1 487",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "account_topup",
+      "entities": {
+        "amount": 1487.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Сверхкраткий текст пополнения счета (Hard Case: 'Сбер: Пополнение 1000')",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0031",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Чек коррекции: возвращено 1 268 ₽ после перерасчета за отопление",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "utility_refund",
+      "entities": {
+        "amount": 1268.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Служебный возврат средств за коммунальные услуги",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_inc_0069",
+      "package_name": "com.ftc.faktura.multibank",
+      "source_type": "notification",
+      "title": "Эксимбанк",
+      "text": "Зачисление денежного перевода Золотая Корона: +4 042 USD",
+      "sub_text": null,
+      "category": "finance.income",
+      "intent": "wire_income",
+      "entities": {
+        "amount": 4042.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0038",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Списание 1 998 ₽, SAMOKAT. Заказ доставлен за 15 минут",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "groceries_delivery",
+      "entities": {
+        "merchant": "Самокат",
+        "amount": 1998.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0096",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Покупка 1 332 ₽, Перекрёсток. Супермаркеты",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "groceries_payment",
+      "entities": {
+        "merchant": "Перекрёсток",
+        "amount": 1332.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0097",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Оплата 1 405 ₽, Магнит у дома. Доступно: 32 400 ₽",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "groceries_payment",
+      "entities": {
+        "merchant": "Магнит",
+        "amount": 1405.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0085",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Оплата 529 ₽, Rostic's. Чек №26",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "fastfood_payment",
+      "entities": {
+        "merchant": "Rostic's",
+        "amount": 529.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0023",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Оплата 903 ₽, Столовая №1. Баланс: 14 640 ₽",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "canteen_payment",
+      "entities": {
+        "merchant": "Столовая №1",
+        "amount": 903.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0074",
+      "package_name": "ru.yandex.taxi",
+      "source_type": "notification",
+      "title": "Яндекс Еда",
+      "text": "Оплата заказа 4 626 ₽ в ресторане 'Бургер Кинг'. Курьер выехал",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "food_delivery",
+      "entities": {
+        "merchant": "Яндекс Еда",
+        "amount": 4626.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0080",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Оплата 164 ₽, Cofix. Кофе с собой",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "cafe_payment",
+      "entities": {
+        "merchant": "Cofix",
+        "amount": 164.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0036",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Покупка 1 852 ₽, Перекрёсток. Супермаркеты",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "groceries_payment",
+      "entities": {
+        "merchant": "Перекрёсток",
+        "amount": 1852.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0056",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Покупка 3 312 ₽, Перекрёсток. Супермаркеты",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "groceries_payment",
+      "entities": {
+        "merchant": "Перекрёсток",
+        "amount": 3312.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0081",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Ресторан 'Теремок': оплата счета 237 ₽. Карта •• 3553",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "restaurant_payment",
+      "entities": {
+        "merchant": "Теремок",
+        "amount": 237.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "fin_food_004",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Оплата 840 ₽, Dodo Pizza. Кэшбэк 42 ₽",
+      "sub_text": "Фастфуд",
+      "category": "finance.expense.food",
+      "intent": "restaurant_payment",
+      "entities": {
+        "amount": 840.0,
+        "currency": "RUB",
+        "merchant": "Dodo Pizza"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0091",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Оплата 1000",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "generic_payment",
+      "entities": {},
+      "is_hard_case": true,
+      "hard_case_reason": "Сверхкраткий текст оплаты без указания категории и мерчанта (Hard Case: 'Оплата 1000')",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0043",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Оплата 2 363 ₽, Столовая №1. Баланс: 19 440 ₽",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "canteen_payment",
+      "entities": {
+        "merchant": "Столовая №1",
+        "amount": 2363.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0014",
+      "package_name": "ru.yandex.taxi",
+      "source_type": "notification",
+      "title": "Яндекс Еда",
+      "text": "Оплата заказа 246 ₽ в ресторане 'Бургер Кинг'. Курьер выехал",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "food_delivery",
+      "entities": {
+        "merchant": "Яндекс Еда",
+        "amount": 246.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0061",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Ресторан 'Теремок': оплата счета 3 677 ₽. Карта •• 2813",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "restaurant_payment",
+      "entities": {
+        "merchant": "Теремок",
+        "amount": 3677.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0104",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Покупка 1 916 ₽, Лента Гипермаркет. Продукты питания",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "groceries_payment",
+      "entities": {
+        "merchant": "Лента",
+        "amount": 1916.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "fin_food_006",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Покупка 320 ₽, Cofix. Доступно 7 400 ₽",
+      "sub_text": "Кафе",
+      "category": "finance.expense.food",
+      "intent": "cafe_payment",
+      "entities": {
+        "amount": 320.0,
+        "currency": "RUB",
+        "merchant": "Cofix"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0022",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Покупка 830 ₽, КуулКлевер (Мясновъ / Отдохни). Баланс: 14 400 ₽",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "groceries_payment",
+      "entities": {
+        "merchant": "КуулКлевер",
+        "amount": 830.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0025",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Оплата 1 049 ₽, Rostic's. Чек №02",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "fastfood_payment",
+      "entities": {
+        "merchant": "Rostic's",
+        "amount": 1049.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_food_0037",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Оплата 1 925 ₽, Магнит у дома. Доступно: 18 000 ₽",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "groceries_payment",
+      "entities": {
+        "merchant": "Магнит",
+        "amount": 1925.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "fin_food_005",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбербанк",
+      "text": "Списание 690 ₽, SAMOKAT. Баланс: 14 300 ₽",
+      "sub_text": null,
+      "category": "finance.expense.food",
+      "intent": "groceries_delivery",
+      "entities": {
+        "amount": 690.0,
+        "currency": "RUB",
+        "merchant": "Самокат"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0086",
+      "package_name": "ru.yandex.taxi",
+      "source_type": "notification",
+      "title": "Яндекс Драйв",
+      "text": "Аренда завершена. Списано 675 ₽ за поездку",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "carsharing_payment",
+      "entities": {
+        "merchant": "Яндекс Драйв",
+        "amount": 675.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0098",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Списание 1 551 ₽, Аэроэкспресс. Билет Стандарт",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "train_ticket",
+      "entities": {
+        "merchant": "Аэроэкспресс",
+        "amount": 1551.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0027",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Оплата 1 268 ₽, Платная дорога М-11 'Нева'. Транспондер",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "toll_road_payment",
+      "entities": {
+        "merchant": "Автодор",
+        "amount": 1268.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0021",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Пополнение карты Тройка на 830 ₽ через приложение Метро",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "transit_topup",
+      "entities": {
+        "merchant": "Тройка",
+        "amount": 830.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0090",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Оплата 967 ₽, Whoosh Кикшеринг. Аренда электросамоката",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "scooter_payment",
+      "entities": {
+        "merchant": "Whoosh",
+        "amount": 967.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0019",
+      "package_name": "com.citydrive.app",
+      "source_type": "notification",
+      "title": "Ситидрайв",
+      "text": "Поездка завершена. С карты •• 1296 списано 684 ₽",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "carsharing_payment",
+      "entities": {
+        "merchant": "Ситидрайв",
+        "amount": 684.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0024",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Оплата проезда: Мосгортранс 1 049 ₽. Автобус м3",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "bus_payment",
+      "entities": {
+        "merchant": "Мосгортранс",
+        "amount": 1049.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0011",
+      "package_name": "ru.yandex.taxi",
+      "source_type": "notification",
+      "title": "Яндекс Go",
+      "text": "Поездка завершена. Списано 100 ₽ за поездку в тарифе Комфорт",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "taxi_payment",
+      "entities": {
+        "merchant": "Яндекс Go",
+        "amount": 100.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0020",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Оплата 757 ₽, Авиакомпания S7 Airlines. Билет Москва - Сочи",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "flight_ticket",
+      "entities": {
+        "merchant": "S7 Airlines",
+        "amount": 757.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0058",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Списание 3 531 ₽, Аэроэкспресс. Билет Стандарт",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "train_ticket",
+      "entities": {
+        "merchant": "Аэроэкспресс",
+        "amount": 3531.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0065",
+      "package_name": "com.ftc.faktura.multibank",
+      "source_type": "notification",
+      "title": "Агропромбанк",
+      "text": "Оплата топлива: 4 042 PRB, АЗС Шериф №127",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "gas_payment",
+      "entities": {
+        "merchant": "АЗС Шериф",
+        "amount": 4042.0,
+        "currency": "PRB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0078",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Списание 4 991 ₽, Аэроэкспресс. Билет Стандарт",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "train_ticket",
+      "entities": {
+        "merchant": "Аэроэкспресс",
+        "amount": 4991.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0039",
+      "package_name": "com.citydrive.app",
+      "source_type": "notification",
+      "title": "Ситидрайв",
+      "text": "Поездка завершена. С карты •• 2036 списано 2 144 ₽",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "carsharing_payment",
+      "entities": {
+        "merchant": "Ситидрайв",
+        "amount": 2144.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0054",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Оплата 3 239 ₽, Каршеринг Делимобиль. Аренда 34 мин",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "carsharing_payment",
+      "entities": {
+        "merchant": "Делимобиль",
+        "amount": 3239.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0100",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Оплата 1 697 ₽, Авиакомпания S7 Airlines. Билет Москва - Сочи",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "flight_ticket",
+      "entities": {
+        "merchant": "S7 Airlines",
+        "amount": 1697.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0064",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Оплата проезда: Мосгортранс 3 969 ₽. Автобус м3",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "bus_payment",
+      "entities": {
+        "merchant": "Мосгортранс",
+        "amount": 3969.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0041",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Пополнение карты Тройка на 2 290 ₽ через приложение Метро",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "transit_topup",
+      "entities": {
+        "merchant": "Тройка",
+        "amount": 2290.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0085",
+      "package_name": "com.ftc.faktura.multibank",
+      "source_type": "notification",
+      "title": "Агропромбанк",
+      "text": "Оплата топлива: 602 PRB, АЗС Шериф №507",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "gas_payment",
+      "entities": {
+        "merchant": "АЗС Шериф",
+        "amount": 602.0,
+        "currency": "PRB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0015",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Списание 392 ₽, АЗС Газпромнефть. Топливо ОПТИ-95",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "gas_payment",
+      "entities": {
+        "merchant": "Газпромнефть",
+        "amount": 392.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0045",
+      "package_name": "com.ftc.faktura.multibank",
+      "source_type": "notification",
+      "title": "Агропромбанк",
+      "text": "Оплата топлива: 2 582 PRB, АЗС Шериф №746",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "gas_payment",
+      "entities": {
+        "merchant": "АЗС Шериф",
+        "amount": 2582.0,
+        "currency": "PRB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transp_0023",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Списание 976 ₽, Каршеринг BelkaCar. Тариф поминутный",
+      "sub_text": null,
+      "category": "finance.expense.transport",
+      "intent": "carsharing_payment",
+      "entities": {
+        "merchant": "BelkaCar",
+        "amount": 976.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "poco_prisbank_001",
+      "package_name": "com.prisbank.app",
+      "source_type": "notification",
+      "title": "💸 Деньги списаны",
+      "text": "6.00 RUP",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "card_payment",
+      "entities": {
+        "amount": 6.0,
+        "currency": "RUP"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Банковский пуш '💸 Деньги списаны' в валюте RUP (рубли ПМР) без явного мерчанта",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0046",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Оплата 2 436 ₽, Lamoda. Одежда и обувь с примеркой",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "clothing_payment",
+      "entities": {
+        "merchant": "Lamoda",
+        "amount": 2436.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "fin_shop_004",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Аптека Апрель: оплата 890 ₽. Карта •• 9012. Баланс: 6 540 ₽",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "pharmacy_payment",
+      "entities": {
+        "amount": 890.0,
+        "currency": "RUB",
+        "merchant": "Аптека Апрель"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0016",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Покупка 246 ₽, Аптека Апрель. Лекарства и витамины",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "pharmacy_payment",
+      "entities": {
+        "merchant": "Аптека Апрель",
+        "amount": 246.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0051",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Покупка 2 801 ₽, Четыре Лапы. Зоотовары и корм",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "pet_supplies_payment",
+      "entities": {
+        "merchant": "Четыре Лапы",
+        "amount": 2801.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0087",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Покупка 529 ₽, ВсеИнструменты.ру. Инструменты и крепеж",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "hardware_payment",
+      "entities": {
+        "merchant": "ВсеИнструменты",
+        "amount": 529.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0026",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Оплата 976 ₽, Lamoda. Одежда и обувь с примеркой",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "clothing_payment",
+      "entities": {
+        "merchant": "Lamoda",
+        "amount": 976.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "ext_fin_005",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Списание 399 ₽, Yandex Plus. Ежемесячная подписка",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "subscription_payment",
+      "entities": {
+        "amount": 399.0,
+        "currency": "RUB",
+        "merchant": "Яндекс Плюс"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0082",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Покупка 164 ₽, М.Видео. Бытовая техника",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "electronics_payment",
+      "entities": {
+        "merchant": "М.Видео",
+        "amount": 164.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0062",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Покупка 3 604 ₽, М.Видео. Бытовая техника",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "electronics_payment",
+      "entities": {
+        "merchant": "М.Видео",
+        "amount": 3604.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0038",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Покупка 1 852 ₽, Золотое Яблоко. Косметика и парфюмерия",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "cosmetics_payment",
+      "entities": {
+        "merchant": "Золотое Яблоко",
+        "amount": 1852.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0070",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Оплата 4 188 ₽, Аптека Горздрав. Медикаменты",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "pharmacy_payment",
+      "entities": {
+        "merchant": "Горздрав",
+        "amount": 4188.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0057",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Оплата 3 239 ₽, DNS Электроника. Чек №917",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "electronics_payment",
+      "entities": {
+        "merchant": "DNS",
+        "amount": 3239.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0084",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Оплата 310 ₽, Fix Price. Товары для дома",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "retail_payment",
+      "entities": {
+        "merchant": "Fix Price",
+        "amount": 310.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0095",
+      "package_name": "ru.ozon.app.android",
+      "source_type": "notification",
+      "title": "OZON",
+      "text": "Списание 1 113 ₽ за оформленный заказ. Доставка в пункт выдачи",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "marketplace_payment",
+      "entities": {
+        "merchant": "OZON",
+        "amount": 1113.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0105",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Покупка 1 843 ₽, Читай-Город. Учебная литература",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "books_payment",
+      "entities": {
+        "merchant": "Читай-Город",
+        "amount": 1843.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0031",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Покупка 1 341 ₽, Четыре Лапы. Зоотовары и корм",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "pet_supplies_payment",
+      "entities": {
+        "merchant": "Четыре Лапы",
+        "amount": 1341.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0045",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Покупка 2 363 ₽, Читай-Город. Учебная литература",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "books_payment",
+      "entities": {
+        "merchant": "Читай-Город",
+        "amount": 2363.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0029",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Покупка 1 195 ₽, Hoff Мебель. Товары для интерьера",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "furniture_payment",
+      "entities": {
+        "merchant": "Hoff",
+        "amount": 1195.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0083",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Списание 237 ₽, Аптека Ригла. Чек №412",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "pharmacy_payment",
+      "entities": {
+        "merchant": "Аптека Ригла",
+        "amount": 237.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_shop_0090",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Оплата 748 ₽, Аптека Горздрав. Медикаменты",
+      "sub_text": null,
+      "category": "finance.expense.shopping",
+      "intent": "pharmacy_payment",
+      "entities": {
+        "merchant": "Горздрав",
+        "amount": 748.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0074",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Отклонено: недостаточно средств для перевода 4 407 ₽ клиенту Иван П.",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "transfer_failed",
+      "entities": {
+        "amount": 4407.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Неудавшийся перевод из-за нехватки баланса, факт передачи денег не состоялся",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0030",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Перевод 1 195 ₽ на карту Сбербанка через Систему быстрых платежей",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "sbp_outgoing",
+      "entities": {
+        "channel": "СБП",
+        "amount": 1195.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0096",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Исходящий перевод СБП 1 113 ₽ в Банк ВТБ (Сергей Н.). Без комиссии",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "sbp_outgoing",
+      "entities": {
+        "recipient": "Сергей Н.",
+        "channel": "СБП",
+        "amount": 1113.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0064",
+      "package_name": "com.ftc.faktura.multibank",
+      "source_type": "notification",
+      "title": "Агропромбанк",
+      "text": "Перевод через APB Online: 3 677 PRB получателю Иван П.",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "p2p_transfer",
+      "entities": {
+        "recipient": "Иван П.",
+        "amount": 3677.0,
+        "currency": "PRB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0036",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Исходящий перевод СБП 1 633 ₽ в Банк ВТБ (Сергей Н.). Без комиссии",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "sbp_outgoing",
+      "entities": {
+        "recipient": "Сергей Н.",
+        "channel": "СБП",
+        "amount": 1633.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0034",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Отклонено: недостаточно средств для перевода 1 487 ₽ клиенту Иван П.",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "transfer_failed",
+      "entities": {
+        "amount": 1487.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Неудавшийся перевод из-за нехватки баланса, факт передачи денег не состоялся",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0016",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Исходящий перевод СБП 173 ₽ в Банк ВТБ (Сергей Н.). Без комиссии",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "sbp_outgoing",
+      "entities": {
+        "recipient": "Сергей Н.",
+        "channel": "СБП",
+        "amount": 173.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0024",
+      "package_name": "com.ftc.faktura.multibank",
+      "source_type": "notification",
+      "title": "Агропромбанк",
+      "text": "Перевод через APB Online: 757 PRB получателю Иван П.",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "p2p_transfer",
+      "entities": {
+        "recipient": "Иван П.",
+        "amount": 757.0,
+        "currency": "PRB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0068",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Перевод 3 969 ₽ по реквизитам договора аренды помещения",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "rent_transfer",
+      "entities": {
+        "amount": 3969.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0058",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Перевод по номеру телефона: 3 239 ₽ отправлены в Т-Банк. Комиссия 0 ₽",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "phone_transfer",
+      "entities": {
+        "amount": 3239.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0092",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Списание 821",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "general_debit",
+      "entities": {
+        "amount": 821.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Сверхкраткий текст списания без мерчанта (Hard Case: 'Списание 1000')",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "fin_transf_010",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Автоплатеж: пополнение баланса мобильного телефона на 400 ₽. Баланс: 8 920 ₽",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "autopay_mobile",
+      "entities": {
+        "amount": 400.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0094",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Отклонено: недостаточно средств для перевода 967 ₽ клиенту Иван П.",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "transfer_failed",
+      "entities": {
+        "amount": 967.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Неудавшийся перевод из-за нехватки баланса, факт передачи денег не состоялся",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "fin_transf_011",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Списание комиссии 150 ₽ за обслуживание пакета услуг. Баланс: 2 100 ₽",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "fee_debit",
+      "entities": {
+        "amount": 150.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Комиссионное списание банка, классифицируется в transfer/financial debit",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_fin_transf_0087",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Запрос на перевод 456 ₽ от пользователя Максим Р. исполнен",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "p2p_transfer",
+      "entities": {
+        "recipient": "Максим Р.",
+        "amount": 456.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0095",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Перевод 1 040 ₽ клиенту Сбера Дмитрий К.. Баланс: 31 200 ₽",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "p2p_transfer",
+      "entities": {
+        "recipient": "Дмитрий К.",
+        "amount": 1040.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0038",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Перевод по номеру телефона: 1 779 ₽ отправлены в Т-Банк. Комиссия 0 ₽",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "phone_transfer",
+      "entities": {
+        "amount": 1779.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0025",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Списание комиссии 830 ₽ за годовое обслуживание банковской карты",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "bank_fee",
+      "entities": {
+        "amount": 830.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Комиссионное списание банка (financial debit), не покупка",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0105",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Списание комиссии 1 770 ₽ за годовое обслуживание банковской карты",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "bank_fee",
+      "entities": {
+        "amount": 1770.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Комиссионное списание банка (financial debit), не покупка",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_fin_transf_0067",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Запрос на перевод 3 896 ₽ от пользователя Максим Р. исполнен",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "p2p_transfer",
+      "entities": {
+        "recipient": "Максим Р.",
+        "amount": 3896.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "fin_transf_001",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Перевод 1000",
+      "sub_text": null,
+      "category": "finance.transfer",
+      "intent": "transfer_outgoing",
+      "entities": {
+        "amount": 1000.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Двусмысленность: не указано направление (входящий/исходящий) и адресат (Hard Case: 'Сбер: Перевод 1000')",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_music_0097",
+      "package_name": "com.google.android.apps.youtube.music",
+      "source_type": "notification",
+      "title": "YouTube Music",
+      "text": "Загрузка трека In the End в кэш для офлайн-прослушивания",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_download",
+      "entities": {
+        "track": "In the End"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Служебное уведомление о загрузке музыки, а не само воспроизведение",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "mus_002",
+      "package_name": "com.google.android.apps.youtube.music",
+      "source_type": "mediasession",
+      "title": "Daft Punk feat. Pharrell Williams",
+      "text": "Get Lucky",
+      "sub_text": "Random Access Memories",
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Daft Punk feat. Pharrell Williams",
+        "track": "Get Lucky",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0077",
+      "package_name": "com.google.android.apps.youtube.music",
+      "source_type": "notification",
+      "title": "YouTube Music",
+      "text": "Загрузка трека Лесник в кэш для офлайн-прослушивания",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_download",
+      "entities": {
+        "track": "Лесник"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Служебное уведомление о загрузке музыки, а не само воспроизведение",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0072",
+      "package_name": "com.spotify.music",
+      "source_type": "mediasession",
+      "title": "Spotify",
+      "text": "Подкаст 'Запуск завтра': Эпизод №127",
+      "sub_text": null,
+      "category": "music",
+      "intent": "podcast_playback",
+      "entities": {
+        "track": "Запуск завтра",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Медиа-сессия подкаста без артиста (только название шоу)",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0044",
+      "package_name": "com.soundcloud.android",
+      "source_type": "notification",
+      "title": "SoundCloud",
+      "text": "Linkin Park - Город под подошвой [Remix 2026]",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Linkin Park",
+        "track": "Город под подошвой",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0093",
+      "package_name": "ru.yandex.music",
+      "source_type": "mediasession",
+      "title": "Яндекс Музыка",
+      "text": "Аудиокнига: 'Мастер и Маргарита' (Глава 526)",
+      "sub_text": null,
+      "category": "music",
+      "intent": "audiobook_playback",
+      "entities": {
+        "track": "Мастер и Маргарита",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Воспроизведение аудиокниги в музыкальном приложении",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "mus_003",
+      "package_name": "ru.yandex.music",
+      "source_type": "mediasession",
+      "title": "Скриптонит",
+      "text": "Положение",
+      "sub_text": "Праздник на улице 36",
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Скриптонит",
+        "track": "Положение",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0021",
+      "package_name": "org.videolan.vlc",
+      "source_type": "mediasession",
+      "title": "VLC",
+      "text": "Воспроизведение: Лесник [Billie Eilish]",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Billie Eilish",
+        "track": "Лесник",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0090",
+      "package_name": "com.deezer.android.app",
+      "source_type": "mediasession",
+      "title": "Deezer",
+      "text": "Flow: In the End by Кино",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Кино",
+        "track": "In the End",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0100",
+      "package_name": "com.google.android.apps.youtube.music",
+      "source_type": "notification",
+      "title": "YouTube Music",
+      "text": "Lofi Fruits Music - Город под подошвой (Live)",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Lofi Fruits Music",
+        "track": "Город под подошвой",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0068",
+      "package_name": "ru.yandex.music",
+      "source_type": "notification",
+      "title": "Яндекс Музыка",
+      "text": "Моя волна: Bohemian Rhapsody исполнителя Король и Шут",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Король и Шут",
+        "track": "Bohemian Rhapsody",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0059",
+      "package_name": "ru.yandex.music",
+      "source_type": "notification",
+      "title": "Яндекс Музыка",
+      "text": "Blinding Lights • Linkin Park",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Linkin Park",
+        "track": "Blinding Lights",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0102",
+      "package_name": "com.vkontakte.android",
+      "source_type": "mediasession",
+      "title": "VK Музыка",
+      "text": "Положение — Скриптонит",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Скриптонит",
+        "track": "Положение",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0053",
+      "package_name": "ru.yandex.music",
+      "source_type": "notification",
+      "title": "Яндекс Музыка",
+      "text": "Аудиокнига: 'Мастер и Маргарита' (Глава 765)",
+      "sub_text": null,
+      "category": "music",
+      "intent": "audiobook_playback",
+      "entities": {
+        "track": "Мастер и Маргарита",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Воспроизведение аудиокниги в музыкальном приложении",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0058",
+      "package_name": "com.spotify.music",
+      "source_type": "notification",
+      "title": "Spotify",
+      "text": "Queen — Город под подошвой",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Queen",
+        "track": "Город под подошвой",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0095",
+      "package_name": "app.revanced.android.youtube",
+      "source_type": "notification",
+      "title": "ReVanced Music",
+      "text": "Miyagi & Эндшпиль - Положение (Remastered 4K)",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Miyagi & Эндшпиль",
+        "track": "Положение",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0035",
+      "package_name": "app.revanced.android.youtube",
+      "source_type": "notification",
+      "title": "ReVanced Music",
+      "text": "Miyagi & Эндшпиль - Лесник (Remastered 4K)",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Miyagi & Эндшпиль",
+        "track": "Лесник",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0064",
+      "package_name": "com.soundcloud.android",
+      "source_type": "notification",
+      "title": "SoundCloud",
+      "text": "Daft Punk - Yellow [Remix 2026]",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Daft Punk",
+        "track": "Yellow",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0024",
+      "package_name": "com.soundcloud.android",
+      "source_type": "mediasession",
+      "title": "SoundCloud",
+      "text": "Coldplay - Blinding Lights [Remix 2026]",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Coldplay",
+        "track": "Blinding Lights",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_music_0099",
+      "package_name": "ru.yandex.music",
+      "source_type": "mediasession",
+      "title": "Яндекс Музыка",
+      "text": "Yellow • Coldplay",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Coldplay",
+        "track": "Yellow",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "poco_ym_003",
+      "package_name": "ru.yandex.music",
+      "source_type": "notification",
+      "title": "🄴  If You Say So",
+      "text": "Lea Michele",
+      "sub_text": null,
+      "category": "music",
+      "intent": "media_playback",
+      "entities": {
+        "artist": "Lea Michele",
+        "track": "If You Say So",
+        "playback_state": "PLAYING"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Unicode Explicit tag [E], латинские метаданные трека",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0088",
+      "package_name": "com.moodle.moodlemobile",
+      "source_type": "notification",
+      "title": "Moodle",
+      "text": "Преподаватель открыл доступ к материалам лекции №545 по Высшая математика",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "materials_opened",
+      "entities": {
+        "subject": "Высшая математика"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "std_les_005",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Деканат ФМФ",
+      "text": "Внимание! Завтра вместо Физики будет Дискретная математика в ауд. 204 в 10:15",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "lesson_rescheduled",
+      "entities": {
+        "subject": "Дискретная математика"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_std_les_0057",
+      "package_name": "com.moodle.moodlemobile",
+      "source_type": "notification",
+      "title": "Moodle SPSU",
+      "text": "Ссылка на онлайн-семинар по Базы данных в Zoom: https://zoom.us/j/955",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "online_lesson_link",
+      "entities": {
+        "subject": "Базы данных"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0024",
+      "package_name": "com.microsoft.teams",
+      "source_type": "notification",
+      "title": "Microsoft Teams",
+      "text": "Собрание 'Лабораторный практикум по Высшая математика' началось",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "online_lesson_started",
+      "entities": {
+        "subject": "Высшая математика"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "std_les_010",
+      "package_name": "com.moodle.moodlemobile",
+      "source_type": "notification",
+      "title": "ЭОС ПГУ",
+      "text": "Курс 'Теория алгоритмов': создана ссылка на онлайн-лекцию в Zoom на 23 сентября 08:30",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "online_lecture_link",
+      "entities": {
+        "subject": "Теория алгоритмов"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "std_les_007",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Иванов П.П. (Преподаватель)",
+      "text": "Консультация перед экзаменом переносится на пятницу в 16:00 в Teams",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "consultation_rescheduled",
+      "entities": {
+        "subject": "Консультация к экзамену"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_std_les_0019",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Преподаватель Анна Т.",
+      "text": "Семинар переносится на субботу в 11:30 в дистанционном формате",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "lesson_rescheduled",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0078",
+      "package_name": "com.google.android.apps.tachyon",
+      "source_type": "notification",
+      "title": "Google Meet",
+      "text": "Занятие 'Теория вероятностей' началось. Нажмите для подключения к видеозвонку",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "online_lesson_started",
+      "entities": {
+        "subject": "Теория вероятностей"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0096",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Староста",
+      "text": "Завтра пара",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "lesson_short",
+      "entities": {},
+      "is_hard_case": true,
+      "hard_case_reason": "Сверхкраткое разговорное сообщение о занятии (Hard Case: 'Завтра пара')",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0079",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Преподаватель Анна Т.",
+      "text": "Семинар переносится на субботу в 11:30 в дистанционном формате",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "lesson_rescheduled",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0048",
+      "package_name": "com.moodle.moodlemobile",
+      "source_type": "notification",
+      "title": "Moodle",
+      "text": "Преподаватель открыл доступ к материалам лекции №784 по Высшая математика",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "materials_opened",
+      "entities": {
+        "subject": "Высшая математика"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0015",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Деканат",
+      "text": "Завтра замена пары: вместо Алгоритмы и структуры данных будет Программирование на Kotlin в ауд. 133",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "lesson_rescheduled",
+      "entities": {
+        "subject": "Программирование на Kotlin"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Замена предмета в расписании (Hard Case: 'Завтра замена пары')",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0032",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Староста группы",
+      "text": "Завтра пара по Высшая математика в 10:00, аудитория 320",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "lesson_schedule",
+      "entities": {
+        "subject": "Высшая математика"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0031",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Дежурный по факультету",
+      "text": "Напоминание: завтра в 14:00 собрание курса по поводу производственной практики",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "internship_meeting",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0076",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Староста",
+      "text": "Завтра пара",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "lesson_short",
+      "entities": {},
+      "is_hard_case": true,
+      "hard_case_reason": "Сверхкраткое разговорное сообщение о занятии (Hard Case: 'Завтра пара')",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0023",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Учебная часть",
+      "text": "Внимание студентов: лекция профессора Ольга М. состоится в актовом зале",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "lecture_location_change",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0086",
+      "package_name": "com.google.android.calendar",
+      "source_type": "notification",
+      "title": "Календарь",
+      "text": "Экзамен: Теория вероятностей. Начало в 09:00, аудитория 114",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "exam_event",
+      "entities": {
+        "subject": "Теория вероятностей"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0082",
+      "package_name": "com.moodle.moodlemobile",
+      "source_type": "notification",
+      "title": "ЭОС ПГУ",
+      "text": "Опубликовано расписание консультаций перед экзаменом по курсу 'Теория вероятностей'",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "exam_consultation",
+      "entities": {
+        "subject": "Теория вероятностей"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0045",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Чат старост",
+      "text": "Завтра сокращенный день: пары по 40 минут по расписанию среды",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "shortened_schedule",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0101",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Староста группы",
+      "text": "Ребята, первой пары нет! Приходим ко 2-й к 10:15",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "lesson_cancelled",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_les_0077",
+      "package_name": "com.moodle.moodlemobile",
+      "source_type": "notification",
+      "title": "Moodle SPSU",
+      "text": "Ссылка на онлайн-семинар по Базы данных в Zoom: https://zoom.us/j/336",
+      "sub_text": null,
+      "category": "study.lesson",
+      "intent": "online_lesson_link",
+      "entities": {
+        "subject": "Базы данных"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0095",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Учебный чат",
+      "text": "Народ, крайний срок отправки отчета по практике — эта пятница до 18:00!",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "report_deadline",
+      "entities": {
+        "subject": "Отчет по практике",
+        "deadline": "пятница 18:00"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "std_dl_003",
+      "package_name": "com.moodle.moodlemobile",
+      "source_type": "notification",
+      "title": "ЭОС ПГУ им. Шевченко",
+      "text": "Тест по модулю 1 по курсу 'Базы данных' открыт до 25 сентября, 22:00",
+      "sub_text": "Базы данных",
+      "category": "study.deadline",
+      "intent": "quiz_deadline",
+      "entities": {
+        "subject": "Базы данных",
+        "deadline": "25 сентября, 22:00"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_std_dl_0019",
+      "package_name": "com.google.android.apps.tasks",
+      "source_type": "notification",
+      "title": "Google Задачи",
+      "text": "Срок выполнения: Отправить презентацию к диплому научному руководителю",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "task_deadline",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "std_dl_005",
+      "package_name": "com.github.android",
+      "source_type": "notification",
+      "title": "GitHub Classroom",
+      "text": "Assignment 'lab-3-concurrency': deadline in 12 hours. Push your commits to origin.",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "vcs_assignment_deadline",
+      "entities": {
+        "subject": "lab-3-concurrency",
+        "deadline": "12 hours"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_std_dl_0071",
+      "package_name": "com.google.android.apps.tasks",
+      "source_type": "notification",
+      "title": "Задачи",
+      "text": "Напоминание: Загрузить рецензию на дипломный проект до 10 июня",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "task_deadline",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0013",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Староста",
+      "text": "Не забудь сдать лабу",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "assignment_reminder",
+      "entities": {
+        "subject": "Лабораторная работа"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Разговорное напоминание о лабораторной работе (Hard Case: 'Не забудь лабу')",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0052",
+      "package_name": "com.moodle.moodlemobile",
+      "source_type": "notification",
+      "title": "Moodle SPSU",
+      "text": "Дедлайн задания 'Лабораторная работа №860' по Алгоритмы и структуры данных истекает сегодня в 23:59",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "assignment_deadline",
+      "entities": {
+        "subject": "Алгоритмы и структуры данных",
+        "deadline": "сегодня в 23:59"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0023",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Иванов А.А. (Препод)",
+      "text": "Жду ваши индивидуальные расчетно-графические работы до полуночи на почту",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "homework_deadline",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0079",
+      "package_name": "com.google.android.apps.tasks",
+      "source_type": "notification",
+      "title": "Google Задачи",
+      "text": "Срок выполнения: Отправить презентацию к диплому научному руководителю",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "task_deadline",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0105",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Учебный сектор",
+      "text": "Кто не загрузил сканы квитанций об оплате обучения, крайний срок — завтра",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "tuition_deadline",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "std_dl_008",
+      "package_name": "com.google.android.apps.tasks",
+      "source_type": "notification",
+      "title": "Google Задачи",
+      "text": "Дедлайн: Отправить презентацию по экономике. Срок: сегодня 20:00",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "task_reminder",
+      "entities": {
+        "subject": "Презентация по экономике",
+        "deadline": "сегодня 20:00"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_std_dl_0027",
+      "package_name": "com.github.android",
+      "source_type": "notification",
+      "title": "GitHub",
+      "text": "Review requested on PR #385 'lab-385-solution'. Deadline: today",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "pr_review_deadline",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0085",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Учебный сектор",
+      "text": "Кто не загрузил сканы квитанций об оплате обучения, крайний срок — завтра",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "tuition_deadline",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0104",
+      "package_name": "com.google.android.calendar",
+      "source_type": "notification",
+      "title": "Календарь",
+      "text": "Дедлайн: Предзащита дипломной работы (ауд. 312)",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "defense_deadline",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0080",
+      "package_name": "com.moodle.moodlemobile",
+      "source_type": "notification",
+      "title": "Moodle SPSU",
+      "text": "Задание 'Домашнее задание №393' ожидает проверки. Прием ответов завершен",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "assignment_closed",
+      "entities": {
+        "subject": "Алгоритмы и структуры данных"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0084",
+      "package_name": "com.google.android.calendar",
+      "source_type": "notification",
+      "title": "Календарь",
+      "text": "Дедлайн: Предзащита дипломной работы (ауд. 492)",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "defense_deadline",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0017",
+      "package_name": "com.moodle.moodlemobile",
+      "source_type": "notification",
+      "title": "Moodle",
+      "text": "Срок сдачи курсового проекта по Высшая математика продлен до 15 ноября 23:59",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "deadline_extended",
+      "entities": {
+        "subject": "Высшая математика",
+        "deadline": "15 ноября 23:59"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "std_dl_001",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Саня (одногруппник)",
+      "text": "Не забудь лабу",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "assignment_reminder",
+      "entities": {
+        "subject": "Лабораторная работа"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Разговорное короткое напоминание без указания срока и предмета (Hard Case: 'Не забудь лабу')",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_std_dl_0043",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Иванов А.А. (Препод)",
+      "text": "Жду ваши индивидуальные расчетно-графические работы до полуночи на почту",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "homework_deadline",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0103",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Иванов А.А. (Препод)",
+      "text": "Жду ваши индивидуальные расчетно-графические работы до полуночи на почту",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "homework_deadline",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_std_dl_0020",
+      "package_name": "com.moodle.moodlemobile",
+      "source_type": "notification",
+      "title": "Moodle SPSU",
+      "text": "Задание 'Домашнее задание №252' ожидает проверки. Прием ответов завершен",
+      "sub_text": null,
+      "category": "study.deadline",
+      "intent": "assignment_closed",
+      "entities": {
+        "subject": "Алгоритмы и структуры данных"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0042",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Татьяна Б.",
+      "text": "Смотри какой смешной мем нашел в ленте))",
+      "sub_text": null,
+      "category": "message",
+      "intent": "friendly_chat",
+      "entities": {
+        "sender": "Татьяна Б."
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0054",
+      "package_name": "com.whatsapp",
+      "source_type": "notification",
+      "title": "Елена С.",
+      "text": "Захвати, пожалуйста, конспекты по Алгоритмы и структуры данных, если не сложно",
+      "sub_text": null,
+      "category": "message",
+      "intent": "personal_chat",
+      "entities": {
+        "sender": "Елена С."
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0070",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Ольга М.",
+      "text": "Договорились, тогда встречаемся на входе в метро в 15:00",
+      "sub_text": null,
+      "category": "message",
+      "intent": "personal_chat",
+      "entities": {
+        "sender": "Ольга М."
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0027",
+      "package_name": "com.whatsapp",
+      "source_type": "notification",
+      "title": "Татьяна Б.",
+      "text": "Фотография (1 файл). Посмотри, какой вариант лучше выбрать",
+      "sub_text": null,
+      "category": "message",
+      "intent": "media_message",
+      "entities": {
+        "sender": "Татьяна Б."
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "msg_006",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Олег",
+      "text": "Глянь мой PR на гитхабе, поправил ревью-комменты",
+      "sub_text": null,
+      "category": "message",
+      "intent": "work_message",
+      "entities": {
+        "sender": "Олег"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0066",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Чат дома ТСЖ",
+      "text": "Уважаемые жильцы, завтра с 09:00 до 13:00 плановое отключение воды",
+      "sub_text": null,
+      "category": "message",
+      "intent": "community_chat",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "ext_msg_001",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Чат дома / ТСЖ",
+      "text": "Уважаемые жители, завтра с 10:00 до 14:00 будет отключено горячее водоснабжение",
+      "sub_text": null,
+      "category": "message",
+      "intent": "announcement_message",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0064",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Бот заказов",
+      "text": "Ваш заказ №070 передан курьеру. Телефон для связи: +7926070",
+      "sub_text": null,
+      "category": "message",
+      "intent": "order_bot",
+      "entities": {},
+      "is_hard_case": true,
+      "hard_case_reason": "Транзакционное сервисное сообщение от чат-бота интернет-магазина",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0103",
+      "package_name": "com.google.android.apps.messaging",
+      "source_type": "notification",
+      "title": "Абонент +7999811",
+      "text": "Этот абонент снова в сети. Вы можете позвонить ему.",
+      "sub_text": null,
+      "category": "message",
+      "intent": "telecom_availability",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0078",
+      "package_name": "com.vkontakte.android",
+      "source_type": "notification",
+      "title": "Алексей В.",
+      "text": "Скинул тебе в документы шпаргалки к зачету",
+      "sub_text": null,
+      "category": "message",
+      "intent": "social_chat",
+      "entities": {
+        "sender": "Алексей В."
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0050",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Ольга М.",
+      "text": "Договорились, тогда встречаемся на входе в метро в 15:00",
+      "sub_text": null,
+      "category": "message",
+      "intent": "personal_chat",
+      "entities": {
+        "sender": "Ольга М."
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0076",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Мама",
+      "text": "Как дела в университете? Обед разогрей в микроволновке",
+      "sub_text": null,
+      "category": "message",
+      "intent": "family_chat",
+      "entities": {
+        "sender": "Мама"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0065",
+      "package_name": "com.radolyn.ayugram",
+      "source_type": "notification",
+      "title": "Ольга М.",
+      "text": "Голосовое сообщение (0:45). Нажмите для прослушивания",
+      "sub_text": null,
+      "category": "message",
+      "intent": "voice_message",
+      "entities": {
+        "sender": "Ольга М."
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0044",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Бот заказов",
+      "text": "Ваш заказ №689 передан курьеру. Телефон для связи: +7926689",
+      "sub_text": null,
+      "category": "message",
+      "intent": "order_bot",
+      "entities": {},
+      "is_hard_case": true,
+      "hard_case_reason": "Транзакционное сервисное сообщение от чат-бота интернет-магазина",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0080",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Папа",
+      "text": "Машину с ТО забрал, вечером за тобой заеду",
+      "sub_text": null,
+      "category": "message",
+      "intent": "family_chat",
+      "entities": {
+        "sender": "Папа"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0015",
+      "package_name": "com.radolyn.ayugram",
+      "source_type": "notification",
+      "title": "Чат проекта",
+      "text": "Ольга М.: Залил новый коммит в ветку develop, проверяйте",
+      "sub_text": null,
+      "category": "message",
+      "intent": "group_chat",
+      "entities": {
+        "sender": "Ольга М."
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0091",
+      "package_name": "com.google.android.apps.messaging",
+      "source_type": "notification",
+      "title": "+373777583",
+      "text": "Перезвони мне, срочный вопрос по документам",
+      "sub_text": null,
+      "category": "message",
+      "intent": "sms_personal",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0086",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Чат дома ТСЖ",
+      "text": "Уважаемые жильцы, завтра с 09:00 до 13:00 плановое отключение воды",
+      "sub_text": null,
+      "category": "message",
+      "intent": "community_chat",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0073",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Алексей В.",
+      "text": "Привет! Ты завтра идешь на пары или дистанционно?",
+      "sub_text": null,
+      "category": "message",
+      "intent": "personal_chat",
+      "entities": {
+        "sender": "Алексей В."
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0021",
+      "package_name": "com.whatsapp",
+      "source_type": "notification",
+      "title": "Родительский чат",
+      "text": "Напоминаем об общем собрании в пятницу в 18:30",
+      "sub_text": null,
+      "category": "message",
+      "intent": "group_announcement",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_msg_0090",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Ольга М.",
+      "text": "Договорились, тогда встречаемся на входе в метро в 15:00",
+      "sub_text": null,
+      "category": "message",
+      "intent": "personal_chat",
+      "entities": {
+        "sender": "Ольга М."
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0103",
+      "package_name": "ru.aliexpress.buyer",
+      "source_type": "notification",
+      "title": "AliExpress",
+      "text": "Всемирный день шопинга 11.11! Миллионы товаров по суперценам",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "sale_promo",
+      "entities": {
+        "merchant": "AliExpress"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0041",
+      "package_name": "com.deliveryclub",
+      "source_type": "notification",
+      "title": "Маркет Деливери",
+      "text": "Проголодались? Быстрая доставка любимых блюд со скидкой 20% по коду TASTY",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "food_promo",
+      "entities": {
+        "merchant": "Маркет Деливери"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0073",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Кэшбэк дня до 50% на покупки в ресторанах в эти выходные! Активируйте в приложении",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "cashback_promo",
+      "entities": {
+        "merchant": "Т-Банк"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Рекламный пуш об акции с повышенным кэшбэком",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0095",
+      "package_name": "com.dodopizza.app",
+      "source_type": "notification",
+      "title": "Додо Пицца",
+      "text": "Пепперони в подарок по промокоду DODOMIR при заказе от 990 ₽!",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "food_promo",
+      "entities": {
+        "merchant": "Додо Пицца"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0025",
+      "package_name": "com.wildberries.wbdeti",
+      "source_type": "notification",
+      "title": "Wildberries",
+      "text": "Товары из вашей корзины подешевели! Успейте выкупить по выгодной цене",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "cart_discount_promo",
+      "entities": {
+        "merchant": "Wildberries"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0075",
+      "package_name": "com.dodopizza.app",
+      "source_type": "notification",
+      "title": "Додо Пицца",
+      "text": "Пепперони в подарок по промокоду DODOMIR при заказе от 990 ₽!",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "food_promo",
+      "entities": {
+        "merchant": "Додо Пицца"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0086",
+      "package_name": "ru.megafon.mlk",
+      "source_type": "notification",
+      "title": "МегаФон",
+      "text": "Специально для вас: золотой номер телефона в подарок при смене тарифа",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "telecom_promo",
+      "entities": {
+        "merchant": "МегаФон"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0099",
+      "package_name": "ru.beeline.services",
+      "source_type": "notification",
+      "title": "Билайн",
+      "text": "Тариф 'Всё в одном': 50 Гб интернета и подписка на кинотеатр за 390 руб/мес",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "telecom_promo",
+      "entities": {
+        "merchant": "Билайн"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "adv_009",
+      "package_name": "ru.mvideo",
+      "source_type": "notification",
+      "title": "М.Видео",
+      "text": "Скидки выходного дня: телевизоры и ноутбуки с выгодой до 25 000 ₽",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "retail_discount_promo",
+      "entities": {
+        "merchant": "М.Видео"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "adv_007",
+      "package_name": "ru.sportmaster.app",
+      "source_type": "notification",
+      "title": "Спортмастер",
+      "text": "Вам начислено 2000 промо-бонусов на покупку кроссовок до 30 сентября!",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "bonus_marketing_push",
+      "entities": {
+        "merchant": "Спортмастер"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Содержит фразу 'начислено 2000', риск ложного срабатывания finance.income",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_adv_0054",
+      "package_name": "ru.ozon.app.android",
+      "source_type": "notification",
+      "title": "OZON",
+      "text": "Грандиозная распродажа электроники: скидки до 70% только до полуночи!",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "sale_promo",
+      "entities": {
+        "merchant": "OZON"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0082",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "Сбер",
+      "text": "Обменяйте бонусы Спасибо на рубли с выгодой до 20% в приложении СберСпасибо",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "bonus_exchange_promo",
+      "entities": {
+        "merchant": "СберСпасибо"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Слово 'Перевод' бонусов, маркетинговая акция",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0092",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "notification",
+      "title": "СберБанк",
+      "text": "Кредит от 4.9%! Оформите заявку онлайн за 2 минуты без визита в офис",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "bank_promo",
+      "entities": {
+        "merchant": "СберБанк"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Банковское предложение кредита без движения реальных средств",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0024",
+      "package_name": "com.mts.mymts",
+      "source_type": "notification",
+      "title": "Мой МТС",
+      "text": "Подключите МТС Premium бесплатно на 30 дней: фильмы, музыка и гигабайты",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "subscription_trial_promo",
+      "entities": {
+        "merchant": "МТС"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0065",
+      "package_name": "com.wildberries.wbdeti",
+      "source_type": "notification",
+      "title": "Wildberries",
+      "text": "Товары из вашей корзины подешевели! Успейте выкупить по выгодной цене",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "cart_discount_promo",
+      "entities": {
+        "merchant": "Wildberries"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0049",
+      "package_name": "com.yandex.plus",
+      "source_type": "notification",
+      "title": "Яндекс Плюс",
+      "text": "Кинопоиск, Яндекс Музыка и баллы Плюса для всей семьи на 60 дней за 0 ₽",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "media_subscription_promo",
+      "entities": {
+        "merchant": "Яндекс"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0045",
+      "package_name": "com.wildberries.wbdeti",
+      "source_type": "notification",
+      "title": "Wildberries",
+      "text": "Товары из вашей корзины подешевели! Успейте выкупить по выгодной цене",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "cart_discount_promo",
+      "entities": {
+        "merchant": "Wildberries"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0036",
+      "package_name": "ru.yandex.market",
+      "source_type": "notification",
+      "title": "Яндекс Маркет",
+      "text": "Дарим промокод SALE500 на скидку 500 ₽ при заказе от 2 500 ₽",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "coupon_promo",
+      "entities": {
+        "merchant": "Яндекс Маркет"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Содержит числа и рубли, но является рекламным купоном",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0013",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Кэшбэк дня до 50% на покупки в ресторанах в эти выходные! Активируйте в приложении",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "cashback_promo",
+      "entities": {
+        "merchant": "Т-Банк"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Рекламный пуш об акции с повышенным кэшбэком",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0074",
+      "package_name": "ru.ozon.app.android",
+      "source_type": "notification",
+      "title": "OZON",
+      "text": "Грандиозная распродажа электроники: скидки до 70% только до полуночи!",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "sale_promo",
+      "entities": {
+        "merchant": "OZON"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_adv_0098",
+      "package_name": "ru.sportmaster.app",
+      "source_type": "notification",
+      "title": "Спортмастер",
+      "text": "Вам начислено 2000 промо-бонусов на покупку кроссовок и экипировки!",
+      "sub_text": null,
+      "category": "advertisement",
+      "intent": "loyalty_points_promo",
+      "entities": {
+        "merchant": "Спортмастер"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Содержит 'начислено 2000 бонусов', риск путаницы с доходом",
+      "expected_precision_critical": false
+    },
+    {
+      "id": "poco_sms_001",
+      "package_name": "com.google.android.apps.messaging",
+      "source_type": "sms",
+      "title": "1611",
+      "text": "66486 – код к сессии 11629924. Никому не сообщайте",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "otp_verification",
+      "entities": {
+        "auth_code": "66486"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Короткий номер 1611, обратный формат OTP (цифры кода перед словом 'код к сессии')",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0104",
+      "package_name": "com.apple.android.music",
+      "source_type": "notification",
+      "title": "Apple",
+      "text": "Код проверки Apple ID: 27553. Введите его на вашем устройстве.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "apple_otp",
+      "entities": {
+        "auth_code": "27553"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0057",
+      "package_name": "com.google.android.gms",
+      "source_type": "sms",
+      "title": "Google",
+      "text": "G-23652 — ваш проверочный код безопасности Google.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "google_otp",
+      "entities": {
+        "auth_code": "23652"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0076",
+      "package_name": "ru.gosuslugi.portal",
+      "source_type": "notification",
+      "title": "Gosuslugi",
+      "text": "Код подтверждения входа на портал Госуслуг: 25229. Не сообщайте его никому.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "gov_login_otp",
+      "entities": {
+        "auth_code": "25229"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0088",
+      "package_name": "ru.ozon.app.android",
+      "source_type": "notification",
+      "title": "OZON",
+      "text": "Ваш одноразовый код для входа на Ozon: 26225",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "ozon_otp",
+      "entities": {
+        "auth_code": "26225"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0025",
+      "package_name": "ru.vtb24.mobilebanking.android",
+      "source_type": "sms",
+      "title": "ВТБ",
+      "text": "Код регистрации нового устройства в ВТБ Онлайн: 20996",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "device_register_otp",
+      "entities": {
+        "auth_code": "20996"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0078",
+      "package_name": "com.vkontakte.android",
+      "source_type": "notification",
+      "title": "VK ID",
+      "text": "Код для входа: 25395. Если вы не запрашивали код, смените пароль в профиле.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "vk_otp",
+      "entities": {
+        "auth_code": "25395"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0047",
+      "package_name": "com.wildberries.wbdeti",
+      "source_type": "sms",
+      "title": "Wildberries",
+      "text": "Код для входа в личный кабинет Wildberries: 22822",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "wb_otp",
+      "entities": {
+        "auth_code": "22822"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0053",
+      "package_name": "ru.sberbankmobile",
+      "source_type": "sms",
+      "title": "900",
+      "text": "Код для входа в Сбербанк Онлайн: 23320. Никому не сообщайте пароль.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "login_otp",
+      "entities": {
+        "auth_code": "23320"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0043",
+      "package_name": "com.discord",
+      "source_type": "sms",
+      "title": "Discord",
+      "text": "Ваш код безопасности Discord: 22490. Не делитесь им ни с кем.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "discord_otp",
+      "entities": {
+        "auth_code": "22490"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0035",
+      "package_name": "org.telegram.messenger",
+      "source_type": "sms",
+      "title": "Telegram",
+      "text": "Код подтверждения: 21826. Вы можете использовать его для входа в ваш аккаунт.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "login_otp",
+      "entities": {
+        "auth_code": "21826"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0094",
+      "package_name": "com.idamob.tinkoff.android",
+      "source_type": "notification",
+      "title": "Т-Банк",
+      "text": "Код подтверждения операции: 26723. Оплата в интернет-магазине на сумму 1 113 ₽.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "tx_confirm_otp",
+      "entities": {
+        "auth_code": "26723",
+        "amount": 1113.0,
+        "currency": "RUB"
+      },
+      "is_hard_case": true,
+      "hard_case_reason": "Содержит сумму платежа, но главным действием является ввод 2FA-кода",
+      "expected_precision_critical": true
+    },
+    {
+      "id": "auth_006",
+      "package_name": "com.vkontakte.android",
+      "source_type": "notification",
+      "title": "VK ID",
+      "text": "Код для входа: 5291. Если это были не вы, срочно измените пароль в настройках безопасности.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "login_otp",
+      "entities": {
+        "auth_code": "5291"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0083",
+      "package_name": "com.discord",
+      "source_type": "sms",
+      "title": "Discord",
+      "text": "Ваш код безопасности Discord: 25810. Не делитесь им ни с кем.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "discord_otp",
+      "entities": {
+        "auth_code": "25810"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0056",
+      "package_name": "ru.gosuslugi.portal",
+      "source_type": "notification",
+      "title": "Gosuslugi",
+      "text": "Код подтверждения входа на портал Госуслуг: 23569. Не сообщайте его никому.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "gov_login_otp",
+      "entities": {
+        "auth_code": "23569"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "auth_003",
+      "package_name": "org.telegram.messenger",
+      "source_type": "notification",
+      "title": "Telegram",
+      "text": "Код подтверждения: 74829. Вы можете использовать его для входа в ваш аккаунт Telegram.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "login_otp",
+      "entities": {
+        "auth_code": "74829"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0059",
+      "package_name": "com.whatsapp",
+      "source_type": "sms",
+      "title": "WhatsApp",
+      "text": "Ваш проверочный код WhatsApp: 23818. Никому не пересылайте этот код.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "whatsapp_otp",
+      "entities": {
+        "auth_code": "23818"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0042",
+      "package_name": "ru.alfabank.mobile.android",
+      "source_type": "notification",
+      "title": "Альфа-Банк",
+      "text": "Пароль для подтверждения смены номера: 22407. Сотрудники банка не запрашивают код.",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "security_change_otp",
+      "entities": {
+        "auth_code": "22407"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0105",
+      "package_name": "ru.vtb24.mobilebanking.android",
+      "source_type": "sms",
+      "title": "ВТБ",
+      "text": "Код регистрации нового устройства в ВТБ Онлайн: 27636",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "device_register_otp",
+      "entities": {
+        "auth_code": "27636"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0045",
+      "package_name": "ru.vtb24.mobilebanking.android",
+      "source_type": "sms",
+      "title": "ВТБ",
+      "text": "Код регистрации нового устройства в ВТБ Онлайн: 22656",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "device_register_otp",
+      "entities": {
+        "auth_code": "22656"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_auth_0027",
+      "package_name": "com.wildberries.wbdeti",
+      "source_type": "sms",
+      "title": "Wildberries",
+      "text": "Код для входа в личный кабинет Wildberries: 21162",
+      "sub_text": null,
+      "category": "authentication",
+      "intent": "wb_otp",
+      "entities": {
+        "auth_code": "21162"
+      },
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": true
+    },
+    {
+      "id": "s1_other_0092",
+      "package_name": "com.android.vending",
+      "source_type": "notification",
+      "title": "Google Play",
+      "text": "Доступны обновления для 621 приложений. Нажмите для установки",
+      "sub_text": null,
+      "category": "other",
+      "intent": "app_updates",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0075",
+      "package_name": "com.android.providers.downloads",
+      "source_type": "system",
+      "title": "Диспетчер загрузки",
+      "text": "Загрузка файла 'presentation_os.pptx' успешно завершена (153 МБ)",
+      "sub_text": null,
+      "category": "other",
+      "intent": "download_finished",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0028",
+      "package_name": "com.android.bluetooth",
+      "source_type": "notification",
+      "title": "Bluetooth",
+      "text": "Подключены беспроводные наушники 'Redmi Buds 5 Pro' (заряд 90%)",
+      "sub_text": null,
+      "category": "other",
+      "intent": "bt_connected",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0055",
+      "package_name": "com.android.providers.downloads",
+      "source_type": "notification",
+      "title": "Диспетчер загрузки",
+      "text": "Загрузка файла 'presentation_os.pptx' успешно завершена (13 МБ)",
+      "sub_text": null,
+      "category": "other",
+      "intent": "download_finished",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "oth_002",
+      "package_name": "android",
+      "source_type": "system",
+      "title": "Система Android",
+      "text": "Низкий заряд батареи (15%). Включить режим энергосбережения?",
+      "sub_text": null,
+      "category": "other",
+      "intent": "battery_low",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "oth_003",
+      "package_name": "android",
+      "source_type": "system",
+      "title": "Система Android",
+      "text": "Зарядка завершена (100%). Отключите зарядное устройство",
+      "sub_text": null,
+      "category": "other",
+      "intent": "battery_full",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0018",
+      "package_name": "com.android.systemui",
+      "source_type": "system",
+      "title": "USB-подключение",
+      "text": "Режим передачи файлов (MTP) активирован. Нажмите для настроек",
+      "sub_text": null,
+      "category": "other",
+      "intent": "usb_status",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0097",
+      "package_name": "com.google.android.apps.photos",
+      "source_type": "notification",
+      "title": "Google Фото",
+      "text": "Воспоминание: посмотрите фотографии за этот день 2 года назад",
+      "sub_text": null,
+      "category": "other",
+      "intent": "photo_memories",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0099",
+      "package_name": "com.android.systemui",
+      "source_type": "system",
+      "title": "Скриншот сохранен",
+      "text": "Снимок экрана сохранен в галерею. Нажмите для отправки",
+      "sub_text": null,
+      "category": "other",
+      "intent": "screenshot_taken",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0062",
+      "package_name": "com.google.android.apps.wellbeing",
+      "source_type": "notification",
+      "title": "Цифровое благополучие",
+      "text": "Экранное время за сегодня: 4 ч 12 мин. Достигнут лимит для TikTok",
+      "sub_text": null,
+      "category": "other",
+      "intent": "screen_time_limit",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0104",
+      "package_name": "com.android.settings",
+      "source_type": "notification",
+      "title": "Системное обновление",
+      "text": "Доступно обновление ПО MIUI/HyperOS v15.0.849. Размер: 3.2 ГБ",
+      "sub_text": null,
+      "category": "other",
+      "intent": "os_ota_update",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0053",
+      "package_name": "android",
+      "source_type": "notification",
+      "title": "Система Android",
+      "text": "Низкий уровень заряда батареи (21%). Включите режим энергосбережения",
+      "sub_text": null,
+      "category": "other",
+      "intent": "battery_low",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0036",
+      "package_name": "ru.yandex.weatherplugin",
+      "source_type": "system",
+      "title": "Яндекс Погода",
+      "text": "В ближайший час осадков не ожидается. Температура +25°C",
+      "sub_text": null,
+      "category": "other",
+      "intent": "weather_info",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0074",
+      "package_name": "android",
+      "source_type": "notification",
+      "title": "Система Android",
+      "text": "Батарея полностью заряжена (100%). Отключите зарядное устройство",
+      "sub_text": null,
+      "category": "other",
+      "intent": "battery_full",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0052",
+      "package_name": "com.android.vending",
+      "source_type": "notification",
+      "title": "Google Play",
+      "text": "Доступны обновления для 860 приложений. Нажмите для установки",
+      "sub_text": null,
+      "category": "other",
+      "intent": "app_updates",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0059",
+      "package_name": "com.android.systemui",
+      "source_type": "notification",
+      "title": "Скриншот сохранен",
+      "text": "Снимок экрана сохранен в галерею. Нажмите для отправки",
+      "sub_text": null,
+      "category": "other",
+      "intent": "screenshot_taken",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0026",
+      "package_name": "android",
+      "source_type": "notification",
+      "title": "Точка доступа Wi-Fi",
+      "text": "Режим модема активен. Подключено устройств: 366",
+      "sub_text": null,
+      "category": "other",
+      "intent": "hotspot_active",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0066",
+      "package_name": "android",
+      "source_type": "system",
+      "title": "Точка доступа Wi-Fi",
+      "text": "Режим модема активен. Подключено устройств: 127",
+      "sub_text": null,
+      "category": "other",
+      "intent": "hotspot_active",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0067",
+      "package_name": "com.xiaomi.scanner",
+      "source_type": "notification",
+      "title": "QR-сканер",
+      "text": "Ссылка успешно распознана: https://spsu.ru/portal",
+      "sub_text": null,
+      "category": "other",
+      "intent": "qr_scanned",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0024",
+      "package_name": "com.android.settings",
+      "source_type": "system",
+      "title": "Системное обновление",
+      "text": "Доступно обновление ПО MIUI/HyperOS v15.0.328. Размер: 3.2 ГБ",
+      "sub_text": null,
+      "category": "other",
+      "intent": "os_ota_update",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    },
+    {
+      "id": "s1_other_0088",
+      "package_name": "com.android.bluetooth",
+      "source_type": "notification",
+      "title": "Bluetooth",
+      "text": "Подключены беспроводные наушники 'Redmi Buds 5 Pro' (заряд 90%)",
+      "sub_text": null,
+      "category": "other",
+      "intent": "bt_connected",
+      "entities": {},
+      "is_hard_case": false,
+      "hard_case_reason": null,
+      "expected_precision_critical": false
+    }
+  ]
+}
