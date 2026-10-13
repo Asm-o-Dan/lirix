@@ -1,6 +1,8 @@
 package com.lirix.app.ui
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.webkit.JavascriptInterface
@@ -25,12 +27,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -75,13 +81,21 @@ import java.net.URLEncoder
  * JS bridge to receive element inspection events from teach_inspector.js.
  */
 class TeachJsBridge(
-    private val onSelected: (selector: String, text: String, linesCount: Int, domain: String, blocksCount: Int) -> Unit,
+    private val onSelected: (parentSelector: String, stripSelectorsJson: String, text: String, linesCount: Int, domain: String, parentsCount: Int, strippedCount: Int) -> Unit,
     private val onCleared: () -> Unit
 ) {
     @JavascriptInterface
-    fun onElementSelected(selector: String, text: String, linesCount: Int, domain: String, blocksCount: Int) {
+    fun onElementSelected(
+        parentSelector: String,
+        stripSelectorsJson: String,
+        text: String,
+        linesCount: Int,
+        domain: String,
+        parentsCount: Int,
+        strippedCount: Int
+    ) {
         Handler(Looper.getMainLooper()).post {
-            onSelected(selector, text, linesCount, domain, blocksCount)
+            onSelected(parentSelector, stripSelectorsJson, text, linesCount, domain, parentsCount, strippedCount)
         }
     }
 
@@ -93,11 +107,16 @@ class TeachJsBridge(
     }
 }
 
+enum class TargetContentType {
+    LYRICS,
+    CHORDS
+}
+
 /**
  * Interactive WebView Teach Mode Screen for inspecting websites,
- * selecting lyrics containers, and synthesizing custom parser rules.
+ * selecting lyrics containers, excluding unwanted sub-elements, and synthesizing custom parser rules.
  *
- * Spec: TASK-LYR-04-D / TASK-TEACH-02
+ * Spec: SPEC-TEACH-05 / TASK-TEACH-05 / ADR-014
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -115,12 +134,18 @@ fun TeachModeScreen(
     var isInspectorMode by rememberSaveable { mutableStateOf(false) } // false = Серфинг, true = Инспектор
     var canGoBack by remember { mutableStateOf(false) }
     var selectedBlocksCount by remember { mutableIntStateOf(0) }
+    var strippedBlocksCount by remember { mutableIntStateOf(0) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
 
     var selectedSelector by remember { mutableStateOf("") }
+    var stripSelectorsJson by remember { mutableStateOf("[]") }
     var selectedText by remember { mutableStateOf("") }
     var selectedLinesCount by remember { mutableIntStateOf(0) }
     var detectedDomain by remember { mutableStateOf("") }
+    var currentUrl by remember { mutableStateOf(initialUrl.orEmpty()) }
+
+    var contentType by rememberSaveable { mutableStateOf(TargetContentType.LYRICS) }
+    var showMenu by remember { mutableStateOf(false) }
 
     var showExportDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
@@ -131,7 +156,7 @@ fun TeachModeScreen(
             .fillMaxSize()
             .background(AppColors.AmoledBlack)
     ) {
-        // Заголовок экрана с навигацией и переключателем режимов
+        // Разгруженная шапка экрана
         Surface(
             color = AppColors.SurfaceLevel1,
             border = BorderStroke(1.dp, AppColors.BorderSubtle),
@@ -140,42 +165,53 @@ fun TeachModeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = { webViewRef?.goBack() },
-                    enabled = canGoBack
-                ) {
+                // Слева: Назад (если история WebView) и Закрыть
+                if (canGoBack) {
+                    IconButton(
+                        onClick = { webViewRef?.goBack() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад",
+                            tint = AppColors.CyberCyan
+                        )
+                    }
+                }
+
+                IconButton(onClick = onClose) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = if (canGoBack) AppColors.CyberCyan else AppColors.TextTertiary
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Закрыть",
+                        tint = AppColors.TextSecondary
                     )
                 }
 
+                // По центру: Название трека и текущий хост
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .padding(horizontal = 4.dp)
                 ) {
                     Text(
-                        text = "Teach Mode",
+                        text = if (targetTrack != null) "${targetTrack.title} — ${targetTrack.artist}" else "Режим обучения",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = AppColors.TextPrimary
+                        color = AppColors.TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    if (targetTrack != null) {
-                        Text(
-                            text = "${targetTrack.title} — ${targetTrack.artist}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = AppColors.CyberCyan,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(
+                        text = detectedDomain.ifBlank { "Веб-инспектор" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isInspectorMode) AppColors.HyperViolet else AppColors.TextTertiary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
-                // Тумблер режимов [🌐 Серфинг / 🎯 Инспектор]
+                // Справа: Капсула [🌐 Сёрфинг | 🎯 Инспектор]
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -190,10 +226,10 @@ fun TeachModeScreen(
                                 isInspectorMode = false
                                 webViewRef?.evaluateJavascript("window.setTeachMode(false);", null)
                             }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
                     ) {
                         Text(
-                            "🌐 Серфинг",
+                            "🌐 Сёрфинг",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = if (!isInspectorMode) FontWeight.Bold else FontWeight.Normal
                             ),
@@ -209,7 +245,7 @@ fun TeachModeScreen(
                                 isInspectorMode = true
                                 webViewRef?.evaluateJavascript("window.setTeachMode(true);", null)
                             }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
                     ) {
                         Text(
                             "🎯 Инспектор",
@@ -221,24 +257,100 @@ fun TeachModeScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
+                // Меню ⋮ (Overflow Menu)
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Меню",
+                            tint = AppColors.TextPrimary
+                        )
+                    }
 
-                IconButton(onClick = { showImportDialog = true }) {
-                    Icon(
-                        imageVector = Icons.Default.FileDownload,
-                        contentDescription = "Импорт правила",
-                        tint = AppColors.CyberCyan
-                    )
-                }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        modifier = Modifier.background(AppColors.SurfaceLevel2)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Импорт правила", color = AppColors.TextPrimary) },
+                            leadingIcon = {
+                                Icon(Icons.Default.FileDownload, contentDescription = null, tint = AppColors.CyberCyan)
+                            },
+                            onClick = {
+                                showMenu = false
+                                showImportDialog = true
+                            }
+                        )
 
-                Spacer(modifier = Modifier.width(2.dp))
+                        DropdownMenuItem(
+                            text = { Text("Экспорт правила", color = AppColors.TextPrimary) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Share, contentDescription = null, tint = AppColors.HyperViolet)
+                            },
+                            onClick = {
+                                showMenu = false
+                                val cleanDomain = detectedDomain.ifBlank { "custom" }
+                                val ruleId = "rule_${cleanDomain.replace(".", "_")}_${System.currentTimeMillis() % 10000}"
+                                val searchTemplate = "https://$cleanDomain/search?q={query}"
+                                val parsedStrip = runCatching { JSONArray(stripSelectorsJson) }.getOrDefault(JSONArray())
 
-                IconButton(onClick = onClose) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Закрыть",
-                        tint = AppColors.TextPrimary
-                    )
+                                val ruleJson = JSONObject().apply {
+                                    put("domain", cleanDomain)
+                                    put("name", cleanDomain)
+                                    put("search", JSONObject().apply {
+                                        put("urlTemplate", searchTemplate)
+                                    })
+                                    put("content", JSONObject().apply {
+                                        if (contentType == TargetContentType.CHORDS) {
+                                            put("chordsSelector", selectedSelector.ifBlank { "body" })
+                                        } else {
+                                            put("selector", selectedSelector.ifBlank { "body" })
+                                        }
+                                        put("stripSelectors", parsedStrip)
+                                    })
+                                }.toString()
+
+                                ruleToExport = CustomLyricsRuleEntity(
+                                    id = ruleId,
+                                    domain = cleanDomain,
+                                    name = cleanDomain,
+                                    ruleJson = ruleJson,
+                                    isEnabled = true,
+                                    priority = 100
+                                )
+                                showExportDialog = true
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = { Text("Сбросить выделения", color = AppColors.TextPrimary) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Refresh, contentDescription = null, tint = AppColors.AmberGold)
+                            },
+                            onClick = {
+                                showMenu = false
+                                webViewRef?.evaluateJavascript("window.clearTeachSelection();", null)
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = { Text("Открыть в браузере", color = AppColors.TextPrimary) },
+                            leadingIcon = {
+                                Icon(Icons.Default.OpenInBrowser, contentDescription = null, tint = AppColors.TextSecondary)
+                            },
+                            onClick = {
+                                showMenu = false
+                                val urlToOpen = currentUrl.ifBlank { webViewRef?.url.orEmpty() }
+                                if (urlToOpen.isNotBlank()) {
+                                    runCatching {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(urlToOpen))
+                                        context.startActivity(intent)
+                                    }
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -255,18 +367,22 @@ fun TeachModeScreen(
 
                     addJavascriptInterface(
                         TeachJsBridge(
-                            onSelected = { selector, text, lines, domain, blocks ->
-                                selectedSelector = selector
+                            onSelected = { parentSelector, stripJson, text, lines, domain, parents, stripped ->
+                                selectedSelector = parentSelector
+                                stripSelectorsJson = stripJson
                                 selectedText = text
                                 selectedLinesCount = lines
                                 detectedDomain = domain
-                                selectedBlocksCount = blocks
+                                selectedBlocksCount = parents
+                                strippedBlocksCount = stripped
                             },
                             onCleared = {
                                 selectedSelector = ""
+                                stripSelectorsJson = "[]"
                                 selectedText = ""
                                 selectedLinesCount = 0
                                 selectedBlocksCount = 0
+                                strippedBlocksCount = 0
                             }
                         ),
                         "TeachBridge"
@@ -276,6 +392,10 @@ fun TeachModeScreen(
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
                             canGoBack = view?.canGoBack() == true
+                            if (!url.isNullOrBlank()) {
+                                currentUrl = url
+                                detectedDomain = Uri.parse(url).host.orEmpty()
+                            }
                             try {
                                 val script = context.assets.open("teach_inspector.js").bufferedReader().use { it.readText() }
                                 view?.evaluateJavascript(script) {
@@ -289,6 +409,7 @@ fun TeachModeScreen(
 
                     val startUrl = initialUrl?.takeIf { it.isNotBlank() }
                         ?: ("https://www.google.com/search?q=" + URLEncoder.encode("${targetTrack?.artist.orEmpty()} ${targetTrack?.title.orEmpty()} текст песни", "UTF-8"))
+                    currentUrl = startUrl
                     loadUrl(startUrl)
                 }
             },
@@ -297,7 +418,7 @@ fun TeachModeScreen(
                 .weight(1f)
         )
 
-        // Нижняя панель действий при выборе элементов
+        // Нижняя панель действий (Inspector Dock)
         if (selectedSelector.isNotBlank() || selectedBlocksCount > 0) {
             Surface(
                 color = AppColors.SurfaceLevel2,
@@ -308,45 +429,72 @@ fun TeachModeScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(14.dp)
                 ) {
+                    // Строка 1: Чип селектора, бейдж исключений, кнопка Родитель, сброс
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = AppColors.SurfaceLevel3,
-                            border = BorderStroke(1.dp, AppColors.CyberCyan.copy(alpha = 0.5f)),
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f, fill = false)
                         ) {
-                            Text(
-                                text = selectedSelector,
-                                color = AppColors.CyberCyan,
-                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = AppColors.SurfaceLevel3,
+                                border = BorderStroke(1.dp, AppColors.HyperViolet.copy(alpha = 0.5f))
+                            ) {
+                                Text(
+                                    text = "🟣 $selectedSelector",
+                                    color = AppColors.HyperViolet,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            if (strippedBlocksCount > 0) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFF3F1414),
+                                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.6f))
+                                ) {
+                                    Text(
+                                        text = "🔴 $strippedBlocksCount вырезано",
+                                        color = Color(0xFFFF8A8A),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(8.dp))
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "${selectedBlocksCount} бл. • $selectedLinesCount строк",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = AppColors.TextSecondary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            TextButton(
+                                onClick = {
+                                    webViewRef?.evaluateJavascript("window.expandTeachSelectionToParent();", null)
+                                }
+                            ) {
+                                Text(
+                                    text = "▲ Родитель",
+                                    color = AppColors.CyberCyan,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
+
                             TextButton(
                                 onClick = {
                                     webViewRef?.evaluateJavascript("window.clearTeachSelection();", null)
                                 }
                             ) {
                                 Text(
-                                    text = "✕ Сбросить",
+                                    text = "✕ Сброс",
                                     color = AppColors.TextTertiary,
                                     style = MaterialTheme.typography.labelSmall
                                 )
@@ -356,8 +504,67 @@ fun TeachModeScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    // Строка 2: Переключатель целевого типа [📝 Текст песни] / [🎸 Аккорды]
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(AppColors.SurfaceLevel3)
+                            .padding(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (contentType == TargetContentType.LYRICS) AppColors.CyberCyan.copy(alpha = 0.2f) else Color.Transparent)
+                                .border(
+                                    1.dp,
+                                    if (contentType == TargetContentType.LYRICS) AppColors.CyberCyan else Color.Transparent,
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .clickable { contentType = TargetContentType.LYRICS }
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "📝 Текст песни",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = if (contentType == TargetContentType.LYRICS) FontWeight.Bold else FontWeight.Normal
+                                ),
+                                color = if (contentType == TargetContentType.LYRICS) AppColors.CyberCyan else AppColors.TextSecondary
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (contentType == TargetContentType.CHORDS) AppColors.AmberGold.copy(alpha = 0.2f) else Color.Transparent)
+                                .border(
+                                    1.dp,
+                                    if (contentType == TargetContentType.CHORDS) AppColors.AmberGold else Color.Transparent,
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .clickable { contentType = TargetContentType.CHORDS }
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "🎸 Аккорды",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = if (contentType == TargetContentType.CHORDS) FontWeight.Bold else FontWeight.Normal
+                                ),
+                                color = if (contentType == TargetContentType.CHORDS) AppColors.AmberGold else AppColors.TextSecondary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Строка 3: Превью очищенного текста
                     Text(
-                        text = selectedText.lines().take(3).joinToString("\n"),
+                        text = selectedText.lines().filter { it.isNotBlank() }.take(3).joinToString("\n").ifBlank { "..." },
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontSize = 11.sp,
                             lineHeight = 15.sp,
@@ -368,135 +575,81 @@ fun TeachModeScreen(
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (targetTrack != null) {
-                            Button(
-                                onClick = {
-                                    val trackKey = targetTrack.trackKey
-                                    scope.launch(Dispatchers.IO) {
-                                        db.musicDao().updateLyrics(trackKey, selectedText, null)
-                                        db.lyricsDao().saveLyrics(
-                                            LyricsCacheEntity(
-                                                trackKey = trackKey,
-                                                plainLyrics = selectedText,
-                                                syncedLyricsLrc = null,
-                                                chordsAmDm = AmDmChordParser.parseAmDmHtml(selectedText),
-                                                userNotes = targetTrack.userNotes,
-                                                provider = "teach:manual"
-                                            )
-                                        )
-                                    }
-                                    onLyricsAttached(selectedText)
-                                    Toast.makeText(context, "Текст привязан к ${targetTrack.title}", Toast.LENGTH_SHORT).show()
-                                    onClose()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = AppColors.ElectricMint),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Привязать к треку", color = AppColors.AmoledBlack, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            }
-                        }
+                    // Строка 4: Единая акцентная кнопка действия
+                    Button(
+                        onClick = {
+                            val cleanDomain = detectedDomain.ifBlank { "custom" }
+                            val ruleId = "rule_${cleanDomain.replace(".", "_")}_${System.currentTimeMillis() % 10000}"
+                            val searchTemplate = "https://$cleanDomain/search?q={query}"
+                            val parsedStrip = runCatching { JSONArray(stripSelectorsJson) }.getOrDefault(JSONArray())
 
-                        IconButton(
-                            onClick = {
-                                val cleanDomain = detectedDomain.ifBlank { "custom" }
-                                val ruleId = "rule_${cleanDomain.replace(".", "_")}_${System.currentTimeMillis() % 10000}"
-                                val ruleJson = JSONObject().apply {
-                                    put("domain", cleanDomain)
-                                    put("name", cleanDomain)
-                                    put("content", JSONObject().apply {
+                            val ruleJson = JSONObject().apply {
+                                put("domain", cleanDomain)
+                                put("name", cleanDomain)
+                                put("search", JSONObject().apply {
+                                    put("urlTemplate", searchTemplate)
+                                })
+                                put("content", JSONObject().apply {
+                                    if (contentType == TargetContentType.CHORDS) {
+                                        put("chordsSelector", selectedSelector)
+                                    } else {
                                         put("selector", selectedSelector)
-                                        put("stripSelectors", JSONArray(listOf("script", "style", ".ads", "button")))
-                                    })
-                                }.toString()
+                                    }
+                                    put("stripSelectors", parsedStrip)
+                                })
+                            }.toString()
 
-                                val entity = CustomLyricsRuleEntity(
-                                    id = ruleId,
-                                    domain = cleanDomain,
-                                    name = cleanDomain,
-                                    ruleJson = ruleJson,
-                                    isEnabled = true,
-                                    priority = 100
-                                )
-                                ruleToExport = entity
-                                showExportDialog = true
-                            },
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(AppColors.SurfaceLevel3)
-                                .border(1.dp, AppColors.HyperViolet.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                                .size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = "Поделиться правилом",
-                                tint = AppColors.HyperViolet,
-                                modifier = Modifier.size(18.dp)
+                            val entity = CustomLyricsRuleEntity(
+                                id = ruleId,
+                                domain = cleanDomain,
+                                name = cleanDomain,
+                                ruleJson = ruleJson,
+                                isEnabled = true,
+                                priority = 100
                             )
-                        }
 
-                        Button(
-                            onClick = {
-                                val cleanDomain = detectedDomain.ifBlank { "custom" }
-                                val ruleId = "rule_${cleanDomain.replace(".", "_")}_${System.currentTimeMillis() % 10000}"
-                                val ruleJson = JSONObject().apply {
-                                    put("domain", cleanDomain)
-                                    put("name", cleanDomain)
-                                    put("content", JSONObject().apply {
-                                        put("selector", selectedSelector)
-                                        put("stripSelectors", JSONArray(listOf("script", "style", ".ads", "button")))
-                                    })
-                                }.toString()
-
-                                val entity = CustomLyricsRuleEntity(
-                                    id = ruleId,
-                                    domain = cleanDomain,
-                                    name = cleanDomain,
-                                    ruleJson = ruleJson,
-                                    isEnabled = true,
-                                    priority = 100
-                                )
-
-                                scope.launch(Dispatchers.IO) {
-                                    db.lyricsDao().saveRule(entity)
-                                    if (selectedText.isNotBlank() && targetTrack != null) {
-                                        val trackKey = targetTrack.trackKey
-                                        db.musicDao().updateLyrics(trackKey, selectedText, null)
-                                        db.lyricsDao().saveLyrics(
-                                            LyricsCacheEntity(
-                                                trackKey = trackKey,
-                                                plainLyrics = selectedText,
-                                                syncedLyricsLrc = null,
-                                                chordsAmDm = AmDmChordParser.parseAmDmHtml(selectedText),
-                                                userNotes = targetTrack.userNotes,
-                                                provider = "teach:$cleanDomain"
-                                            )
-                                        )
-                                    }
-                                }
-                                onRuleSaved(entity)
+                            scope.launch(Dispatchers.IO) {
+                                db.lyricsDao().saveRule(entity)
                                 if (selectedText.isNotBlank() && targetTrack != null) {
-                                    onLyricsAttached(selectedText)
-                                    Toast.makeText(context, "Правило сохранено и текст привязан к песне!", Toast.LENGTH_SHORT).show()
-                                    onClose()
-                                } else {
-                                    Toast.makeText(context, "Правило для $cleanDomain сохранено!", Toast.LENGTH_SHORT).show()
+                                    val trackKey = targetTrack.trackKey
+                                    val plainLyrics = if (contentType == TargetContentType.LYRICS) selectedText else targetTrack.plainLyrics
+                                    val chords = if (contentType == TargetContentType.CHORDS) selectedText else AmDmChordParser.parseAmDmHtml(selectedText)
+
+                                    db.musicDao().updateLyrics(trackKey, plainLyrics, null)
+                                    db.lyricsDao().saveLyrics(
+                                        LyricsCacheEntity(
+                                            trackKey = trackKey,
+                                            plainLyrics = plainLyrics,
+                                            syncedLyricsLrc = null,
+                                            chordsAmDm = chords,
+                                            userNotes = targetTrack.userNotes,
+                                            provider = "teach:$cleanDomain"
+                                        )
+                                    )
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.HyperViolet),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(imageVector = Icons.AutoMirrored.Filled.Rule, contentDescription = null, tint = AppColors.AmoledBlack, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Сохранить правило", color = AppColors.AmoledBlack, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        }
+                            }
+                            onRuleSaved(entity)
+                            if (selectedText.isNotBlank() && targetTrack != null) {
+                                onLyricsAttached(selectedText)
+                                val msg = if (contentType == TargetContentType.CHORDS) "Правило сохранено и аккорды привязаны!" else "Правило сохранено и текст привязан!"
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                onClose()
+                            } else {
+                                Toast.makeText(context, "Правило для $cleanDomain сохранено!", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.HyperViolet),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "⚡ Сохранить правило и привязать к треку",
+                            color = AppColors.AmoledBlack,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
                     }
                 }
             }
