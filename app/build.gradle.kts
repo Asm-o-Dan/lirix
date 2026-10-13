@@ -13,8 +13,8 @@ android {
         applicationId = "com.lirix.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 13
-        versionName = "1.1.5"
+        versionCode = 14
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -31,20 +31,29 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("lirix-release.jks")
-            storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD") ?: "lirixrelease2026"
-            keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: "lirix"
-            keyPassword = System.getenv("RELEASE_KEY_PASSWORD") ?: "lirixrelease2026"
-            enableV1Signing = true
-            enableV2Signing = true
-            enableV3Signing = true
-            enableV4Signing = false
+            val releasePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+            val releaseKeyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            if (!releasePassword.isNullOrBlank() && !releaseKeyPassword.isNullOrBlank()) {
+                storePassword = releasePassword
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: "lirix"
+                keyPassword = releaseKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = false
+            }
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            val hasReleaseCredentials = !System.getenv("RELEASE_KEYSTORE_PASSWORD").isNullOrBlank()
+            if (hasReleaseCredentials) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
