@@ -77,7 +77,7 @@ class FloatingLyricsService : Service() {
         }
 
         try {
-            MediaSessionCollector(applicationContext).startListening()
+            MediaSessionCollector.getInstance(this).startListening()
             Timber.i("MediaSessionCollector listening started from FloatingLyricsService.onCreate")
         } catch (e: Exception) {
             Timber.w(e, "Error starting MediaSessionCollector in FloatingLyricsService")

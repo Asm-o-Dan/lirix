@@ -31,11 +31,10 @@ import java.util.concurrent.ConcurrentHashMap
  * Integrates MediaDebounceFilter to collapse rapid BUFFERING/UPDATE -> PLAYING sequences (600ms)
  * and registers active sessions with CrossSourceCorrelator to eliminate redundant notification duplicates.
  */
-class MediaSessionCollector(private val context: Context) {
+class MediaSessionCollector private constructor(private val context: Context) {
 
     init {
         appContext = context.applicationContext
-        instance = this
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -94,7 +93,12 @@ class MediaSessionCollector(private val context: Context) {
     }
 
     private var sessionManager: MediaSessionManager? = null
+    private var isSessionListenerRegistered = false
+    private val activeSessionsListener = MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
+        updateControllers(controllers)
+    }
 
+    @Synchronized
     fun startListening() {
         try {
             sessionManager = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as? MediaSessionManager
@@ -102,9 +106,10 @@ class MediaSessionCollector(private val context: Context) {
             Companion.appContext = context.applicationContext
             val componentName = ComponentName(context, NotificationListener::class.java)
 
-            sessionManager?.addOnActiveSessionsChangedListener({ controllers ->
-                updateControllers(controllers)
-            }, componentName)
+            if (!isSessionListenerRegistered) {
+                sessionManager?.addOnActiveSessionsChangedListener(activeSessionsListener, componentName)
+                isSessionListenerRegistered = true
+            }
 
             // Initial scan of active sessions
             val initialSessions = sessionManager?.getActiveSessions(componentName)
@@ -389,14 +394,29 @@ class MediaSessionCollector(private val context: Context) {
         return digest.joinToString("") { "%02x".format(it) }
     }
 
+    @Synchronized
     fun stopListening() {
         heartbeatJob?.cancel()
         debounceFilter.cancelAll()
+        if (isSessionListenerRegistered && sessionManager != null) {
+            try {
+                sessionManager?.removeOnActiveSessionsChangedListener(activeSessionsListener)
+            } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "Error removing active sessions changed listener")
+            }
+            isSessionListenerRegistered = false
+        }
+        for ((pkg, callback) in activeControllers) {
+            try {
+                activeMediaControllers[pkg]?.unregisterCallback(callback)
+            } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "Error unregistering callback for %s", pkg)
+            }
+        }
         activeControllers.clear()
         activeMediaControllers.clear()
         lastTrackMap.clear()
         _livePlaybackFlow.value = null
-        instance = null
         com.lirix.app.feature.MusicLyricsNotificationManager.cancelLyricsPrompt(context)
     }
 
@@ -415,7 +435,23 @@ class MediaSessionCollector(private val context: Context) {
 
     companion object {
         private const val TAG = "MediaSessionCollector"
+
+        @Volatile
         private var instance: MediaSessionCollector? = null
+
+        fun getInstance(context: Context): MediaSessionCollector {
+            return instance ?: synchronized(this) {
+                instance ?: MediaSessionCollector(context.applicationContext).also { instance = it }
+            }
+        }
+
+        @androidx.annotation.VisibleForTesting
+        fun resetInstanceForTesting() {
+            synchronized(this) {
+                instance?.stopListening()
+                instance = null
+            }
+        }
 
         private val _livePlaybackFlow = MutableStateFlow<LivePlaybackSnapshot?>(null)
         val livePlaybackFlow: StateFlow<LivePlaybackSnapshot?> = _livePlaybackFlow.asStateFlow()

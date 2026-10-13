@@ -18,6 +18,7 @@ import com.lirix.app.analytics.WrappedStats
 import com.lirix.app.feature.share.ShareCardFormat
 import com.lirix.app.feature.share.ShareCardGenerator
 import com.lirix.app.feature.share.ShareManager
+import androidx.core.content.FileProvider
 import com.lirix.app.storage.TrackEntity
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -39,6 +40,7 @@ import java.io.File
  * 5. ShareManager saving PNG to cacheDir/shares/ and firing Intent.ACTION_SEND with FLAG_GRANT_READ_URI_PERMISSION.
  */
 @RunWith(AndroidJUnit4::class)
+@org.robolectric.annotation.Config(sdk = [33])
 class ShareCardGeneratorTest {
 
     private lateinit var context: Context

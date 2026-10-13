@@ -39,7 +39,7 @@ class NotificationListener : NotificationListenerService() {
         super.onListenerConnected()
         Timber.tag(TAG).i("NotificationListener connected — starting MediaSessionCollector listening…")
         try {
-            mediaSessionCollector = MediaSessionCollector(applicationContext).apply {
+            mediaSessionCollector = MediaSessionCollector.getInstance(this).apply {
                 startListening()
             }
         } catch (e: Exception) {
@@ -50,7 +50,6 @@ class NotificationListener : NotificationListenerService() {
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         Timber.tag(TAG).w("onListenerDisconnected — requesting rebind…")
-        mediaSessionCollector?.stopListening()
         mediaSessionCollector = null
         try {
             requestRebind(ComponentName(this, NotificationListener::class.java))
@@ -202,7 +201,6 @@ class NotificationListener : NotificationListenerService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        mediaSessionCollector?.stopListening()
         mediaSessionCollector = null
         serviceScope.cancel()
     }

@@ -33,7 +33,7 @@ class LirixApp : Application() {
         }
 
         // Initialize MediaSession collector
-        mediaCollector = MediaSessionCollector(this)
+        mediaCollector = MediaSessionCollector.getInstance(this)
         mediaCollector.startListening()
 
         // Create lyrics notification channel
