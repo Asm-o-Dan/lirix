@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.School
@@ -41,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lirix.app.ui.theme.AppColors
+import com.lirix.app.ui.theme.LirixThemeTokens
 
 @Composable
 fun NowPlayingOverflowMenu(
@@ -54,14 +56,16 @@ fun NowPlayingOverflowMenu(
     onTeachModeClick: () -> Unit,
     isVinylCollapsed: Boolean,
     onToggleVinyl: () -> Unit,
+    onThemeSelectClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val tokens = LirixThemeTokens.colors
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
         modifier = modifier
-            .background(AppColors.SurfaceLevel1, RoundedCornerShape(16.dp))
-            .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(16.dp))
+            .background(tokens.surfaceElevated, RoundedCornerShape(16.dp))
+            .border(1.dp, tokens.borderSubtle, RoundedCornerShape(16.dp))
     ) {
         DropdownMenuItem(
             text = {
@@ -197,6 +201,27 @@ fun NowPlayingOverflowMenu(
             onClick = {
                 onDismissRequest()
                 onToggleVinyl()
+            }
+        )
+
+        DropdownMenuItem(
+            text = {
+                Text(
+                    text = "Тема оформления",
+                    color = tokens.textPrimary,
+                    fontSize = 14.sp
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Palette,
+                    contentDescription = null,
+                    tint = tokens.accentPrimary
+                )
+            },
+            onClick = {
+                onDismissRequest()
+                onThemeSelectClick()
             }
         )
     }

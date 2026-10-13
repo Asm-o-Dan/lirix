@@ -9,14 +9,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import com.lirix.app.classifier.ShareIntentClassifier
 import com.lirix.app.classifier.SharedMediaPayload
 import com.lirix.app.feature.MusicLyricsNotificationManager
 import com.lirix.app.feature.ParsedTrackInfo
+import com.lirix.app.storage.ThemePreferencesRepository
 import com.lirix.app.ui.AppScaffold
 import com.lirix.app.ui.LirixTheme
 import timber.log.Timber
@@ -53,7 +56,9 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
 
         setContent {
-            LirixTheme {
+            val themeRepo = remember { ThemePreferencesRepository.getInstance(applicationContext) }
+            val currentTheme by themeRepo.selectedTheme.collectAsState()
+            LirixTheme(themeType = currentTheme) {
                 AppScaffold(
                     initialLyricsTrack = initialLyricsTrack,
                     onLyricsDialogConsumed = { initialLyricsTrack = null },

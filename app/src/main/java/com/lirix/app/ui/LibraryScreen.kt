@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -64,10 +65,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lirix.app.storage.AppDatabase
+import com.lirix.app.storage.ThemePreferencesRepository
 import com.lirix.app.storage.TrackEntity
 import com.lirix.app.ui.components.AlbumArtThumbnail
 import com.lirix.app.ui.components.ImportRuleDialog
+import com.lirix.app.ui.components.ThemeSelectionDialog
 import com.lirix.app.ui.theme.AppColors
+import com.lirix.app.ui.theme.LirixThemeTokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -107,6 +111,9 @@ fun LibraryScreen(
     var selectedFilter by rememberSaveable { mutableStateOf(LibraryTabFilter.ALL) }
     var searchQuery by remember { mutableStateOf("") }
     var showImportDialog by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
+    val themeRepo = remember { ThemePreferencesRepository.getInstance(context) }
+    val currentTheme by themeRepo.selectedTheme.collectAsStateWithLifecycle()
 
     // Filtered tracks for Favorites/Collection view
     val filteredLibraryTracks = remember(recentTracks, selectedFilter, searchQuery) {
@@ -194,6 +201,18 @@ fun LibraryScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                IconButton(
+                    onClick = { showThemeDialog = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Palette,
+                        contentDescription = "Тема оформления",
+                        tint = LirixThemeTokens.colors.accentPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
                 IconButton(
                     onClick = { showImportDialog = true },
                     modifier = Modifier.size(32.dp)
@@ -588,6 +607,16 @@ fun LibraryScreen(
     if (showImportDialog) {
         ImportRuleDialog(
             onDismiss = { showImportDialog = false }
+        )
+    }
+
+    if (showThemeDialog) {
+        ThemeSelectionDialog(
+            currentTheme = currentTheme,
+            onThemeSelected = { newTheme ->
+                themeRepo.setTheme(newTheme)
+            },
+            onDismissRequest = { showThemeDialog = false }
         )
     }
 }

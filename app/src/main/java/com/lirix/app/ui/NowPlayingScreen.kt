@@ -60,7 +60,9 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Share
 import com.lirix.app.service.FloatingLyricsService
+import com.lirix.app.storage.ThemePreferencesRepository
 import com.lirix.app.ui.components.NowPlayingOverflowMenu
+import com.lirix.app.ui.components.ThemeSelectionDialog
 import com.lirix.app.ui.components.TimingCalibrationDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -322,6 +324,9 @@ fun NowPlayingScreen(
     var showTapSyncStudio by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showCalibrationDialog by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
+    val themeRepo = remember { ThemePreferencesRepository.getInstance(context) }
+    val currentTheme by themeRepo.selectedTheme.collectAsStateWithLifecycle()
 
     var isNotificationPermissionGranted by remember {
         mutableStateOf(NotificationListener.isPermissionGranted(context))
@@ -972,7 +977,8 @@ fun NowPlayingScreen(
                             isVinylCollapsed = isVinylCollapsed,
                             onToggleVinyl = {
                                 isVinylCollapsed = !isVinylCollapsed
-                            }
+                            },
+                            onThemeSelectClick = { showThemeDialog = true }
                         )
                     }
                 }
@@ -1874,6 +1880,16 @@ fun NowPlayingScreen(
                     currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, 0L) }
                 },
                 onDismissRequest = { showCalibrationDialog = false }
+            )
+        }
+
+        if (showThemeDialog) {
+            ThemeSelectionDialog(
+                currentTheme = currentTheme,
+                onThemeSelected = { newTheme ->
+                    themeRepo.setTheme(newTheme)
+                },
+                onDismissRequest = { showThemeDialog = false }
             )
         }
     }

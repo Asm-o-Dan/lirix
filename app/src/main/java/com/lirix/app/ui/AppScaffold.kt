@@ -64,6 +64,7 @@ import com.lirix.app.storage.AppDatabase
 import com.lirix.app.storage.LyricsCacheEntity
 import com.lirix.app.ui.components.ShareLyricsAttachDialog
 import com.lirix.app.ui.theme.AppColors
+import com.lirix.app.ui.theme.LirixThemeTokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -127,11 +128,13 @@ fun AppScaffold(
 
     var isCapsuleVisible by rememberSaveable { mutableStateOf(true) }
 
+    val lirixColors = LirixThemeTokens.colors
+
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.AmoledBlack),
-        containerColor = AppColors.AmoledBlack,
+            .background(lirixColors.appBackground),
+        containerColor = lirixColors.appBackground,
         contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
             AnimatedVisibility(
@@ -151,21 +154,22 @@ fun AppScaffold(
                         .padding(horizontal = 24.dp, vertical = 12.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    val capsuleRadius = lirixColors.pillCornerRadius.coerceAtLeast(16.dp)
                     Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(AppColors.SurfaceLevel1.copy(alpha = 0.94f))
+                            .clip(RoundedCornerShape(capsuleRadius))
+                            .background(lirixColors.surfacePrimary.copy(alpha = 0.94f))
                             .border(
                                 BorderStroke(
                                     1.2.dp,
                                     Brush.horizontalGradient(
                                         listOf(
-                                            AppColors.HyperViolet.copy(alpha = 0.8f),
-                                            AppColors.CyberCyan.copy(alpha = 0.8f)
+                                            lirixColors.accentPrimary.copy(alpha = 0.8f),
+                                            lirixColors.accentSecondary.copy(alpha = 0.8f)
                                         )
                                     )
                                 ),
-                                RoundedCornerShape(24.dp)
+                                RoundedCornerShape(capsuleRadius)
                             )
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -173,13 +177,14 @@ fun AppScaffold(
                     ) {
                         AppTab.entries.forEach { tab ->
                             val isSelected = currentTab == tab
+                            val tabRadius = (capsuleRadius - 6.dp).coerceAtLeast(10.dp)
                             val bgModifier = if (isSelected) {
                                 Modifier
-                                    .clip(RoundedCornerShape(18.dp))
-                                    .background(AppColors.SurfaceLevel2)
-                                    .border(1.dp, AppColors.CyberCyan.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+                                    .clip(RoundedCornerShape(tabRadius))
+                                    .background(lirixColors.surfaceCard)
+                                    .border(1.dp, lirixColors.accentSecondary.copy(alpha = 0.4f), RoundedCornerShape(tabRadius))
                             } else {
-                                Modifier.clip(RoundedCornerShape(18.dp))
+                                Modifier.clip(RoundedCornerShape(tabRadius))
                             }
 
                             Row(
@@ -198,14 +203,14 @@ fun AppScaffold(
                                 Icon(
                                     imageVector = tab.icon,
                                     contentDescription = tab.title,
-                                    tint = if (isSelected) AppColors.CyberCyan else AppColors.TextTertiary,
+                                    tint = if (isSelected) lirixColors.accentSecondary else lirixColors.textMuted,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 if (isSelected) {
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = tab.title,
-                                        color = AppColors.TextPrimary,
+                                        color = lirixColors.textPrimary,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
                                             fontSize = 12.sp
