@@ -68,7 +68,7 @@ import androidx.compose.ui.window.Dialog
 import com.lirix.app.ingestion.MediaSessionCollector
 import com.lirix.app.ui.components.AlbumArtThumbnail
 import com.lirix.app.ui.components.ShareFormatDialog
-import com.lirix.app.ui.theme.AppColors
+import com.lirix.app.ui.theme.LirixThemeTokens
 import android.graphics.BitmapFactory
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -81,6 +81,7 @@ import java.util.Locale
 
 @Composable
 fun WrappedScreen() {
+    val lirixColors = LirixThemeTokens.colors
     val context = LocalContext.current
     val db = remember { AppDatabase.getInstance(context) }
 
@@ -193,7 +194,7 @@ fun WrappedScreen() {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.AmoledBlack)
+            .background(lirixColors.appBackground)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         contentPadding = PaddingValues(bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -211,7 +212,7 @@ fun WrappedScreen() {
                             modifier = Modifier
                                 .size(6.dp)
                                 .clip(CircleShape)
-                                .background(AppColors.AmberGold)
+                                .background(lirixColors.accentPrimary)
                         )
                         Text(
                             text = "ИТОГИ // REPLAY '26",
@@ -220,7 +221,7 @@ fun WrappedScreen() {
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = 1.sp
                             ),
-                            color = AppColors.AmberGold
+                            color = lirixColors.accentPrimary
                         )
                     }
                     Spacer(modifier = Modifier.height(2.dp))
@@ -233,7 +234,7 @@ fun WrappedScreen() {
                         ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = AppColors.TextPrimary
+                        color = lirixColors.textPrimary
                     )
                 }
 
@@ -241,10 +242,10 @@ fun WrappedScreen() {
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
                         .background(
                             Brush.horizontalGradient(
-                                listOf(AppColors.HyperViolet, AppColors.CyberCyan)
+                                listOf(lirixColors.accentPrimary, lirixColors.accentSecondary)
                             )
                         )
                         .clickable { showSectionPicker = true }
@@ -258,7 +259,7 @@ fun WrappedScreen() {
                         Icon(
                             imageVector = Icons.Default.Share,
                             contentDescription = "Поделиться постером",
-                            tint = AppColors.AmoledBlack,
+                            tint = if (lirixColors.isDark) Color.Black else Color.White,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
@@ -270,7 +271,7 @@ fun WrappedScreen() {
                             ),
                             maxLines = 1,
                             softWrap = false,
-                            color = AppColors.AmoledBlack
+                            color = if (lirixColors.isDark) Color.Black else Color.White
                         )
                     }
                 }
@@ -362,7 +363,7 @@ fun WrappedScreen() {
                     Text(
                         text = "Нет достижений в выбранной категории",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = AppColors.TextTertiary
+                        color = lirixColors.textMuted
                     )
                 }
             } else {
@@ -396,26 +397,28 @@ private fun TimeframeSwitcher(
     selectedTimeframe: AnalyticsTimeframe,
     onSelectTimeframe: (AnalyticsTimeframe) -> Unit
 ) {
+    val lirixColors = LirixThemeTokens.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(AppColors.SurfaceLevel1)
-            .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(lirixColors.pillCornerRadius))
+            .background(lirixColors.surfaceCard)
+            .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.pillCornerRadius))
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         for (tf in AnalyticsTimeframe.entries) {
             val isSelected = tf == selectedTimeframe
+            val activeContentColor = if (lirixColors.isDark) Color.Black else Color.White
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (isSelected) AppColors.SurfaceLevel3 else Color.Transparent)
+                    .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+                    .background(if (isSelected) lirixColors.accentPrimary else Color.Transparent)
                     .border(
                         1.dp,
-                        if (isSelected) AppColors.HyperViolet else Color.Transparent,
-                        RoundedCornerShape(8.dp)
+                        if (isSelected) lirixColors.accentPrimary else Color.Transparent,
+                        RoundedCornerShape(lirixColors.cardCornerRadius)
                     )
                     .clickable { onSelectTimeframe(tf) }
                     .padding(vertical = 8.dp),
@@ -427,7 +430,7 @@ private fun TimeframeSwitcher(
                         fontSize = 11.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     ),
-                    color = if (isSelected) AppColors.TextPrimary else AppColors.TextSecondary,
+                    color = if (isSelected) activeContentColor else lirixColors.textSecondary,
                     maxLines = 1
                 )
             }
@@ -437,24 +440,23 @@ private fun TimeframeSwitcher(
 
 @Composable
 private fun ArchetypeBanner(archetype: ListeningArchetype) {
+    val lirixColors = LirixThemeTokens.colors
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
+            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
             .background(
                 Brush.linearGradient(
-                    listOf(Color(0xFF26123D), Color(0xFF0C192E))
+                    listOf(
+                        lirixColors.surfaceCard,
+                        lirixColors.surfaceElevated
+                    )
                 )
             )
             .border(
                 1.5.dp,
-                Brush.horizontalGradient(
-                    listOf(
-                        AppColors.HyperViolet.copy(alpha = 0.8f),
-                        AppColors.CyberCyan.copy(alpha = 0.8f)
-                    )
-                ),
-                RoundedCornerShape(22.dp)
+                lirixColors.accentPrimary.copy(alpha = 0.5f),
+                RoundedCornerShape(lirixColors.cardCornerRadius)
             )
             .padding(20.dp)
     ) {
@@ -465,9 +467,9 @@ private fun ArchetypeBanner(archetype: ListeningArchetype) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    color = AppColors.SurfaceLevel1.copy(alpha = 0.8f),
+                    color = lirixColors.accentPrimary.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(8.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.AmberGold.copy(alpha = 0.5f))
+                    border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.accentPrimary.copy(alpha = 0.4f))
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -477,7 +479,7 @@ private fun ArchetypeBanner(archetype: ListeningArchetype) {
                         Text(
                             text = "★",
                             style = MaterialTheme.typography.labelSmall,
-                            color = AppColors.AmberGold
+                            color = lirixColors.accentPrimary
                         )
                         Text(
                             text = "ВАШ МУЗЫКАЛЬНЫЙ АРХЕТИП",
@@ -487,7 +489,7 @@ private fun ArchetypeBanner(archetype: ListeningArchetype) {
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = 0.8.sp
                             ),
-                            color = AppColors.AmberGold
+                            color = lirixColors.accentPrimary
                         )
                     }
                 }
@@ -495,7 +497,7 @@ private fun ArchetypeBanner(archetype: ListeningArchetype) {
                 Icon(
                     imageVector = Icons.Default.EmojiEvents,
                     contentDescription = null,
-                    tint = AppColors.AmberGold,
+                    tint = lirixColors.accentSecondary,
                     modifier = Modifier.size(26.dp)
                 )
             }
@@ -509,7 +511,7 @@ private fun ArchetypeBanner(archetype: ListeningArchetype) {
                     fontWeight = FontWeight.Black,
                     letterSpacing = (-0.5).sp
                 ),
-                color = AppColors.TextPrimary
+                color = lirixColors.textPrimary
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -520,7 +522,7 @@ private fun ArchetypeBanner(archetype: ListeningArchetype) {
                     fontSize = 13.sp,
                     lineHeight = 20.sp
                 ),
-                color = AppColors.TextSecondary
+                color = lirixColors.textSecondary
             )
         }
     }
@@ -528,6 +530,7 @@ private fun ArchetypeBanner(archetype: ListeningArchetype) {
 
 @Composable
 private fun KpiGridSection(stats: WrappedStats?, tracksCount: Int) {
+    val lirixColors = LirixThemeTokens.colors
     val totalMinutes = (stats?.totalListeningTimeMs ?: 0L) / 60000
     val totalHours = totalMinutes / 60
     val remMinutes = totalMinutes % 60
@@ -544,13 +547,13 @@ private fun KpiGridSection(stats: WrappedStats?, tracksCount: Int) {
             KpiMetricBox(
                 title = "Общее время",
                 value = timeFormatted,
-                accentColor = AppColors.CyberCyan,
+                accentColor = lirixColors.accentPrimary,
                 modifier = Modifier.weight(1f)
             )
             KpiMetricBox(
                 title = "Уникальных треков",
                 value = "${stats?.uniqueTracksCount ?: tracksCount}",
-                accentColor = AppColors.ElectricMint,
+                accentColor = lirixColors.accentPrimary,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -561,13 +564,13 @@ private fun KpiGridSection(stats: WrappedStats?, tracksCount: Int) {
             KpiMetricBox(
                 title = "Главный артист",
                 value = topArtistName,
-                accentColor = AppColors.HyperViolet,
+                accentColor = lirixColors.accentSecondary,
                 modifier = Modifier.weight(1f)
             )
             KpiMetricBox(
                 title = "С текстами (LRC)",
                 value = "$karaokeCoveragePercent%",
-                accentColor = AppColors.AmberGold,
+                accentColor = lirixColors.accentSecondary,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -581,11 +584,12 @@ private fun KpiMetricBox(
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val lirixColors = LirixThemeTokens.colors
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(AppColors.SurfaceLevel1)
-            .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+            .background(lirixColors.surfaceCard)
+            .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
             .padding(14.dp),
         contentAlignment = Alignment.CenterStart
     ) {
@@ -596,7 +600,7 @@ private fun KpiMetricBox(
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium
                 ),
-                color = AppColors.TextSecondary,
+                color = lirixColors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -618,18 +622,19 @@ private fun KpiMetricBox(
 
 @Composable
 private fun TopObsessionCard(obsession: TopObsessionItem) {
+    val lirixColors = LirixThemeTokens.colors
     val durationMinutes = obsession.durationMsInPeriod / 60000
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
             .background(
                 Brush.linearGradient(
-                    listOf(Color(0xFF261805), Color(0xFF140C03))
+                    listOf(lirixColors.surfaceCard, lirixColors.surfaceElevated)
                 )
             )
-            .border(1.dp, AppColors.AmberGold.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+            .border(1.dp, lirixColors.accentPrimary.copy(alpha = 0.6f), RoundedCornerShape(lirixColors.cardCornerRadius))
             .padding(14.dp)
     ) {
         Column {
@@ -645,13 +650,13 @@ private fun TopObsessionCard(obsession: TopObsessionItem) {
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 0.4.sp
                     ),
-                    color = AppColors.AmberGold
+                    color = lirixColors.accentPrimary
                 )
 
                 Surface(
-                    color = AppColors.AmberGoldGlow.copy(alpha = 0.25f),
+                    color = lirixColors.accentPrimary.copy(alpha = 0.2f),
                     shape = RoundedCornerShape(6.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.AmberGold.copy(alpha = 0.5f))
+                    border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.accentPrimary.copy(alpha = 0.5f))
                 ) {
                     Text(
                         text = "x${obsession.playCountInPeriod} повторов",
@@ -660,7 +665,7 @@ private fun TopObsessionCard(obsession: TopObsessionItem) {
                             fontFamily = FontFamily.Monospace,
                             fontSize = 11.sp
                         ),
-                        color = AppColors.AmberGold,
+                        color = lirixColors.accentPrimary,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                     )
                 }
@@ -676,7 +681,7 @@ private fun TopObsessionCard(obsession: TopObsessionItem) {
                     artUri = obsession.albumArtUri,
                     size = 56.dp,
                     shape = RoundedCornerShape(12.dp),
-                    borderColor = AppColors.AmberGold.copy(alpha = 0.4f)
+                    borderColor = lirixColors.accentPrimary.copy(alpha = 0.4f)
                 )
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -688,7 +693,7 @@ private fun TopObsessionCard(obsession: TopObsessionItem) {
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         ),
-                        color = AppColors.TextPrimary,
+                        color = lirixColors.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -698,7 +703,7 @@ private fun TopObsessionCard(obsession: TopObsessionItem) {
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontSize = 13.sp
                         ),
-                        color = AppColors.TextSecondary,
+                        color = lirixColors.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -710,7 +715,7 @@ private fun TopObsessionCard(obsession: TopObsessionItem) {
                                 fontSize = 10.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = AppColors.TextTertiary
+                            color = lirixColors.textMuted
                         )
                     }
                 }
@@ -721,15 +726,16 @@ private fun TopObsessionCard(obsession: TopObsessionItem) {
 
 @Composable
 private fun ActivityPulseSection(stats: WrappedStats?) {
+    val lirixColors = LirixThemeTokens.colors
     val distribution = stats?.timeOfDayDistribution.orEmpty()
     val weekly = stats?.weeklyActivity.orEmpty()
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(AppColors.SurfaceLevel1)
-            .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+            .background(lirixColors.surfaceCard)
+            .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
             .padding(14.dp)
     ) {
         Text(
@@ -738,17 +744,17 @@ private fun ActivityPulseSection(stats: WrappedStats?) {
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             ),
-            color = AppColors.TextPrimary
+            color = lirixColors.textPrimary
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
         // Time of Day distribution rows
         val slots = listOf(
-            Triple(TimeOfDaySlot.NIGHT, "Ночь (00-06)", AppColors.HyperViolet),
-            Triple(TimeOfDaySlot.MORNING, "Утро (06-12)", AppColors.AmberGold),
-            Triple(TimeOfDaySlot.AFTERNOON, "День (12-18)", AppColors.CyberCyan),
-            Triple(TimeOfDaySlot.EVENING, "Вечер (18-24)", AppColors.ElectricMint)
+            Triple(TimeOfDaySlot.NIGHT, "Ночь (00-06)", lirixColors.accentSecondary),
+            Triple(TimeOfDaySlot.MORNING, "Утро (06-12)", lirixColors.accentPrimary),
+            Triple(TimeOfDaySlot.AFTERNOON, "День (12-18)", lirixColors.accentSecondary),
+            Triple(TimeOfDaySlot.EVENING, "Вечер (18-24)", lirixColors.accentPrimary)
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -762,7 +768,7 @@ private fun ActivityPulseSection(stats: WrappedStats?) {
                     Text(
                         text = label,
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                        color = AppColors.TextSecondary,
+                        color = lirixColors.textSecondary,
                         modifier = Modifier.width(96.dp)
                     )
                     LinearProgressIndicator(
@@ -772,7 +778,7 @@ private fun ActivityPulseSection(stats: WrappedStats?) {
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp)),
                         color = color,
-                        trackColor = AppColors.SurfaceLevel3
+                        trackColor = lirixColors.surfaceElevated
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -782,7 +788,7 @@ private fun ActivityPulseSection(stats: WrappedStats?) {
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp
                         ),
-                        color = AppColors.TextPrimary,
+                        color = lirixColors.textPrimary,
                         modifier = Modifier.width(36.dp),
                         textAlign = TextAlign.End
                     )
@@ -799,7 +805,7 @@ private fun ActivityPulseSection(stats: WrappedStats?) {
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
                 ),
-                color = AppColors.TextTertiary
+                color = lirixColors.textMuted
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -823,7 +829,7 @@ private fun ActivityPulseSection(stats: WrappedStats?) {
                                 fontSize = 9.sp,
                                 fontFamily = FontFamily.Monospace
                             ),
-                            color = AppColors.CyberCyan
+                            color = lirixColors.accentPrimary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Box(
@@ -832,7 +838,7 @@ private fun ActivityPulseSection(stats: WrappedStats?) {
                                 .height(barHeightDp)
                                 .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                                 .background(
-                                    if (day.sessionCount > 0) AppColors.CyberCyan else AppColors.SurfaceLevel3
+                                    if (day.sessionCount > 0) lirixColors.accentPrimary else lirixColors.surfaceElevated
                                 )
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -842,7 +848,7 @@ private fun ActivityPulseSection(stats: WrappedStats?) {
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold
                             ),
-                            color = AppColors.TextSecondary
+                            color = lirixColors.textSecondary
                         )
                     }
                 }
@@ -853,6 +859,7 @@ private fun ActivityPulseSection(stats: WrappedStats?) {
 
 @Composable
 private fun TopTracksSection(topTracks: List<TopTrackItem>) {
+    val lirixColors = LirixThemeTokens.colors
     val maxPlays = topTracks.maxOfOrNull { it.playCount }?.coerceAtLeast(1) ?: 1
 
     Column {
@@ -862,7 +869,7 @@ private fun TopTracksSection(topTracks: List<TopTrackItem>) {
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
             ),
-            color = AppColors.TextPrimary
+            color = lirixColors.textPrimary
         )
         Spacer(modifier = Modifier.height(8.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -883,19 +890,20 @@ private fun RankedTrackRow(
     track: TopTrackItem,
     fraction: Float
 ) {
+    val lirixColors = LirixThemeTokens.colors
     val rankColor = when (rank) {
-        1 -> AppColors.AmberGold
-        2 -> AppColors.CyberCyan
-        3 -> AppColors.HyperViolet
-        else -> AppColors.TextSecondary
+        1 -> lirixColors.accentPrimary
+        2 -> lirixColors.accentSecondary
+        3 -> lirixColors.accentGlow
+        else -> lirixColors.textSecondary
     }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(AppColors.SurfaceLevel1)
-            .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+            .background(lirixColors.surfaceCard)
+            .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
             .padding(10.dp)
     ) {
         Row(
@@ -927,7 +935,7 @@ private fun RankedTrackRow(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = AppColors.TextPrimary,
+                    color = lirixColors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -936,7 +944,7 @@ private fun RankedTrackRow(
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = 11.sp
                     ),
-                    color = AppColors.TextSecondary,
+                    color = lirixColors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -964,13 +972,14 @@ private fun RankedTrackRow(
                 .height(3.dp)
                 .clip(RoundedCornerShape(2.dp)),
             color = rankColor,
-            trackColor = AppColors.SurfaceLevel3
+            trackColor = lirixColors.surfaceElevated
         )
     }
 }
 
 @Composable
 private fun TopArtistsSection(topArtists: List<com.lirix.app.analytics.TopArtistItem>) {
+    val lirixColors = LirixThemeTokens.colors
     val maxPlays = topArtists.maxOfOrNull { it.playCount }?.coerceAtLeast(1) ?: 1
 
     Column {
@@ -980,7 +989,7 @@ private fun TopArtistsSection(topArtists: List<com.lirix.app.analytics.TopArtist
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
             ),
-            color = AppColors.TextPrimary
+            color = lirixColors.textPrimary
         )
         Spacer(modifier = Modifier.height(8.dp))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1003,19 +1012,20 @@ private fun RankedArtistRow(
     playCount: Int,
     fraction: Float
 ) {
+    val lirixColors = LirixThemeTokens.colors
     val rankColor = when (rank) {
-        1 -> AppColors.AmberGold
-        2 -> AppColors.CyberCyan
-        3 -> AppColors.HyperViolet
-        else -> AppColors.TextSecondary
+        1 -> lirixColors.accentPrimary
+        2 -> lirixColors.accentSecondary
+        3 -> lirixColors.accentGlow
+        else -> lirixColors.textSecondary
     }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(AppColors.SurfaceLevel1)
-            .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+            .background(lirixColors.surfaceCard)
+            .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
             .padding(12.dp)
     ) {
         Row(
@@ -1037,7 +1047,7 @@ private fun RankedArtistRow(
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 ),
-                color = AppColors.TextPrimary,
+                color = lirixColors.textPrimary,
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -1048,7 +1058,7 @@ private fun RankedArtistRow(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Medium
                 ),
-                color = AppColors.TextTertiary
+                color = lirixColors.textMuted
             )
         }
 
@@ -1061,7 +1071,7 @@ private fun RankedArtistRow(
                 .height(4.dp)
                 .clip(RoundedCornerShape(2.dp)),
             color = rankColor,
-            trackColor = AppColors.SurfaceLevel3
+            trackColor = lirixColors.surfaceElevated
         )
     }
 }
@@ -1074,6 +1084,7 @@ private fun AchievementsHeaderSection(
     selectedTier: AchievementTier?,
     onTierChange: (AchievementTier?) -> Unit
 ) {
+    val lirixColors = LirixThemeTokens.colors
     val unlockedCount = achievements.count { it.isUnlocked }
     val totalCount = achievements.size.coerceAtLeast(1)
     val unlockedPercent = (unlockedCount.toFloat() / totalCount.toFloat() * 100).toInt()
@@ -1090,7 +1101,7 @@ private fun AchievementsHeaderSection(
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 ),
-                color = AppColors.TextPrimary
+                color = lirixColors.textPrimary
             )
 
             Text(
@@ -1099,7 +1110,7 @@ private fun AchievementsHeaderSection(
                     fontWeight = FontWeight.ExtraBold,
                     fontFamily = FontFamily.Monospace
                 ),
-                color = AppColors.ElectricMint
+                color = lirixColors.accentPrimary
             )
         }
 
@@ -1109,8 +1120,8 @@ private fun AchievementsHeaderSection(
                 .fillMaxWidth()
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp)),
-            color = AppColors.ElectricMint,
-            trackColor = AppColors.SurfaceLevel3
+            color = lirixColors.accentPrimary,
+            trackColor = lirixColors.surfaceElevated
         )
 
         // Status Filter Chips
@@ -1182,13 +1193,14 @@ private fun FilterChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val lirixColors = LirixThemeTokens.colors
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) AppColors.SurfaceLevel3 else AppColors.SurfaceLevel1)
+            .background(if (isSelected) lirixColors.accentPrimary.copy(alpha = 0.2f) else lirixColors.surfaceCard)
             .border(
                 1.dp,
-                if (isSelected) AppColors.HyperViolet else AppColors.BorderSubtle,
+                if (isSelected) lirixColors.accentPrimary else lirixColors.borderSubtle,
                 RoundedCornerShape(8.dp)
             )
             .clickable { onClick() }
@@ -1201,7 +1213,7 @@ private fun FilterChip(
                 fontSize = 11.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
             ),
-            color = if (isSelected) AppColors.TextPrimary else AppColors.TextSecondary,
+            color = if (isSelected) lirixColors.accentPrimary else lirixColors.textSecondary,
             maxLines = 1
         )
     }
@@ -1213,13 +1225,14 @@ private fun SmallFilterChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val lirixColors = LirixThemeTokens.colors
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) AppColors.SurfaceLevel3 else AppColors.SurfaceLevel1)
+            .background(if (isSelected) lirixColors.accentPrimary.copy(alpha = 0.2f) else lirixColors.surfaceCard)
             .border(
                 1.dp,
-                if (isSelected) AppColors.CyberCyan else AppColors.BorderSubtle,
+                if (isSelected) lirixColors.accentPrimary else lirixColors.borderSubtle,
                 RoundedCornerShape(8.dp)
             )
             .clickable { onClick() }
@@ -1232,7 +1245,7 @@ private fun SmallFilterChip(
                 fontSize = 11.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
             ),
-            color = if (isSelected) AppColors.TextPrimary else AppColors.TextSecondary,
+            color = if (isSelected) lirixColors.accentPrimary else lirixColors.textSecondary,
             maxLines = 1
         )
     }
@@ -1243,35 +1256,36 @@ private fun TieredAchievementCard(
     achievement: AchievementEntity,
     modifier: Modifier = Modifier
 ) {
+    val lirixColors = LirixThemeTokens.colors
     val isUnlocked = achievement.isUnlocked
     val tierColor = when (achievement.tier.uppercase()) {
         "BRONZE" -> Color(0xFFCD7F32)
         "SILVER" -> Color(0xFFC0C0C0)
         "GOLD" -> Color(0xFFFFD700)
         "PLATINUM" -> Color(0xFFE5E4E2)
-        else -> AppColors.HyperViolet
+        else -> lirixColors.accentPrimary
     }
 
     val dateFormat = remember { SimpleDateFormat("dd.MM.yy", Locale.getDefault()) }
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
             .background(
                 if (isUnlocked) {
                     Brush.verticalGradient(
-                        listOf(tierColor.copy(alpha = 0.20f), AppColors.SurfaceLevel1)
+                        listOf(tierColor.copy(alpha = 0.20f), lirixColors.surfaceCard)
                     )
                 } else {
                     Brush.verticalGradient(
-                        listOf(AppColors.SurfaceLevel1, AppColors.SurfaceLevel1)
+                        listOf(lirixColors.surfaceCard, lirixColors.surfaceCard)
                     )
                 }
             )
             .border(
                 1.dp,
-                if (isUnlocked) tierColor.copy(alpha = 0.8f) else AppColors.BorderSubtle,
-                RoundedCornerShape(14.dp)
+                if (isUnlocked) tierColor.copy(alpha = 0.8f) else lirixColors.borderSubtle,
+                RoundedCornerShape(lirixColors.cardCornerRadius)
             )
             .padding(12.dp)
     ) {
@@ -1286,14 +1300,14 @@ private fun TieredAchievementCard(
                         .size(28.dp)
                         .clip(CircleShape)
                         .background(
-                            if (isUnlocked) tierColor.copy(alpha = 0.3f) else AppColors.SurfaceLevel2
+                            if (isUnlocked) tierColor.copy(alpha = 0.3f) else lirixColors.surfaceElevated
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (isUnlocked) Icons.Default.EmojiEvents else Icons.Default.Lock,
                         contentDescription = null,
-                        tint = if (isUnlocked) tierColor else AppColors.TextTertiary,
+                        tint = if (isUnlocked) tierColor else lirixColors.textMuted,
                         modifier = Modifier.size(15.dp)
                     )
                 }
@@ -1324,7 +1338,7 @@ private fun TieredAchievementCard(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 ),
-                color = if (isUnlocked) AppColors.TextPrimary else AppColors.TextSecondary,
+                color = if (isUnlocked) lirixColors.textPrimary else lirixColors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1337,7 +1351,7 @@ private fun TieredAchievementCard(
                     fontSize = 11.sp,
                     lineHeight = 15.sp
                 ),
-                color = AppColors.TextTertiary,
+                color = lirixColors.textMuted,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1353,7 +1367,7 @@ private fun TieredAchievementCard(
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp)),
                     color = tierColor,
-                    trackColor = AppColors.SurfaceLevel3
+                    trackColor = lirixColors.surfaceElevated
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
@@ -1366,7 +1380,7 @@ private fun TieredAchievementCard(
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace
                         ),
-                        color = AppColors.TextTertiary
+                        color = lirixColors.textMuted
                     )
                 }
             } else if (isUnlocked) {
@@ -1396,13 +1410,14 @@ private fun ShareSectionPickerDialog(
     onDismiss: () -> Unit,
     onPick: (WrappedShareSection) -> Unit
 ) {
+    val lirixColors = LirixThemeTokens.colors
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF000000),
+            color = lirixColors.surfaceCard,
             border = androidx.compose.foundation.BorderStroke(
                 1.dp,
-                Brush.horizontalGradient(listOf(AppColors.HyperViolet, AppColors.CyberCyan))
+                Brush.horizontalGradient(listOf(lirixColors.accentPrimary, lirixColors.accentSecondary))
             ),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -1413,18 +1428,18 @@ private fun ShareSectionPickerDialog(
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold
                     ),
-                    color = AppColors.TextPrimary
+                    color = lirixColors.textPrimary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Одна тема на карточку — чище и читаемее",
                     style = MaterialTheme.typography.bodySmall,
-                    color = AppColors.TextSecondary
+                    color = lirixColors.textSecondary
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 val accents = listOf(
-                    AppColors.AmberGold, AppColors.CyberCyan, AppColors.HyperViolet,
-                    AppColors.AmberGold, AppColors.ElectricMint, AppColors.TextSecondary
+                    lirixColors.accentPrimary, lirixColors.accentSecondary, lirixColors.accentGlow,
+                    lirixColors.accentPrimary, lirixColors.accentSecondary, lirixColors.textSecondary
                 )
                 WrappedShareSection.values().forEachIndexed { i, section ->
                     val accent = accents[i % accents.size]
@@ -1450,12 +1465,12 @@ private fun ShareSectionPickerDialog(
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = AppColors.TextPrimary
+                                color = lirixColors.textPrimary
                             )
                             Text(
                                 text = section.hintRu,
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                color = AppColors.TextSecondary
+                                color = lirixColors.textSecondary
                             )
                         }
                     }

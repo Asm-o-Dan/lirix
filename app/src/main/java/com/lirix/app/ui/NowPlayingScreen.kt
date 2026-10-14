@@ -145,6 +145,7 @@ import com.lirix.app.storage.LyricsCacheEntity
 import com.lirix.app.storage.TrackEntity
 import com.lirix.app.ui.components.NotificationPermissionDialog
 import com.lirix.app.ui.theme.AppColors
+import com.lirix.app.ui.theme.LirixThemeTokens
 import androidx.compose.material.icons.filled.Security
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -179,6 +180,7 @@ fun NowPlayingScreen(
     onTrackConsumed: () -> Unit = {},
     onOpenTeachMode: ((TrackEntity?) -> Unit)? = null
 ) {
+    val lirixColors = LirixThemeTokens.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val db = remember { AppDatabase.getInstance(context) }
@@ -687,7 +689,7 @@ fun NowPlayingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.AmoledBlack)
+            .background(lirixColors.appBackground)
     ) {
         Column(
             modifier = Modifier
@@ -771,15 +773,14 @@ fun NowPlayingScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(AppColors.SurfaceLevel2)
+                                .background(lirixColors.surfaceCard)
                                 .border(
                                     1.2.dp,
                                     Brush.sweepGradient(
                                         listOf(
-                                            AppColors.HyperViolet,
-                                            AppColors.CyberCyan,
-                                            AppColors.HyperVioletDark,
-                                            AppColors.HyperViolet
+                                            lirixColors.accentPrimary,
+                                            lirixColors.accentSecondary,
+                                            lirixColors.accentPrimary
                                         )
                                     ),
                                     CircleShape
@@ -796,7 +797,7 @@ fun NowPlayingScreen(
                                 modifier = Modifier
                                     .size(28.dp)
                                     .clip(CircleShape)
-                                    .border(0.8.dp, AppColors.BorderSubtle.copy(alpha = 0.5f), CircleShape)
+                                    .border(0.8.dp, lirixColors.borderSubtle.copy(alpha = 0.5f), CircleShape)
                             )
                             // Center label / Art
                             if (vinylCenterArt != null) {
@@ -812,13 +813,13 @@ fun NowPlayingScreen(
                                     modifier = Modifier
                                         .size(4.dp)
                                         .clip(CircleShape)
-                                        .background(AppColors.AmoledBlack)
+                                        .background(lirixColors.appBackground)
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.MusicNote,
                                     contentDescription = "Развернуть винил",
-                                    tint = AppColors.CyberCyan,
+                                    tint = lirixColors.accentSecondary,
                                     modifier = Modifier.size(14.dp)
                                 )
                             }
@@ -833,7 +834,7 @@ fun NowPlayingScreen(
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = (-0.3).sp
                             ),
-                            color = AppColors.TextPrimary,
+                            color = lirixColors.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -844,7 +845,7 @@ fun NowPlayingScreen(
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = AppColors.HyperViolet,
+                            color = lirixColors.accentPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -886,13 +887,13 @@ fun NowPlayingScreen(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(if (currentTrack.isFavorite) AppColors.ExpenseContainer else AppColors.SurfaceLevel1)
-                            .border(1.dp, if (currentTrack.isFavorite) AppColors.ExpenseRed.copy(alpha = 0.5f) else AppColors.BorderSubtle, CircleShape)
+                            .background(if (currentTrack.isFavorite) AppColors.ExpenseContainer else lirixColors.surfacePrimary)
+                            .border(1.dp, if (currentTrack.isFavorite) AppColors.ExpenseRed.copy(alpha = 0.5f) else lirixColors.borderSubtle, CircleShape)
                     ) {
                         Icon(
                             imageVector = if (currentTrack.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Favorite",
-                            tint = if (currentTrack.isFavorite) AppColors.ExpenseRed else AppColors.TextSecondary,
+                            tint = if (currentTrack.isFavorite) AppColors.ExpenseRed else lirixColors.textSecondary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -906,13 +907,13 @@ fun NowPlayingScreen(
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
-                                .background(AppColors.SurfaceLevel1)
-                                .border(1.dp, AppColors.BorderSubtle, CircleShape)
+                                .background(lirixColors.surfacePrimary)
+                                .border(1.dp, lirixColors.borderSubtle, CircleShape)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
                                 contentDescription = "Дополнительные действия",
-                                tint = AppColors.TextPrimary,
+                                tint = lirixColors.textPrimary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -993,9 +994,9 @@ fun NowPlayingScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(AppColors.SurfaceLevel1)
-                    .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+                    .background(lirixColors.surfacePrimary)
+                    .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -1008,7 +1009,7 @@ fun NowPlayingScreen(
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
                     ),
-                    color = AppColors.CyberCyan
+                    color = lirixColors.accentSecondary
                 )
 
                 // Skip -10s
@@ -1026,7 +1027,7 @@ fun NowPlayingScreen(
                     Icon(
                         imageVector = Icons.Default.Replay10,
                         contentDescription = "-10s",
-                        tint = AppColors.TextSecondary,
+                        tint = lirixColors.textSecondary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -1043,14 +1044,14 @@ fun NowPlayingScreen(
                         .clip(CircleShape)
                         .background(
                             Brush.linearGradient(
-                                listOf(AppColors.HyperViolet, AppColors.HyperVioletDark)
+                                listOf(lirixColors.accentPrimary, lirixColors.accentSecondary)
                             )
                         )
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = AppColors.AmoledBlack,
+                        tint = if (lirixColors.isDark) Color.Black else Color.White,
                         modifier = Modifier.size(30.dp)
                     )
                 }
@@ -1074,7 +1075,7 @@ fun NowPlayingScreen(
                     Icon(
                         imageVector = Icons.Default.Forward10,
                         contentDescription = "+10s",
-                        tint = AppColors.TextSecondary,
+                        tint = lirixColors.textSecondary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -1087,7 +1088,7 @@ fun NowPlayingScreen(
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
                     ),
-                    color = AppColors.TextTertiary
+                    color = lirixColors.textMuted
                 )
             }
 
@@ -1098,19 +1099,19 @@ fun NowPlayingScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 12.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(AppColors.SurfaceLevel1)
+                        .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+                        .background(lirixColors.surfacePrimary)
                         .border(
                             BorderStroke(
                                 1.5.dp,
                                 Brush.horizontalGradient(
                                     listOf(
                                         AppColors.AmberGold.copy(alpha = 0.8f),
-                                        AppColors.HyperViolet.copy(alpha = 0.8f)
+                                        lirixColors.accentPrimary.copy(alpha = 0.8f)
                                     )
                                 )
                             ),
-                            RoundedCornerShape(20.dp)
+                            RoundedCornerShape(lirixColors.cardCornerRadius)
                         )
                         .padding(20.dp),
                     contentAlignment = Alignment.Center
@@ -1134,14 +1135,14 @@ fun NowPlayingScreen(
                         Text(
                             text = "Требуется доступ к плееру",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = AppColors.TextPrimary,
+                            color = lirixColors.textPrimary,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "Чтобы Lirix автоматически подхватывал треки из Spotify, VK или Яндекс Музыки, включите доступ к уведомлениям.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = AppColors.TextSecondary,
+                            color = lirixColors.textSecondary,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(14.dp))
@@ -1150,12 +1151,12 @@ fun NowPlayingScreen(
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 showPermissionDialog = true
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.HyperViolet),
+                            colors = ButtonDefaults.buttonColors(containerColor = lirixColors.accentPrimary),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
                                 text = "Настроить доступ к музыке",
-                                color = AppColors.AmoledBlack,
+                                color = if (lirixColors.isDark) Color.Black else Color.White,
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                             )
                         }
@@ -1170,7 +1171,7 @@ fun NowPlayingScreen(
                 ) {
                     Text(
                         text = "Музыка не играет\nВключите трек в любимом плеере",
-                        color = AppColors.TextSecondary,
+                        color = lirixColors.textSecondary,
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodyLarge
                     )
@@ -1184,9 +1185,9 @@ fun NowPlayingScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(AppColors.SurfaceLevel1)
-                .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+                .background(lirixColors.surfacePrimary)
+                .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
                 .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -1195,8 +1196,8 @@ fun NowPlayingScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) AppColors.HyperViolet else Color.Transparent)
+                        .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+                        .background(if (isSelected) lirixColors.accentPrimary else Color.Transparent)
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             selectedMode = mode
@@ -1210,7 +1211,9 @@ fun NowPlayingScreen(
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
                         ),
-                        color = if (isSelected) AppColors.AmoledBlack else AppColors.TextSecondary
+                        color = if (isSelected) {
+                            if (lirixColors.isDark) Color.Black else Color.White
+                        } else lirixColors.textSecondary
                     )
                 }
             }
@@ -1223,9 +1226,9 @@ fun NowPlayingScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .clip(RoundedCornerShape(20.dp))
-                .background(AppColors.SurfaceLevel1)
-                .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+                .background(lirixColors.surfacePrimary)
+                .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onDoubleTap = {
@@ -1242,7 +1245,7 @@ fun NowPlayingScreen(
             if (isLoadingLyrics) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(
-                        color = AppColors.HyperViolet,
+                        color = lirixColors.accentPrimary,
                         strokeWidth = 3.dp,
                         modifier = Modifier.size(36.dp)
                     )
@@ -1250,7 +1253,7 @@ fun NowPlayingScreen(
                     Text(
                         text = "Загрузка текста и аккордов...",
                         style = MaterialTheme.typography.bodySmall,
-                        color = AppColors.TextSecondary
+                        color = lirixColors.textSecondary
                     )
                 }
             } else {
@@ -1320,9 +1323,9 @@ fun NowPlayingScreen(
 
                                     // Header bar with Autoscroll, Transpose and Zoom controls (TASK-CHR-01, TASK-CHR-02)
                                     Surface(
-                                        color = AppColors.SurfaceLevel2,
+                                        color = lirixColors.surfaceCard,
                                         shape = RoundedCornerShape(10.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.borderSubtle),
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(bottom = 8.dp)
@@ -1343,7 +1346,7 @@ fun NowPlayingScreen(
                                                 Text(
                                                     text = "🎸 Аккорды AmDm",
                                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                    color = AppColors.CyberCyan
+                                                    color = lirixColors.accentSecondary
                                                 )
 
                                                 // Autoscroll Toolbar Widget
@@ -1354,10 +1357,10 @@ fun NowPlayingScreen(
                                                     // Play/Pause button [ ▶ Старт / ⏸ Пауза ]
                                                     Surface(
                                                         shape = RoundedCornerShape(6.dp),
-                                                        color = if (isAutoscrollRunning && !isTouchPaused) AppColors.HyperViolet.copy(alpha = 0.2f) else AppColors.SurfaceLevel3,
+                                                        color = if (isAutoscrollRunning && !isTouchPaused) lirixColors.accentPrimary.copy(alpha = 0.2f) else lirixColors.surfaceElevated,
                                                         border = androidx.compose.foundation.BorderStroke(
                                                             1.dp,
-                                                            if (isAutoscrollRunning && !isTouchPaused) AppColors.HyperViolet else AppColors.BorderSubtle
+                                                            if (isAutoscrollRunning && !isTouchPaused) lirixColors.accentPrimary else lirixColors.borderSubtle
                                                         ),
                                                         modifier = Modifier.clickable {
                                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -1368,7 +1371,7 @@ fun NowPlayingScreen(
                                                         Text(
                                                             text = if (isAutoscrollRunning && !isTouchPaused) "⏸ Пауза" else if (isAutoscrollRunning && isTouchPaused) "⏳ Пауза" else "▶ Старт",
                                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                            color = if (isAutoscrollRunning) AppColors.HyperViolet else AppColors.CyberCyan,
+                                                            color = if (isAutoscrollRunning) lirixColors.accentPrimary else lirixColors.accentSecondary,
                                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                                         )
                                                     }
@@ -1378,13 +1381,13 @@ fun NowPlayingScreen(
                                                         verticalAlignment = Alignment.CenterVertically,
                                                         modifier = Modifier
                                                             .clip(RoundedCornerShape(6.dp))
-                                                            .background(AppColors.SurfaceLevel3)
+                                                            .background(lirixColors.surfaceElevated)
                                                             .padding(horizontal = 4.dp, vertical = 2.dp)
                                                     ) {
                                                         Text(
                                                             text = "−",
                                                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                            color = if (autoscrollMultiplier > ChordAutoscrollCalculator.MIN_MULTIPLIER) AppColors.TextPrimary else AppColors.TextTertiary,
+                                                            color = if (autoscrollMultiplier > ChordAutoscrollCalculator.MIN_MULTIPLIER) lirixColors.textPrimary else lirixColors.textMuted,
                                                             modifier = Modifier
                                                                 .clickable(enabled = autoscrollMultiplier > ChordAutoscrollCalculator.MIN_MULTIPLIER) {
                                                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1396,14 +1399,14 @@ fun NowPlayingScreen(
                                                         Text(
                                                             text = String.format(java.util.Locale.US, "%.2fx", autoscrollMultiplier),
                                                             style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold),
-                                                            color = AppColors.ElectricMint,
+                                                            color = lirixColors.accentSecondary,
                                                             modifier = Modifier.padding(horizontal = 4.dp)
                                                         )
 
                                                         Text(
                                                             text = "+",
                                                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                            color = if (autoscrollMultiplier < ChordAutoscrollCalculator.MAX_MULTIPLIER) AppColors.TextPrimary else AppColors.TextTertiary,
+                                                            color = if (autoscrollMultiplier < ChordAutoscrollCalculator.MAX_MULTIPLIER) lirixColors.textPrimary else lirixColors.textMuted,
                                                             modifier = Modifier
                                                                 .clickable(enabled = autoscrollMultiplier < ChordAutoscrollCalculator.MAX_MULTIPLIER) {
                                                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1416,8 +1419,8 @@ fun NowPlayingScreen(
                                                     // Reset to top button [ ⤾ ]
                                                     Surface(
                                                         shape = RoundedCornerShape(6.dp),
-                                                        color = AppColors.SurfaceLevel3,
-                                                        border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle),
+                                                        color = lirixColors.surfaceElevated,
+                                                        border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.borderSubtle),
                                                         modifier = Modifier.clickable {
                                                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                                             scope.launch {
@@ -1428,7 +1431,7 @@ fun NowPlayingScreen(
                                                         Text(
                                                             text = "⤾",
                                                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                            color = AppColors.TextSecondary,
+                                                            color = lirixColors.textSecondary,
                                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                                         )
                                                     }
@@ -1446,13 +1449,13 @@ fun NowPlayingScreen(
                                                     verticalAlignment = Alignment.CenterVertically,
                                                     modifier = Modifier
                                                         .clip(RoundedCornerShape(6.dp))
-                                                        .background(AppColors.SurfaceLevel3)
+                                                        .background(lirixColors.surfaceElevated)
                                                         .padding(horizontal = 2.dp, vertical = 2.dp)
                                                 ) {
                                                     Text(
                                                         text = "♭ -1",
                                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                        color = if (transposeSemitones > -11) AppColors.TextPrimary else AppColors.TextTertiary,
+                                                        color = if (transposeSemitones > -11) lirixColors.textPrimary else lirixColors.textMuted,
                                                         modifier = Modifier
                                                             .clickable(enabled = transposeSemitones > -11) {
                                                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1472,7 +1475,7 @@ fun NowPlayingScreen(
                                                             fontFamily = FontFamily.Monospace,
                                                             fontWeight = FontWeight.Bold
                                                         ),
-                                                        color = if (transposeSemitones != 0) AppColors.HyperViolet else AppColors.TextSecondary,
+                                                        color = if (transposeSemitones != 0) lirixColors.accentPrimary else lirixColors.textSecondary,
                                                         modifier = Modifier
                                                             .clickable {
                                                                 if (transposeSemitones != 0) {
@@ -1486,7 +1489,7 @@ fun NowPlayingScreen(
                                                     Text(
                                                         text = "♯ +1",
                                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                        color = if (transposeSemitones < 11) AppColors.TextPrimary else AppColors.TextTertiary,
+                                                        color = if (transposeSemitones < 11) lirixColors.textPrimary else lirixColors.textMuted,
                                                         modifier = Modifier
                                                             .clickable(enabled = transposeSemitones < 11) {
                                                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1501,13 +1504,13 @@ fun NowPlayingScreen(
                                                     verticalAlignment = Alignment.CenterVertically,
                                                     modifier = Modifier
                                                         .clip(RoundedCornerShape(6.dp))
-                                                        .background(AppColors.SurfaceLevel3)
+                                                        .background(lirixColors.surfaceElevated)
                                                         .padding(horizontal = 2.dp, vertical = 2.dp)
                                                 ) {
                                                     Text(
                                                         text = "A−",
                                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                        color = if (chordTextZoom > 0.85f) AppColors.TextPrimary else AppColors.TextTertiary,
+                                                        color = if (chordTextZoom > 0.85f) lirixColors.textPrimary else lirixColors.textMuted,
                                                         modifier = Modifier
                                                             .clickable(enabled = chordTextZoom > 0.85f) {
                                                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1522,7 +1525,7 @@ fun NowPlayingScreen(
                                                             fontFamily = FontFamily.Monospace,
                                                             fontWeight = FontWeight.Bold
                                                         ),
-                                                        color = AppColors.CyberCyan,
+                                                        color = lirixColors.accentSecondary,
                                                         modifier = Modifier
                                                             .clickable {
                                                                 if (chordTextZoom != 1.0f) {
@@ -1536,7 +1539,7 @@ fun NowPlayingScreen(
                                                     Text(
                                                         text = "A+",
                                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                        color = if (chordTextZoom < 1.6f) AppColors.TextPrimary else AppColors.TextTertiary,
+                                                        color = if (chordTextZoom < 1.6f) lirixColors.textPrimary else lirixColors.textMuted,
                                                         modifier = Modifier
                                                             .clickable(enabled = chordTextZoom < 1.6f) {
                                                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1562,7 +1565,7 @@ fun NowPlayingScreen(
                                                         Text(
                                                             text = "Аппликатуры:",
                                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                            color = AppColors.TextTertiary,
+                                                            color = lirixColors.textMuted,
                                                             modifier = Modifier.padding(end = 2.dp)
                                                         )
                                                     }
@@ -1570,8 +1573,8 @@ fun NowPlayingScreen(
                                                         val chordName = songChords[idx]
                                                         Surface(
                                                             shape = RoundedCornerShape(6.dp),
-                                                            color = AppColors.SurfaceLevel3,
-                                                            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+                                                            color = lirixColors.surfaceElevated,
+                                                            border = BorderStroke(1.dp, lirixColors.accentPrimary.copy(alpha = 0.5f)),
                                                             modifier = Modifier.clickable {
                                                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                                                 selectedChordDiagram = chordName
@@ -1591,7 +1594,7 @@ fun NowPlayingScreen(
                                                                         fontFamily = FontFamily.Monospace,
                                                                         fontWeight = FontWeight.Bold
                                                                     ),
-                                                                    color = AppColors.HyperViolet
+                                                                    color = lirixColors.accentPrimary
                                                                 )
                                                             }
                                                         }
@@ -1615,7 +1618,7 @@ fun NowPlayingScreen(
                                                 fontSize = (13 * chordTextZoom).sp,
                                                 lineHeight = (22 * chordTextZoom).sp
                                             ),
-                                            color = AppColors.CyberCyan,
+                                            color = lirixColors.textPrimary,
                                             modifier = Modifier.padding(bottom = 32.dp)
                                         )
                                     }
@@ -1625,20 +1628,19 @@ fun NowPlayingScreen(
                                     if (isLoadingChords) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             CircularProgressIndicator(
-                                                color = AppColors.CyberCyan,
                                                 modifier = Modifier.size(32.dp)
                                             )
                                             Spacer(modifier = Modifier.height(12.dp))
                                             Text(
                                                 text = "Поиск подбора на AmDm...",
-                                                color = AppColors.TextSecondary,
+                                                color = lirixColors.textSecondary,
                                                 style = MaterialTheme.typography.bodyMedium
                                             )
                                         }
                                     } else {
                                         Text(
                                             text = "Аккорды AmDm не найдены для этого трека",
-                                            color = AppColors.TextSecondary,
+                                            color = lirixColors.textSecondary,
                                             textAlign = TextAlign.Center,
                                             style = MaterialTheme.typography.bodyMedium
                                         )
@@ -1665,14 +1667,14 @@ fun NowPlayingScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Surface(
-                                        color = AppColors.SurfaceLevel2,
+                                        color = lirixColors.surfaceCard,
                                         shape = RoundedCornerShape(8.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle)
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.borderSubtle)
                                     ) {
                                         Text(
                                             text = "📝 Персональные заметки",
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = AppColors.ElectricMint,
+                                            color = lirixColors.accentPrimary,
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                         )
                                     }
@@ -1695,16 +1697,16 @@ fun NowPlayingScreen(
                                                     Icon(
                                                         imageVector = Icons.Default.Close,
                                                         contentDescription = "Отмена",
-                                                        tint = AppColors.TextSecondary,
+                                                        tint = lirixColors.textSecondary,
                                                         modifier = Modifier.size(18.dp)
                                                     )
                                                 }
 
                                                 // Save button
                                                 Surface(
-                                                    color = AppColors.ElectricMint.copy(alpha = 0.15f),
+                                                    color = lirixColors.accentPrimary.copy(alpha = 0.15f),
                                                     shape = RoundedCornerShape(8.dp),
-                                                    border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.ElectricMint),
+                                                    border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.accentPrimary),
                                                     modifier = Modifier.clickable {
                                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                         val trackKey = currentTrack.trackKey
@@ -1722,14 +1724,14 @@ fun NowPlayingScreen(
                                                         Icon(
                                                             imageVector = Icons.Default.Check,
                                                             contentDescription = "Сохранить",
-                                                            tint = AppColors.ElectricMint,
+                                                            tint = lirixColors.accentPrimary,
                                                             modifier = Modifier.size(16.dp)
                                                         )
                                                         Spacer(modifier = Modifier.width(4.dp))
                                                         Text(
                                                             text = "Сохранить",
                                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                            color = AppColors.ElectricMint
+                                                            color = lirixColors.accentPrimary
                                                         )
                                                     }
                                                 }
@@ -1747,7 +1749,7 @@ fun NowPlayingScreen(
                                                 Icon(
                                                     imageVector = Icons.Default.Edit,
                                                     contentDescription = "Редактировать",
-                                                    tint = AppColors.ElectricMint,
+                                                    tint = lirixColors.accentPrimary,
                                                     modifier = Modifier.size(18.dp)
                                                 )
                                             }
@@ -1764,20 +1766,20 @@ fun NowPlayingScreen(
                                             Text(
                                                 text = "Запишите гитарный строй, каподастр, любимые строчки или мысли об этой песне...",
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                color = AppColors.TextTertiary
+                                                color = lirixColors.textMuted
                                             )
                                         },
                                         minLines = 6,
                                         maxLines = 15,
                                         shape = RoundedCornerShape(12.dp),
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = AppColors.SurfaceLevel1,
-                                            unfocusedContainerColor = AppColors.SurfaceLevel1,
-                                            focusedBorderColor = AppColors.ElectricMint,
-                                            unfocusedBorderColor = AppColors.BorderSubtle,
-                                            focusedTextColor = AppColors.TextPrimary,
-                                            unfocusedTextColor = AppColors.TextPrimary,
-                                            cursorColor = AppColors.ElectricMint
+                                            focusedContainerColor = lirixColors.surfacePrimary,
+                                            unfocusedContainerColor = lirixColors.surfacePrimary,
+                                            focusedBorderColor = lirixColors.accentPrimary,
+                                            unfocusedBorderColor = lirixColors.borderSubtle,
+                                            focusedTextColor = lirixColors.textPrimary,
+                                            unfocusedTextColor = lirixColors.textPrimary,
+                                            cursorColor = lirixColors.accentPrimary
                                         )
                                     )
                                 } else {
@@ -1790,9 +1792,9 @@ fun NowPlayingScreen(
                                                     notesInputText = activeNotes
                                                     isEditingNotes = true
                                                 },
-                                            color = AppColors.SurfaceLevel2,
+                                            color = lirixColors.surfaceCard,
                                             shape = RoundedCornerShape(12.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle)
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.borderSubtle)
                                         ) {
                                             Text(
                                                 text = activeNotes,
@@ -1800,7 +1802,7 @@ fun NowPlayingScreen(
                                                     lineHeight = 24.sp,
                                                     fontSize = 14.sp
                                                 ),
-                                                color = AppColors.TextPrimary,
+                                                color = lirixColors.textPrimary,
                                                 modifier = Modifier.padding(14.dp)
                                             )
                                         }
@@ -1814,14 +1816,14 @@ fun NowPlayingScreen(
                                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                                 Text(
                                                     text = "Заметок пока нет...",
-                                                    color = AppColors.TextSecondary,
+                                                    color = lirixColors.textSecondary,
                                                     style = MaterialTheme.typography.bodyMedium
                                                 )
                                                 Spacer(modifier = Modifier.height(12.dp))
                                                 Surface(
-                                                    color = AppColors.SurfaceLevel2,
+                                                    color = lirixColors.surfaceCard,
                                                     shape = RoundedCornerShape(10.dp),
-                                                    border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.ElectricMint.copy(alpha = 0.5f)),
+                                                    border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.accentPrimary.copy(alpha = 0.5f)),
                                                     modifier = Modifier.clickable {
                                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                                         notesInputText = ""
@@ -1835,14 +1837,14 @@ fun NowPlayingScreen(
                                                         Icon(
                                                             imageVector = Icons.Default.Add,
                                                             contentDescription = null,
-                                                            tint = AppColors.ElectricMint,
+                                                            tint = lirixColors.accentPrimary,
                                                             modifier = Modifier.size(16.dp)
                                                         )
                                                         Spacer(modifier = Modifier.width(6.dp))
                                                         Text(
                                                             text = "Добавить заметку",
                                                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                            color = AppColors.ElectricMint
+                                                            color = lirixColors.accentPrimary
                                                         )
                                                     }
                                                 }
@@ -1909,6 +1911,7 @@ fun HighFidelityKaraokePlayer(
     onStartTapSync: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val lirixColors = LirixThemeTokens.colors
     val lines = remember(lrcText) {
         if (!lrcText.isNullOrBlank()) parseLrcLinesStrict(lrcText) else emptyList()
     }
@@ -1927,7 +1930,7 @@ fun HighFidelityKaraokePlayer(
             ) {
                 Text(
                     text = "Синхронизированные строки LRC недоступны для этого трека",
-                    color = AppColors.TextSecondary,
+                    color = lirixColors.textSecondary,
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -1956,7 +1959,7 @@ fun HighFidelityKaraokePlayer(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         // Calculate vertical padding to ensure the active line lands directly at the vertical viewport center
-        val centerPadding = (maxHeight / 2) - 34.dp
+        val centerPadding = ((maxHeight / 2) - 34.dp).coerceAtLeast(0.dp)
 
         LazyColumn(
             state = lazyListState,
@@ -1980,15 +1983,15 @@ fun HighFidelityKaraokePlayer(
                     label = "karaokeLineScale"
                 )
 
-                val itemShape = RoundedCornerShape(16.dp)
+                val itemShape = RoundedCornerShape(lirixColors.cardCornerRadius)
                 val activeBorderAndBg = if (isActive) {
                     Modifier
                         .background(
                             brush = Brush.horizontalGradient(
                                 listOf(
-                                    AppColors.HyperVioletGlow,
-                                    AppColors.CyberCyanGlow.copy(alpha = 0.18f),
-                                    AppColors.HyperVioletGlow
+                                    lirixColors.accentGlow,
+                                    lirixColors.accentSecondary.copy(alpha = 0.18f),
+                                    lirixColors.accentGlow
                                 )
                             ),
                             shape = itemShape
@@ -1996,7 +1999,7 @@ fun HighFidelityKaraokePlayer(
                         .border(
                             width = 1.dp,
                             brush = Brush.horizontalGradient(
-                                listOf(AppColors.HyperViolet, AppColors.CyberCyan)
+                                listOf(lirixColors.accentPrimary, lirixColors.accentSecondary)
                             ),
                             shape = itemShape
                         )
@@ -2026,7 +2029,7 @@ fun HighFidelityKaraokePlayer(
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = AppColors.CyberCyan,
+                                color = lirixColors.accentSecondary,
                                 modifier = Modifier.padding(bottom = 2.dp)
                             )
                         }
@@ -2046,7 +2049,7 @@ fun HighFidelityKaraokePlayer(
                                     lineHeight = 24.sp
                                 )
                             },
-                            color = if (isActive) AppColors.HyperViolet else AppColors.TextSecondary,
+                            color = if (isActive) lirixColors.karaokeActive else lirixColors.karaokeInactive,
                             textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2068,6 +2071,7 @@ private fun PlainLyricsReadingView(
     onStartTapSync: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val lirixColors = LirixThemeTokens.colors
     val clipboard = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
     var isCopied by remember { mutableStateOf(false) }
@@ -2085,9 +2089,9 @@ private fun PlainLyricsReadingView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                color = AppColors.SurfaceLevel2,
+                color = lirixColors.surfaceCard,
                 shape = RoundedCornerShape(8.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle)
+                border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.borderSubtle)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -2096,14 +2100,14 @@ private fun PlainLyricsReadingView(
                     Icon(
                         imageVector = Icons.Default.MusicNote,
                         contentDescription = null,
-                        tint = AppColors.CyberCyan,
+                        tint = lirixColors.accentSecondary,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Режим чтения • LRC таймкоды отсутствуют",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = AppColors.TextSecondary
+                        color = lirixColors.textSecondary
                     )
                 }
             }
@@ -2119,7 +2123,7 @@ private fun PlainLyricsReadingView(
                 Icon(
                     imageVector = Icons.Default.ContentCopy,
                     contentDescription = "Copy lyrics",
-                    tint = if (isCopied) AppColors.ElectricMint else AppColors.TextSecondary,
+                    tint = if (isCopied) lirixColors.accentSecondary else lirixColors.textSecondary,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -2135,8 +2139,8 @@ private fun PlainLyricsReadingView(
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onStartTapSync()
                     },
-                color = AppColors.SurfaceLevel2,
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.HyperViolet.copy(alpha = 0.6f)),
+                color = lirixColors.surfaceCard,
+                border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.accentPrimary.copy(alpha = 0.6f)),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(
@@ -2149,7 +2153,7 @@ private fun PlainLyricsReadingView(
                     Icon(
                         imageVector = Icons.Default.MusicNote,
                         contentDescription = null,
-                        tint = AppColors.CyberCyan,
+                        tint = lirixColors.accentSecondary,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -2159,7 +2163,7 @@ private fun PlainLyricsReadingView(
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         ),
-                        color = AppColors.HyperViolet
+                        color = lirixColors.accentPrimary
                     )
                 }
             }
@@ -2174,7 +2178,7 @@ private fun PlainLyricsReadingView(
                 lineHeight = 28.sp,
                 letterSpacing = 0.2.sp
             ),
-            color = AppColors.TextPrimary,
+            color = lirixColors.textPrimary,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
@@ -2197,17 +2201,18 @@ fun ExhaustedLyricsPlaceholder(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        val tokens = LirixThemeTokens.colors
         Icon(
             imageVector = Icons.Default.MusicNote,
             contentDescription = null,
-            tint = AppColors.TextTertiary,
+            tint = tokens.textMuted,
             modifier = Modifier.size(44.dp)
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = "Текст не найден",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = AppColors.TextPrimary
+            color = tokens.textPrimary
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
@@ -2217,7 +2222,7 @@ fun ExhaustedLyricsPlaceholder(
                 "Текст отсутствует в стандартных базах"
             },
             style = MaterialTheme.typography.bodySmall,
-            color = AppColors.TextSecondary,
+            color = tokens.textSecondary,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -2225,10 +2230,10 @@ fun ExhaustedLyricsPlaceholder(
         // Кнопка перехода к режиму поиска / обучения
         Button(
             onClick = onSearchWeb,
-            colors = ButtonDefaults.buttonColors(containerColor = AppColors.HyperViolet),
+            colors = ButtonDefaults.buttonColors(containerColor = tokens.accentPrimary),
             shape = RoundedCornerShape(10.dp)
         ) {
-            Text("🌐 Найти в интернете", color = AppColors.AmoledBlack, fontWeight = FontWeight.Bold)
+            Text("🌐 Найти в интернете", color = if (tokens.isDark) Color.Black else Color.White, fontWeight = FontWeight.Bold)
         }
 
         if (hasRejections) {
@@ -2236,25 +2241,25 @@ fun ExhaustedLyricsPlaceholder(
             OutlinedButton(
                 onClick = onResetRejections,
                 shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, AppColors.CyberCyan)
+                border = BorderStroke(1.dp, tokens.accentSecondary)
             ) {
-                Text("🔄 Сбросить отклонённые источники", color = AppColors.CyberCyan)
+                Text("🔄 Сбросить отклонённые источники", color = tokens.accentSecondary)
             }
         } else {
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
                 onClick = onRetryDefault,
                 shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, AppColors.HyperViolet.copy(alpha = 0.5f))
+                border = BorderStroke(1.dp, tokens.accentPrimary.copy(alpha = 0.6f))
             ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
                     contentDescription = null,
-                    tint = AppColors.HyperViolet,
+                    tint = tokens.accentPrimary,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Повторить поиск", color = AppColors.TextPrimary)
+                Text("Повторить поиск", color = tokens.textPrimary)
             }
         }
     }

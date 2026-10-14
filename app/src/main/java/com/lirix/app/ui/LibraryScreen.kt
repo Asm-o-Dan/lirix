@@ -101,6 +101,7 @@ enum class LibraryTabFilter(val title: String) {
 fun LibraryScreen(
     onTrackSelected: (TrackEntity) -> Unit = {}
 ) {
+    val lirixColors = LirixThemeTokens.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val db = remember { AppDatabase.getInstance(context) }
@@ -158,7 +159,7 @@ fun LibraryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.AmoledBlack)
+            .background(lirixColors.appBackground)
             .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
         // Screen Header: Bold Editorial Style
@@ -173,7 +174,7 @@ fun LibraryScreen(
                         modifier = Modifier
                             .size(6.dp)
                             .clip(CircleShape)
-                            .background(if (activeSubTab == LibrarySubTab.FAVORITES) AppColors.HyperViolet else AppColors.CyberCyan)
+                            .background(if (activeSubTab == LibrarySubTab.FAVORITES) lirixColors.accentPrimary else lirixColors.accentSecondary)
                     )
                     Text(
                         text = if (activeSubTab == LibrarySubTab.FAVORITES) "ФОНОТЕКА // АРХИВ" else "ХРОНИКА // ТАЙМЛАЙН",
@@ -182,7 +183,7 @@ fun LibraryScreen(
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 1.sp
                         ),
-                        color = if (activeSubTab == LibrarySubTab.FAVORITES) AppColors.HyperViolet else AppColors.CyberCyan
+                        color = if (activeSubTab == LibrarySubTab.FAVORITES) lirixColors.accentPrimary else lirixColors.accentSecondary
                     )
                 }
                 Spacer(modifier = Modifier.height(2.dp))
@@ -193,7 +194,7 @@ fun LibraryScreen(
                         fontWeight = FontWeight.Black,
                         letterSpacing = (-0.5).sp
                     ),
-                    color = AppColors.TextPrimary
+                    color = lirixColors.textPrimary
                 )
             }
 
@@ -208,7 +209,7 @@ fun LibraryScreen(
                     Icon(
                         imageVector = Icons.Default.Palette,
                         contentDescription = "Тема оформления",
-                        tint = LirixThemeTokens.colors.accentPrimary,
+                        tint = lirixColors.accentPrimary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -220,17 +221,17 @@ fun LibraryScreen(
                     Icon(
                         imageVector = Icons.Default.FileDownload,
                         contentDescription = "Импорт правила парсера",
-                        tint = AppColors.CyberCyan,
+                        tint = lirixColors.accentSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
 
                 Surface(
-                    color = AppColors.SurfaceLevel2,
+                    color = lirixColors.surfacePrimary,
                     shape = RoundedCornerShape(8.dp),
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        if (activeSubTab == LibrarySubTab.FAVORITES) AppColors.HyperViolet.copy(alpha = 0.4f) else AppColors.CyberCyan.copy(alpha = 0.4f)
+                        if (activeSubTab == LibrarySubTab.FAVORITES) lirixColors.accentPrimary.copy(alpha = 0.4f) else lirixColors.accentSecondary.copy(alpha = 0.4f)
                     )
                 ) {
                     Text(
@@ -240,7 +241,7 @@ fun LibraryScreen(
                             fontWeight = FontWeight.Bold,
                             fontSize = 10.sp
                         ),
-                        color = if (activeSubTab == LibrarySubTab.FAVORITES) AppColors.HyperViolet else AppColors.CyberCyan,
+                        color = if (activeSubTab == LibrarySubTab.FAVORITES) lirixColors.accentPrimary else lirixColors.accentSecondary,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }
@@ -253,26 +254,27 @@ fun LibraryScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(AppColors.SurfaceLevel1)
-                .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(lirixColors.pillCornerRadius))
+                .background(lirixColors.surfacePrimary)
+                .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.pillCornerRadius))
                 .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             LibrarySubTab.entries.forEach { subTab ->
                 val isSelected = activeSubTab == subTab
+                val tabActiveTextColor = if (lirixColors.isDark) Color.Black else Color.White
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .defaultMinSize(minHeight = 44.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
                         .background(
                             if (isSelected) {
                                 Brush.horizontalGradient(
                                     if (subTab == LibrarySubTab.FAVORITES) {
-                                        listOf(AppColors.HyperViolet, AppColors.HyperVioletDark)
+                                        listOf(lirixColors.accentPrimary, lirixColors.accentPrimary.copy(alpha = 0.8f))
                                     } else {
-                                        listOf(AppColors.CyberCyan, Color(0xFF00B0FF))
+                                        listOf(lirixColors.accentSecondary, lirixColors.accentSecondary.copy(alpha = 0.8f))
                                     }
                                 )
                             } else {
@@ -295,7 +297,7 @@ fun LibraryScreen(
                         Icon(
                             imageVector = subTab.icon,
                             contentDescription = null,
-                            tint = if (isSelected) AppColors.AmoledBlack else AppColors.TextSecondary,
+                            tint = if (isSelected) tabActiveTextColor else lirixColors.textSecondary,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
@@ -304,7 +306,7 @@ fun LibraryScreen(
                                 fontSize = 13.sp,
                                 fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold
                             ),
-                            color = if (isSelected) AppColors.AmoledBlack else AppColors.TextSecondary
+                            color = if (isSelected) tabActiveTextColor else lirixColors.textSecondary
                         )
                     }
                 }
@@ -322,14 +324,14 @@ fun LibraryScreen(
                 Text(
                     text = if (activeSubTab == LibrarySubTab.FAVORITES) "Поиск по медиатеке..." else "Поиск по архиву истории...",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = AppColors.TextTertiary
+                    color = lirixColors.textMuted
                 )
             },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = null,
-                    tint = if (activeSubTab == LibrarySubTab.FAVORITES) AppColors.HyperViolet else AppColors.CyberCyan,
+                    tint = if (activeSubTab == LibrarySubTab.FAVORITES) lirixColors.accentPrimary else lirixColors.accentSecondary,
                     modifier = Modifier.size(20.dp)
                 )
             },
@@ -342,21 +344,21 @@ fun LibraryScreen(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Clear",
-                            tint = AppColors.TextSecondary,
+                            tint = lirixColors.textSecondary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                 }
             },
             singleLine = true,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(lirixColors.cardCornerRadius),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = AppColors.SurfaceLevel1,
-                unfocusedContainerColor = AppColors.SurfaceLevel1,
-                focusedBorderColor = if (activeSubTab == LibrarySubTab.FAVORITES) AppColors.HyperViolet else AppColors.CyberCyan,
-                unfocusedBorderColor = AppColors.BorderSubtle,
-                focusedTextColor = AppColors.TextPrimary,
-                unfocusedTextColor = AppColors.TextPrimary
+                focusedContainerColor = lirixColors.surfacePrimary,
+                unfocusedContainerColor = lirixColors.surfacePrimary,
+                focusedBorderColor = if (activeSubTab == LibrarySubTab.FAVORITES) lirixColors.accentPrimary else lirixColors.accentSecondary,
+                unfocusedBorderColor = lirixColors.borderSubtle,
+                focusedTextColor = lirixColors.textPrimary,
+                unfocusedTextColor = lirixColors.textPrimary
             )
         )
 
@@ -382,24 +384,25 @@ fun LibraryScreen(
                                     LibraryTabFilter.WITH_LYRICS -> recentTracks.count { !it.plainLyrics.isNullOrBlank() || !it.syncedLyrics.isNullOrBlank() }
                                     LibraryTabFilter.WITH_NOTES -> recentTracks.count { it.userNotes.isNotBlank() }
                                 }
+                                val chipActiveTextColor = if (lirixColors.isDark) Color.Black else Color.White
 
                                 Box(
                                     modifier = Modifier
                                         .defaultMinSize(minHeight = 44.dp)
-                                        .clip(RoundedCornerShape(20.dp))
+                                        .clip(RoundedCornerShape(lirixColors.pillCornerRadius))
                                         .background(
                                             if (isSelected) {
                                                 Brush.horizontalGradient(
-                                                    listOf(AppColors.HyperViolet, AppColors.HyperVioletDark)
+                                                    listOf(lirixColors.accentPrimary, lirixColors.accentPrimary.copy(alpha = 0.8f))
                                                 )
                                             } else {
-                                                androidx.compose.ui.graphics.SolidColor(AppColors.SurfaceLevel1)
+                                                androidx.compose.ui.graphics.SolidColor(lirixColors.surfacePrimary)
                                             }
                                         )
                                         .border(
                                             1.dp,
-                                            if (isSelected) AppColors.HyperViolet else AppColors.BorderSubtle,
-                                            RoundedCornerShape(20.dp)
+                                            if (isSelected) lirixColors.accentPrimary else lirixColors.borderSubtle,
+                                            RoundedCornerShape(lirixColors.pillCornerRadius)
                                         )
                                         .clickable {
                                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -415,12 +418,12 @@ fun LibraryScreen(
                                                 fontSize = 12.sp,
                                                 fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
                                             ),
-                                            color = if (isSelected) AppColors.AmoledBlack else AppColors.TextSecondary
+                                            color = if (isSelected) chipActiveTextColor else lirixColors.textSecondary
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Surface(
                                             shape = CircleShape,
-                                            color = if (isSelected) AppColors.AmoledBlack.copy(alpha = 0.25f) else AppColors.SurfaceLevel2
+                                            color = if (isSelected) chipActiveTextColor.copy(alpha = 0.25f) else lirixColors.surfaceCard
                                         ) {
                                             Text(
                                                 text = "$count",
@@ -429,7 +432,7 @@ fun LibraryScreen(
                                                     fontWeight = FontWeight.Bold,
                                                     fontFamily = FontFamily.Monospace
                                                 ),
-                                                color = if (isSelected) AppColors.AmoledBlack else AppColors.CyberCyan,
+                                                color = if (isSelected) chipActiveTextColor else lirixColors.accentSecondary,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
                                             )
                                         }
@@ -451,13 +454,13 @@ fun LibraryScreen(
                                     Icon(
                                         imageVector = Icons.Default.LibraryMusic,
                                         contentDescription = null,
-                                        tint = AppColors.TextTertiary,
+                                        tint = lirixColors.textMuted,
                                         modifier = Modifier.size(48.dp)
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
                                         text = "Нет треков в данной категории",
-                                        color = AppColors.TextSecondary,
+                                        color = lirixColors.textSecondary,
                                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
                                     )
                                 }
@@ -496,17 +499,17 @@ fun LibraryScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(AppColors.SurfaceLevel1)
+                                .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+                                .background(lirixColors.surfacePrimary)
                                 .border(
                                     1.dp,
                                     Brush.horizontalGradient(
                                         listOf(
-                                            AppColors.HyperViolet.copy(alpha = 0.35f),
-                                            AppColors.CyberCyan.copy(alpha = 0.35f)
+                                            lirixColors.accentPrimary.copy(alpha = 0.35f),
+                                            lirixColors.accentSecondary.copy(alpha = 0.35f)
                                         )
                                     ),
-                                    RoundedCornerShape(14.dp)
+                                    RoundedCornerShape(lirixColors.cardCornerRadius)
                                 )
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -516,7 +519,7 @@ fun LibraryScreen(
                                 Icon(
                                     imageVector = Icons.Default.MusicNote,
                                     contentDescription = null,
-                                    tint = AppColors.HyperViolet,
+                                    tint = lirixColors.accentPrimary,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -527,7 +530,7 @@ fun LibraryScreen(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 11.sp
                                     ),
-                                    color = AppColors.TextPrimary
+                                    color = lirixColors.textPrimary
                                 )
                             }
 
@@ -544,7 +547,7 @@ fun LibraryScreen(
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 11.sp
                                     ),
-                                    color = AppColors.CyberCyan
+                                    color = lirixColors.accentSecondary
                                 )
                             }
                         }
@@ -562,13 +565,13 @@ fun LibraryScreen(
                                     Icon(
                                         imageVector = Icons.Default.History,
                                         contentDescription = null,
-                                        tint = AppColors.TextTertiary,
+                                        tint = lirixColors.textMuted,
                                         modifier = Modifier.size(48.dp)
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
                                         text = if (searchQuery.isBlank()) "История прослушиваний пуста" else "Ничего не найдено по запросу",
-                                        color = AppColors.TextSecondary,
+                                        color = lirixColors.textSecondary,
                                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
                                     )
                                 }
@@ -628,15 +631,16 @@ private fun LibraryTrackCard(
     onFavoriteToggle: () -> Unit,
     onClick: () -> Unit
 ) {
+    val lirixColors = LirixThemeTokens.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(AppColors.SurfaceLevel1)
+            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+            .background(lirixColors.surfaceCard)
             .border(
                 1.dp,
-                if (track.isFavorite) AppColors.AmberGold.copy(alpha = 0.5f) else AppColors.BorderSubtle,
-                RoundedCornerShape(16.dp)
+                if (track.isFavorite) AppColors.AmberGold.copy(alpha = 0.5f) else lirixColors.borderSubtle,
+                RoundedCornerShape(lirixColors.cardCornerRadius)
             )
             .clickable(onClick = onClick)
             .padding(12.dp),
@@ -647,7 +651,7 @@ private fun LibraryTrackCard(
             artUri = track.albumArtUri,
             size = 50.dp,
             shape = RoundedCornerShape(12.dp),
-            borderColor = if (track.isFavorite) AppColors.AmberGold.copy(alpha = 0.6f) else AppColors.BorderSubtle,
+            borderColor = if (track.isFavorite) AppColors.AmberGold.copy(alpha = 0.6f) else lirixColors.borderSubtle,
             contentDescription = "${track.title} library artwork"
         )
 
@@ -660,7 +664,7 @@ private fun LibraryTrackCard(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 ),
-                color = AppColors.TextPrimary,
+                color = lirixColors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -671,17 +675,17 @@ private fun LibraryTrackCard(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 ),
-                color = AppColors.TextSecondary,
+                color = lirixColors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (!track.syncedLyrics.isNullOrBlank()) {
-                    BadgeChip(text = "LRC", color = AppColors.HyperViolet)
+                    BadgeChip(text = "LRC", color = lirixColors.accentPrimary)
                 }
                 if (!track.plainLyrics.isNullOrBlank()) {
-                    BadgeChip(text = "Текст", color = AppColors.CyberCyan)
+                    BadgeChip(text = "Текст", color = lirixColors.accentSecondary)
                 }
                 if (track.userNotes.isNotBlank()) {
                     BadgeChip(text = "Заметка", color = AppColors.ElectricMint)
@@ -702,7 +706,7 @@ private fun LibraryTrackCard(
                             fontSize = 11.sp,
                             fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                         ),
-                        color = AppColors.CyberCyan,
+                        color = lirixColors.accentSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -730,7 +734,7 @@ private fun LibraryTrackCard(
             Icon(
                 imageVector = if (track.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                 contentDescription = "Избранное",
-                tint = if (track.isFavorite) AppColors.ExpenseRed else AppColors.TextSecondary,
+                tint = if (track.isFavorite) AppColors.ExpenseRed else lirixColors.textSecondary,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -744,18 +748,19 @@ private fun UnifiedHistoryTrackCard(
     onFavoriteClick: () -> Unit,
     onClick: () -> Unit
 ) {
+    val lirixColors = LirixThemeTokens.colors
     val dateFormat = remember { SimpleDateFormat("HH:mm • dd MMM", Locale.getDefault()) }
     val formattedTime = remember(track.lastPlayedAt) { dateFormat.format(Date(track.lastPlayedAt)) }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(AppColors.SurfaceLevel1)
+            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+            .background(lirixColors.surfaceCard)
             .border(
                 1.dp,
-                if (track.isFavorite) AppColors.AmberGold.copy(alpha = 0.5f) else AppColors.BorderSubtle,
-                RoundedCornerShape(16.dp)
+                if (track.isFavorite) AppColors.AmberGold.copy(alpha = 0.5f) else lirixColors.borderSubtle,
+                RoundedCornerShape(lirixColors.cardCornerRadius)
             )
             .clickable(onClick = onClick)
             .padding(12.dp),
@@ -766,7 +771,7 @@ private fun UnifiedHistoryTrackCard(
             artUri = track.albumArtUri,
             size = 50.dp,
             shape = RoundedCornerShape(12.dp),
-            borderColor = if (track.isFavorite) AppColors.AmberGold.copy(alpha = 0.6f) else AppColors.BorderSubtle,
+            borderColor = if (track.isFavorite) AppColors.AmberGold.copy(alpha = 0.6f) else lirixColors.borderSubtle,
             contentDescription = "${track.title} artwork"
         )
 
@@ -779,7 +784,7 @@ private fun UnifiedHistoryTrackCard(
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 ),
-                color = AppColors.TextPrimary,
+                color = lirixColors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -790,7 +795,7 @@ private fun UnifiedHistoryTrackCard(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 ),
-                color = AppColors.TextSecondary,
+                color = lirixColors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -798,9 +803,9 @@ private fun UnifiedHistoryTrackCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // Play count pill
                 Surface(
-                    color = AppColors.CyberCyanGlow.copy(alpha = 0.15f),
+                    color = lirixColors.accentSecondary.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(5.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.CyberCyan.copy(alpha = 0.35f))
+                    border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.accentSecondary.copy(alpha = 0.35f))
                 ) {
                     Text(
                         text = "⚡ x${track.playCount}",
@@ -809,7 +814,7 @@ private fun UnifiedHistoryTrackCard(
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 10.sp
                         ),
-                        color = AppColors.CyberCyan,
+                        color = lirixColors.accentSecondary,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
@@ -821,7 +826,7 @@ private fun UnifiedHistoryTrackCard(
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontFamily = FontFamily.Monospace,
                         fontSize = 10.sp,
-                        color = AppColors.TextSecondary
+                        color = lirixColors.textSecondary
                     )
                 )
             }
@@ -837,7 +842,7 @@ private fun UnifiedHistoryTrackCard(
                             fontSize = 11.sp,
                             fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                         ),
-                        color = AppColors.CyberCyan,
+                        color = lirixColors.accentSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -865,7 +870,7 @@ private fun UnifiedHistoryTrackCard(
             Icon(
                 imageVector = if (track.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                 contentDescription = "Favorite",
-                tint = if (track.isFavorite) AppColors.ExpenseRed else AppColors.TextSecondary,
+                tint = if (track.isFavorite) AppColors.ExpenseRed else lirixColors.textSecondary,
                 modifier = Modifier.size(22.dp)
             )
         }

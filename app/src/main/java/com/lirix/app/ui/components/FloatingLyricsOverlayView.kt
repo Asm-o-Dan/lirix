@@ -75,11 +75,16 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import com.lirix.app.MainActivity
 import com.lirix.app.ingestion.MediaSessionCollector
 import com.lirix.app.service.FloatingLyricsState
 import com.lirix.app.service.FloatingSnapCalculator
-import com.lirix.app.ui.theme.AppColors
+import com.lirix.app.storage.ThemePreferencesRepository
+import com.lirix.app.ui.LirixTheme
+import com.lirix.app.ui.theme.AppThemeType
+import com.lirix.app.ui.theme.LirixThemeTokens
 import kotlinx.coroutines.flow.StateFlow
 import timber.log.Timber
 
@@ -302,7 +307,11 @@ fun FloatingLyricsOverlayContent(
     onPlayPauseClick: () -> Unit,
     onSeekRelative: (Long) -> Unit
 ) {
-    MaterialTheme {
+    val context = LocalContext.current
+    val themeRepo = remember { ThemePreferencesRepository.getInstance(context) }
+    val currentTheme by themeRepo.selectedTheme.collectAsState()
+
+    LirixTheme(themeType = currentTheme) {
         AnimatedContent(
             targetState = state.isExpanded,
             transitionSpec = {
@@ -313,6 +322,7 @@ fun FloatingLyricsOverlayContent(
             if (isExpanded) {
                 FloatingExpandedCard(
                     state = state,
+                    currentTheme = currentTheme,
                     onCollapseClick = onToggleExpand,
                     onCloseClick = onCloseClick,
                     onOpenAppClick = onOpenAppClick,
@@ -337,6 +347,9 @@ fun FloatingCollapsedPill(
     state: FloatingLyricsState,
     onClick: () -> Unit
 ) {
+    val lirixColors = LirixThemeTokens.colors
+    val backgroundColor = lirixColors.surfaceElevated.copy(alpha = if (lirixColors.isDark) 0.90f else 0.95f)
+
     Surface(
         modifier = Modifier
             .clickable(onClick = onClick)
@@ -344,13 +357,13 @@ fun FloatingCollapsedPill(
             .heightIn(min = 42.dp, max = 64.dp)
             .wrapContentHeight(),
         shape = RoundedCornerShape(20.dp),
-        color = Color(0xEE090A0F),
+        color = backgroundColor,
         border = BorderStroke(
             1.2.dp,
             Brush.horizontalGradient(
                 listOf(
-                    AppColors.HyperViolet.copy(alpha = 0.8f),
-                    AppColors.CyberCyan.copy(alpha = 0.8f)
+                    lirixColors.accentPrimary.copy(alpha = 0.8f),
+                    lirixColors.accentSecondary.copy(alpha = 0.8f)
                 )
             )
         ),
@@ -367,7 +380,7 @@ fun FloatingCollapsedPill(
                 artUri = state.albumArtUri,
                 size = 28.dp,
                 shape = CircleShape,
-                borderColor = AppColors.HyperViolet
+                borderColor = lirixColors.accentPrimary
             )
 
             // Centered active lyric or track info
@@ -380,7 +393,7 @@ fun FloatingCollapsedPill(
 
             Text(
                 text = displayText,
-                color = if (state.activeLineText.isNotBlank()) AppColors.CyberCyan else AppColors.TextPrimary,
+                color = if (state.activeLineText.isNotBlank()) lirixColors.accentPrimary else lirixColors.textPrimary,
                 fontSize = 11.5.sp,
                 lineHeight = 14.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -392,7 +405,7 @@ fun FloatingCollapsedPill(
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = "Развернуть",
-                tint = AppColors.TextTertiary,
+                tint = lirixColors.textMuted,
                 modifier = Modifier.size(16.dp)
             )
         }
@@ -405,18 +418,22 @@ fun FloatingCollapsedPill(
 @Composable
 fun FloatingExpandedCard(
     state: FloatingLyricsState,
+    currentTheme: AppThemeType,
     onCollapseClick: () -> Unit,
     onCloseClick: () -> Unit,
     onOpenAppClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onSeekRelative: (Long) -> Unit
 ) {
+    val lirixColors = LirixThemeTokens.colors
+    val backgroundColor = lirixColors.surfaceElevated.copy(alpha = if (lirixColors.isDark) 0.92f else 0.96f)
+
     Surface(
         modifier = Modifier
             .width(320.dp),
         shape = RoundedCornerShape(18.dp),
-        color = Color(0xF70C0D14),
-        border = BorderStroke(1.2.dp, AppColors.BorderSubtle),
+        color = backgroundColor,
+        border = BorderStroke(1.2.dp, lirixColors.borderSubtle),
         shadowElevation = 12.dp
     ) {
         Column(
@@ -430,7 +447,7 @@ fun FloatingExpandedCard(
                     .width(36.dp)
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(AppColors.BorderSubtle)
+                    .background(lirixColors.borderSubtle)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -445,13 +462,13 @@ fun FloatingExpandedCard(
                     artUri = state.albumArtUri,
                     size = 38.dp,
                     shape = RoundedCornerShape(8.dp),
-                    borderColor = AppColors.HyperViolet
+                    borderColor = lirixColors.accentPrimary
                 )
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = state.title.ifBlank { "Lirix Player" },
-                        color = AppColors.TextPrimary,
+                        color = lirixColors.textPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -459,7 +476,7 @@ fun FloatingExpandedCard(
                     )
                     Text(
                         text = state.artist.ifBlank { "Ожидание трека..." },
-                        color = AppColors.HyperViolet,
+                        color = lirixColors.accentPrimary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -475,7 +492,7 @@ fun FloatingExpandedCard(
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowUp,
                         contentDescription = "Свернуть",
-                        tint = AppColors.TextSecondary,
+                        tint = lirixColors.textSecondary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -488,7 +505,7 @@ fun FloatingExpandedCard(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Закрыть оверлей",
-                        tint = AppColors.ExpenseRed,
+                        tint = lirixColors.accentSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -501,8 +518,8 @@ fun FloatingExpandedCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(AppColors.SurfaceLevel1)
-                    .border(1.dp, AppColors.BorderSubtle.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                    .background(lirixColors.surfaceCard)
+                    .border(1.dp, lirixColors.borderSubtle.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                     .padding(vertical = 10.dp, horizontal = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -516,14 +533,14 @@ fun FloatingExpandedCard(
                     ) {
                         Text(
                             text = "📜 Текст без таймкодов",
-                            color = AppColors.HyperViolet,
+                            color = lirixColors.accentPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
                         Text(
                             text = "Этот текст без таймкодов. Откройте Lirix для чтения полного текста",
-                            color = AppColors.TextSecondary,
+                            color = lirixColors.textSecondary,
                             fontSize = 11.5.sp,
                             lineHeight = 15.sp,
                             textAlign = TextAlign.Center
@@ -533,12 +550,12 @@ fun FloatingExpandedCard(
                             onClick = onOpenAppClick,
                             modifier = Modifier.height(34.dp),
                             shape = RoundedCornerShape(17.dp),
-                            border = BorderStroke(1.dp, AppColors.HyperViolet),
+                            border = BorderStroke(1.dp, lirixColors.accentPrimary),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "Открыть в Lirix",
-                                color = AppColors.HyperViolet,
+                                color = lirixColors.accentPrimary,
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -554,7 +571,7 @@ fun FloatingExpandedCard(
                         state.previousLineText?.let { prev ->
                             Text(
                                 text = prev,
-                                color = AppColors.TextTertiary.copy(alpha = 0.5f),
+                                color = lirixColors.textMuted.copy(alpha = 0.6f),
                                 fontSize = 11.sp,
                                 maxLines = 1,
                                 textAlign = TextAlign.Center,
@@ -574,13 +591,13 @@ fun FloatingExpandedCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(AppColors.HyperViolet.copy(alpha = 0.15f))
+                                .background(lirixColors.accentPrimary.copy(alpha = 0.15f))
                                 .padding(vertical = 6.dp, horizontal = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = mainText,
-                                color = AppColors.CyberCyan,
+                                color = lirixColors.accentPrimary,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center,
@@ -593,7 +610,7 @@ fun FloatingExpandedCard(
                         state.nextLineText?.let { next ->
                             Text(
                                 text = next,
-                                color = AppColors.TextTertiary.copy(alpha = 0.5f),
+                                color = lirixColors.textMuted.copy(alpha = 0.6f),
                                 fontSize = 11.sp,
                                 maxLines = 1,
                                 textAlign = TextAlign.Center,
@@ -618,18 +635,19 @@ fun FloatingExpandedCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(AppColors.SurfaceLevel1)
-                        .border(1.dp, AppColors.BorderSubtle, CircleShape)
+                        .background(lirixColors.surfaceCard)
+                        .border(1.dp, lirixColors.borderSubtle, CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Replay10,
                         contentDescription = "Назад на 10 сек",
-                        tint = AppColors.TextSecondary,
+                        tint = lirixColors.textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
 
                 // Play / Pause
+                val playPauseIconColor = if (!lirixColors.isDark || currentTheme == AppThemeType.YANDEX_MUSIC) Color.Black else Color.White
                 IconButton(
                     onClick = onPlayPauseClick,
                     modifier = Modifier
@@ -637,14 +655,14 @@ fun FloatingExpandedCard(
                         .clip(CircleShape)
                         .background(
                             Brush.linearGradient(
-                                listOf(AppColors.HyperViolet, AppColors.CyberCyan)
+                                listOf(lirixColors.accentPrimary, lirixColors.accentSecondary)
                             )
                         )
                 ) {
                     Icon(
                         imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (state.isPlaying) "Пауза" else "Воспроизведение",
-                        tint = AppColors.AmoledBlack,
+                        tint = playPauseIconColor,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -655,13 +673,13 @@ fun FloatingExpandedCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(AppColors.SurfaceLevel1)
-                        .border(1.dp, AppColors.BorderSubtle, CircleShape)
+                        .background(lirixColors.surfaceCard)
+                        .border(1.dp, lirixColors.borderSubtle, CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Forward10,
                         contentDescription = "Вперед на 10 сек",
-                        tint = AppColors.TextSecondary,
+                        tint = lirixColors.textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -672,13 +690,13 @@ fun FloatingExpandedCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(AppColors.SurfaceLevel1)
-                        .border(1.dp, AppColors.BorderSubtle, CircleShape)
+                        .background(lirixColors.surfaceCard)
+                        .border(1.dp, lirixColors.borderSubtle, CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                         contentDescription = "Открыть Lirix",
-                        tint = AppColors.HyperViolet,
+                        tint = lirixColors.accentPrimary,
                         modifier = Modifier.size(18.dp)
                     )
                 }

@@ -42,7 +42,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lirix.app.ui.theme.AppColors
+import com.lirix.app.ui.theme.LirixThemeTokens
 
 @Composable
 fun AnalogTurntable(
@@ -51,7 +51,8 @@ fun AnalogTurntable(
     isCollapsed: Boolean,
     onToggleCollapse: () -> Unit,
     onTogglePlayPause: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    tokens: com.lirix.app.ui.theme.LirixColors = LirixThemeTokens.colors
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -87,6 +88,26 @@ fun AnalogTurntable(
                         label = "VinylSpinAngle"
                     )
 
+                    val vinylBackgroundBrush = remember(tokens) {
+                        Brush.radialGradient(
+                            listOf(
+                                tokens.surfaceElevated,
+                                tokens.surfaceCard,
+                                tokens.appBackground
+                            )
+                        )
+                    }
+                    val vinylBorderBrush = remember(tokens) {
+                        Brush.sweepGradient(
+                            listOf(
+                                tokens.accentPrimary,
+                                tokens.accentSecondary,
+                                tokens.accentGlow,
+                                tokens.accentPrimary
+                            )
+                        )
+                    }
+
                     // The Spinning Vinyl Record
                     Box(
                         modifier = Modifier
@@ -99,25 +120,10 @@ fun AnalogTurntable(
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 onTogglePlayPause()
                             }
-                            .background(
-                                Brush.radialGradient(
-                                    listOf(
-                                        AppColors.SurfaceLevel3,
-                                        AppColors.SurfaceLevel1,
-                                        AppColors.AmoledBlack
-                                    )
-                                )
-                            )
+                            .background(vinylBackgroundBrush)
                             .border(
                                 1.5.dp,
-                                Brush.sweepGradient(
-                                    listOf(
-                                        AppColors.HyperViolet,
-                                        AppColors.CyberCyan,
-                                        AppColors.HyperVioletDark,
-                                        AppColors.HyperViolet
-                                    )
-                                ),
+                                vinylBorderBrush,
                                 CircleShape
                             )
                             .rotate(if (isPlaying) spinAngle else 0f),
@@ -128,13 +134,13 @@ fun AnalogTurntable(
                             modifier = Modifier
                                 .size(142.dp)
                                 .clip(CircleShape)
-                                .border(1.dp, AppColors.BorderSubtle.copy(alpha = 0.6f), CircleShape)
+                                .border(1.dp, tokens.borderSubtle.copy(alpha = if (tokens.isDark) 0.6f else 0.25f), CircleShape)
                         )
                         Box(
                             modifier = Modifier
                                 .size(102.dp)
                                 .clip(CircleShape)
-                                .border(1.dp, AppColors.BorderSubtle.copy(alpha = 0.5f), CircleShape)
+                                .border(1.dp, tokens.borderSubtle.copy(alpha = if (tokens.isDark) 0.5f else 0.2f), CircleShape)
                         )
 
                         // Center Label
@@ -142,7 +148,7 @@ fun AnalogTurntable(
                             modifier = Modifier
                                 .size(54.dp)
                                 .clip(CircleShape)
-                                .border(1.5.dp, AppColors.HyperViolet, CircleShape),
+                                .border(1.5.dp, tokens.accentPrimary, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             if (albumArtBitmap != null) {
@@ -157,8 +163,8 @@ fun AnalogTurntable(
                                     modifier = Modifier
                                         .size(9.dp)
                                         .clip(CircleShape)
-                                        .background(AppColors.AmoledBlack)
-                                        .border(1.dp, AppColors.CyberCyan.copy(alpha = 0.6f), CircleShape)
+                                        .background(tokens.appBackground)
+                                        .border(1.dp, tokens.accentSecondary.copy(alpha = 0.6f), CircleShape)
                                 )
                             } else {
                                 Box(
@@ -166,7 +172,7 @@ fun AnalogTurntable(
                                         .fillMaxSize()
                                         .background(
                                             Brush.radialGradient(
-                                                listOf(AppColors.HyperViolet, AppColors.HyperVioletDark, AppColors.SurfaceLevel1)
+                                                listOf(tokens.accentPrimary, tokens.accentSecondary, tokens.surfaceCard)
                                             )
                                         ),
                                     contentAlignment = Alignment.Center
@@ -174,7 +180,7 @@ fun AnalogTurntable(
                                     Icon(
                                         imageVector = Icons.Default.MusicNote,
                                         contentDescription = null,
-                                        tint = AppColors.AmoledBlack,
+                                        tint = if (tokens.isDark) Color.Black else Color.White,
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
@@ -262,7 +268,7 @@ fun AnalogTurntable(
                             cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
                         )
                         drawRoundRect(
-                            color = Color(0xFFA855F7),
+                            color = tokens.accentPrimary,
                             topLeft = Offset(endX - headWidth / 2, endY - 2.dp.toPx()),
                             size = Size(headWidth, headHeight),
                             cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx()),
@@ -273,13 +279,13 @@ fun AnalogTurntable(
                         val needleX = endX
                         val needleY = endY + headHeight - 2.dp.toPx()
                         drawCircle(
-                            color = if (isPlaying) Color(0xFF00E5FF) else Color(0xFF64748B),
+                            color = if (isPlaying) tokens.accentSecondary else Color(0xFF64748B),
                             radius = if (isPlaying) 3.5.dp.toPx() else 2.dp.toPx(),
                             center = Offset(needleX, needleY)
                         )
                         if (isPlaying) {
                             drawCircle(
-                                color = Color(0xFF00E5FF).copy(alpha = 0.4f),
+                                color = tokens.accentSecondary.copy(alpha = 0.4f),
                                 radius = 7.dp.toPx(),
                                 center = Offset(needleX, needleY)
                             )
@@ -294,8 +300,8 @@ fun AnalogTurntable(
             modifier = Modifier
                 .padding(top = 2.dp, bottom = 4.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(AppColors.SurfaceLevel1)
-                .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(10.dp))
+                .background(tokens.surfaceElevated)
+                .border(1.dp, tokens.borderSubtle, RoundedCornerShape(10.dp))
                 .clickable {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onToggleCollapse()
@@ -310,7 +316,7 @@ fun AnalogTurntable(
                 Icon(
                     imageVector = if (isCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                     contentDescription = if (isCollapsed) "Показать винил" else "Скрыть винил",
-                    tint = if (isCollapsed) AppColors.CyberCyan else AppColors.TextSecondary,
+                    tint = if (isCollapsed) tokens.accentSecondary else tokens.textSecondary,
                     modifier = Modifier.size(14.dp)
                 )
                 Text(
@@ -320,7 +326,7 @@ fun AnalogTurntable(
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 0.2.sp
                     ),
-                    color = if (isCollapsed) AppColors.CyberCyan else AppColors.TextSecondary
+                    color = if (isCollapsed) tokens.accentSecondary else tokens.textSecondary
                 )
             }
         }

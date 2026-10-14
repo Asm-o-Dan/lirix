@@ -91,5 +91,13 @@
 | TASK-AUDIT-01 | Независимый аудит кодовой базы (Security, Correctness, Performance, Architecture) | .sdd/reports/INDEPENDENT_CODEBASE_AUDIT.md | audit | USER_REQUEST | Independent Auditor | DONE |
 | TASK-THEME-01 | Разработка спецификации и дизайн-палитр тем (Spotify, Yandex, Obsidian, Pastel) | .sdd/specs/media-ui/theme_palette_system_spec.md | media-ui | USER_REQUEST | UI/UX Designer | DONE |
 | TASK-THEME-02 | Реализация 4 тем, ThemePreferencesRepository, Dynamic Compose LocalLirixColors и ThemeSelectionDialog | app/src/main/java/com/lirix/app/ui/theme/*, ui/components/ThemeSelectionDialog.kt | media-ui | TASK-THEME-01 | Android UI Coder | DONE |
+| TASK-THEME-05A | Миграция NowPlayingScreen на LirixThemeTokens (фон, контролы, вкладки караоке) | ui/NowPlayingScreen.kt | media-ui | TASK-THEME-02 | Coder UI | DONE |
+| TASK-THEME-05B | Миграция LibraryScreen и WrappedScreen на LirixThemeTokens | ui/LibraryScreen.kt, ui/WrappedScreen.kt | media-ui | TASK-THEME-02 | Coder UI | DONE |
+| TASK-THEME-TURNTABLE | Адаптация пластинки и звукоснимателя к LirixThemeTokens | ui/components/AnalogTurntable.kt | media-ui | TASK-THEME-05A | Coder UI | DONE |
+| TASK-THEME-CHORDS-TAPSYNC | Адаптация экрана Аккордов и кнопки Tap-to-Sync под тему | ui/NowPlayingScreen.kt | media-ui | TASK-THEME-05A | Coder UI | DONE |
+| TASK-THEME-WRAPPED | Глубокая миграция всех компонентов WrappedScreen на LirixThemeTokens | ui/WrappedScreen.kt | media-ui | TASK-THEME-05B | Coder UI | DONE |
+| TASK-THEME-OVERLAY | Интеграция LirixTheme и LirixThemeTokens в FloatingLyricsOverlayView | ui/components/FloatingLyricsOverlayView.kt | media-ui | TASK-THEME-05A | Coder UI | DONE |
 | TASK-CORE-01 | Устранение критических уязвимостей (ACCESS_NETWORK_STATE, FileProvider, MediaSession Singleton) | AndroidManifest.xml, ShareManager.kt, MediaSessionCollector.kt | media-core | TASK-AUDIT-01 | Android Core Engineer | DONE |
+| TASK-THEME-FIX-01 | Динамическая тема ExhaustedLyricsPlaceholder, заметок и мгновенный ре-теминг винила | ui/NowPlayingScreen.kt, ui/components/AnalogTurntable.kt | media-ui | USER_REQUEST | Coder UI | IN_PROGRESS |
 | TASK-DECOMP-01 | Декомпозиция NowPlayingScreen (изоляция рекомпозиций таймера, модули вкладок) | ui/NowPlayingScreen.kt, ui/player/* | media-ui | TASK-AUDIT-01 | Coder UI | READY |
+

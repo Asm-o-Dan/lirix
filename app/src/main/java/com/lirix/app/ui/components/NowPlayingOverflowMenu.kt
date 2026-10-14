@@ -72,7 +72,7 @@ fun NowPlayingOverflowMenu(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Плавающий оверлей",
-                        color = if (isOverlayActive) AppColors.CyberCyan else AppColors.TextPrimary,
+                        color = if (isOverlayActive) tokens.accentSecondary else tokens.textPrimary,
                         fontSize = 14.sp
                     )
                     if (isOverlayActive) {
@@ -80,7 +80,7 @@ fun NowPlayingOverflowMenu(
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = "Активен",
-                            tint = AppColors.CyberCyan,
+                            tint = tokens.accentSecondary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -90,7 +90,7 @@ fun NowPlayingOverflowMenu(
                 Icon(
                     imageVector = Icons.Default.PictureInPictureAlt,
                     contentDescription = null,
-                    tint = if (isOverlayActive) AppColors.CyberCyan else AppColors.TextSecondary
+                    tint = if (isOverlayActive) tokens.accentSecondary else tokens.textSecondary
                 )
             },
             onClick = {
@@ -103,7 +103,7 @@ fun NowPlayingOverflowMenu(
             text = {
                 Text(
                     text = "Поделиться постером",
-                    color = AppColors.TextPrimary,
+                    color = tokens.textPrimary,
                     fontSize = 14.sp
                 )
             },
@@ -111,7 +111,7 @@ fun NowPlayingOverflowMenu(
                 Icon(
                     imageVector = Icons.Default.Share,
                     contentDescription = null,
-                    tint = AppColors.HyperViolet
+                    tint = tokens.accentPrimary
                 )
             },
             onClick = {
@@ -145,7 +145,7 @@ fun NowPlayingOverflowMenu(
             text = {
                 Text(
                     text = "Калибровка задержки",
-                    color = AppColors.TextPrimary,
+                    color = tokens.textPrimary,
                     fontSize = 14.sp
                 )
             },
@@ -153,7 +153,7 @@ fun NowPlayingOverflowMenu(
                 Icon(
                     imageVector = Icons.Default.Tune,
                     contentDescription = null,
-                    tint = AppColors.AmberGold
+                    tint = tokens.accentPrimary
                 )
             },
             onClick = {
@@ -166,7 +166,7 @@ fun NowPlayingOverflowMenu(
             text = {
                 Text(
                     text = "Режим обучения (Teach)",
-                    color = AppColors.TextPrimary,
+                    color = tokens.textPrimary,
                     fontSize = 14.sp
                 )
             },
@@ -174,7 +174,7 @@ fun NowPlayingOverflowMenu(
                 Icon(
                     imageVector = Icons.Default.School,
                     contentDescription = null,
-                    tint = AppColors.HyperViolet
+                    tint = tokens.accentPrimary
                 )
             },
             onClick = {
@@ -187,7 +187,7 @@ fun NowPlayingOverflowMenu(
             text = {
                 Text(
                     text = if (isVinylCollapsed) "Показать винил" else "Скрыть винил",
-                    color = AppColors.TextPrimary,
+                    color = tokens.textPrimary,
                     fontSize = 14.sp
                 )
             },
@@ -195,7 +195,7 @@ fun NowPlayingOverflowMenu(
                 Icon(
                     imageVector = if (isVinylCollapsed) Icons.Default.Album else Icons.Default.MusicNote,
                     contentDescription = null,
-                    tint = AppColors.CyberCyan
+                    tint = tokens.accentSecondary
                 )
             },
             onClick = {
@@ -234,13 +234,14 @@ fun TimingCalibrationDialog(
     onResetOffset: () -> Unit,
     onDismissRequest: () -> Unit
 ) {
+    val tokens = LirixThemeTokens.colors
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = {
             Text(
                 text = "Калибровка тайминга караоке",
                 style = MaterialTheme.typography.titleMedium,
-                color = AppColors.TextPrimary,
+                color = tokens.textPrimary,
                 fontWeight = FontWeight.Bold
             )
         },
@@ -252,14 +253,14 @@ fun TimingCalibrationDialog(
                 Text(
                     text = "${if (currentOffsetMs >= 0) "+$currentOffsetMs" else currentOffsetMs} мс",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = if (currentOffsetMs == 0L) AppColors.CyberCyan else AppColors.AmberGold,
+                    color = if (currentOffsetMs == 0L) tokens.accentSecondary else AppColors.AmberGold,
                     fontWeight = FontWeight.ExtraBold
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "Сдвиг отображения подстрочника относительно звука",
                     style = MaterialTheme.typography.bodySmall,
-                    color = AppColors.TextSecondary
+                    color = tokens.textSecondary
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -271,7 +272,7 @@ fun TimingCalibrationDialog(
                         onClick = { onOffsetChange(currentOffsetMs - 50) },
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.TextPrimary),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("-50мс", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -280,7 +281,7 @@ fun TimingCalibrationDialog(
                         onClick = { onOffsetChange(currentOffsetMs - 10) },
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.TextPrimary),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("-10мс", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -297,7 +298,7 @@ fun TimingCalibrationDialog(
                         onClick = { onOffsetChange(currentOffsetMs + 10) },
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.TextPrimary),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("+10мс", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -306,7 +307,7 @@ fun TimingCalibrationDialog(
                         onClick = { onOffsetChange(currentOffsetMs + 50) },
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.TextPrimary),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("+50мс", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -329,13 +330,13 @@ fun TimingCalibrationDialog(
         confirmButton = {
             TextButton(
                 onClick = onDismissRequest,
-                colors = ButtonDefaults.textButtonColors(contentColor = AppColors.CyberCyan)
+                colors = ButtonDefaults.textButtonColors(contentColor = tokens.accentPrimary)
             ) {
                 Text("Готово", fontWeight = FontWeight.Bold)
             }
         },
-        containerColor = AppColors.SurfaceLevel1,
+        containerColor = tokens.surfaceElevated,
         shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(20.dp))
+        modifier = Modifier.border(1.dp, tokens.borderSubtle, RoundedCornerShape(20.dp))
     )
 }
