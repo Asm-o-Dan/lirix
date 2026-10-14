@@ -23,8 +23,7 @@ android {
 
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
-            arg("room.incremental", "true")
-            arg("room.expandProjection", "true")
+            arg("room.generateKotlin", "true")
         }
     }
 
@@ -138,3 +137,5 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+
+

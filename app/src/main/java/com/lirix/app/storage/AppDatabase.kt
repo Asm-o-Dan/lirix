@@ -8,11 +8,13 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
+import com.lirix.app.storage.blacklist.BlacklistDao
+import com.lirix.app.storage.blacklist.BlacklistRuleEntity
+
 /**
  * Room Database for Music & Lyrics Hub.
- * Version 6: Clean schema containing only music listening history, lyrics cache,
- * and gamification achievements. All legacy domains (Finance, Study, Rules, Events) dropped.
- * Spec: TASK-DB-02 / .sdd/specs/media-core/overview.md v1
+ * Version 11: Adds blacklist_rules table and indices for media library filtering.
+ * Spec: SPEC-BLK-01 / TASK-BLK-01
  */
 @Database(
     entities = [
@@ -21,9 +23,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         LyricsCacheEntity::class,
         AchievementEntity::class,
         LyricsRejectionEntity::class,
-        CustomLyricsRuleEntity::class
+        CustomLyricsRuleEntity::class,
+        BlacklistRuleEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -32,6 +35,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun musicDao(): MusicDao
     abstract fun lyricsDao(): LyricsDao
     abstract fun achievementDao(): AchievementDao
+    abstract fun blacklistDao(): BlacklistDao
 
     companion object {
         private const val DATABASE_NAME = "event_engine.db"
@@ -167,6 +171,30 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        @JvmField
+        val MIGRATION_10_11: Migration = object : Migration(10, 11) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `blacklist_rules` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `ruleType` TEXT NOT NULL,
+                        `pattern` TEXT NOT NULL,
+                        `matchMode` TEXT NOT NULL,
+                        `isEnabled` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_blacklist_rules_isEnabled` ON `blacklist_rules` (`isEnabled`)"
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_blacklist_rules_ruleType` ON `blacklist_rules` (`ruleType`)"
+                )
+            }
+        }
+
         fun seedDefaultAchievements(db: SupportSQLiteDatabase) {
             val achievements = listOf(
                 "('FIRST_TRACK', 'Первая нота', 'Прослушан 1 трек', 'ic_music_note', 0, NULL, 0, 1)",
@@ -249,7 +277,7 @@ abstract class AppDatabase : RoomDatabase() {
                 DATABASE_NAME
             )
                 .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
-                .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                 .fallbackToDestructiveMigration()
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {

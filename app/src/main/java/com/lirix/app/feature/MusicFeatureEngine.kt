@@ -3,18 +3,25 @@ package com.lirix.app.feature
 import android.content.Context
 import com.lirix.app.domain.Event
 import com.lirix.app.domain.EventType
+import com.lirix.app.feature.blacklist.BlacklistMatcher
 import com.lirix.app.feature.lyrics.AmDmChordParser
 import com.lirix.app.feature.lyrics.LyricsNetworkPolicy
 import com.lirix.app.feature.lyrics.NetworkConditionManager
+import com.lirix.app.ingestion.LivePlaybackSnapshot
 import com.lirix.app.storage.ListeningSessionEntity
 import com.lirix.app.storage.LyricsCacheEntity
 import com.lirix.app.storage.LyricsDao
 import com.lirix.app.storage.LyricsRejectionEntity
 import com.lirix.app.storage.MusicDao
 import com.lirix.app.storage.TrackEntity
+import com.lirix.app.storage.blacklist.BlacklistDao
+import com.lirix.app.storage.blacklist.BlacklistRuleEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.security.MessageDigest
@@ -37,9 +44,42 @@ class MusicFeatureEngine(
         onLyricsDiscovered = { trackKey, plain, synced ->
             musicDao.updateLyrics(trackKey, plain, synced)
         }
-    )
+    ),
+    private val blacklistDao: BlacklistDao? = null
 ) {
+
     private val lastIncrementTimeMap = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    private val activeBlacklistRules = MutableStateFlow<List<BlacklistRuleEntity>>(emptyList())
+    private val _livePlaybackFlow = MutableStateFlow<LivePlaybackSnapshot?>(null)
+    val livePlaybackFlow: StateFlow<LivePlaybackSnapshot?> = _livePlaybackFlow.asStateFlow()
+
+    fun startBlacklistRuleSync(scope: CoroutineScope, dao: BlacklistDao? = blacklistDao) {
+        val targetDao = dao ?: blacklistDao ?: return
+        scope.launch {
+            targetDao.getAllRulesFlow().collect { allRules ->
+                activeBlacklistRules.value = allRules.filter { it.isEnabled }
+            }
+        }
+    }
+
+    fun startBlacklistSync(scope: CoroutineScope, db: com.lirix.app.storage.AppDatabase) {
+        startBlacklistRuleSync(scope, db.blacklistDao())
+    }
+
+    fun updateActiveBlacklistRules(rules: List<BlacklistRuleEntity>) {
+        activeBlacklistRules.value = rules.filter { it.isEnabled }
+    }
+
+    suspend fun getEffectiveActiveRules(): List<BlacklistRuleEntity> {
+        return if (activeBlacklistRules.value.isNotEmpty()) {
+            activeBlacklistRules.value
+        } else if (blacklistDao != null) {
+            blacklistDao.getActiveRules().also { activeBlacklistRules.value = it }
+        } else {
+            emptyList()
+        }
+    }
 
     /**
      * Ingests a direct playback signal without requiring the legacy Event object.
@@ -60,6 +100,47 @@ class MusicFeatureEngine(
         if (title.isBlank()) return null
 
         val cleanArtist = artist.ifBlank { "Unknown Artist" }
+
+        val rules = getEffectiveActiveRules()
+        val isBlocked = BlacklistMatcher.isBlacklisted(
+            title = title,
+            artist = cleanArtist,
+            packageName = sourcePackage,
+            activeRules = rules
+        )
+
+        if (isBlocked) {
+            Timber.tag(TAG).d("MusicFeatureEngine: Track '%s - %s' (%s) is blacklisted. Skipping persistence.", title, cleanArtist, sourcePackage)
+            val isPlayingSignal = (playbackState != "PAUSED" && playbackState != "STOPPED")
+            val current = _livePlaybackFlow.value
+            _livePlaybackFlow.value = current?.copy(
+                packageName = sourcePackage,
+                title = title,
+                artist = cleanArtist,
+                album = album,
+                isPlaying = isPlayingSignal,
+                isBlacklisted = true
+            ) ?: LivePlaybackSnapshot(
+                packageName = sourcePackage,
+                title = title,
+                artist = cleanArtist,
+                album = album,
+                isPlaying = isPlayingSignal,
+                basePositionMs = 0L,
+                lastPositionUpdateTimeMs = timestamp,
+                albumArtUri = albumArtUri,
+                isBlacklisted = true
+            )
+            try {
+                com.lirix.app.ingestion.MediaSessionCollector.markCurrentTrackBlacklisted(true)
+            } catch (_: Throwable) {}
+            return null
+        }
+
+        try {
+            com.lirix.app.ingestion.MediaSessionCollector.markCurrentTrackBlacklisted(false)
+        } catch (_: Throwable) {}
+
         val trackKey = computeTrackKey(title, cleanArtist, album)
 
         val existingTrack = musicDao.getTrackByKey(trackKey)
@@ -190,6 +271,18 @@ class MusicFeatureEngine(
         val artist = parsed.artist.ifBlank { "Unknown Artist" }
         val album = parsed.album
         val pkg = event.sourcePackage
+
+        val rules = getEffectiveActiveRules()
+        val isBlocked = BlacklistMatcher.isBlacklisted(
+            title = title,
+            artist = artist,
+            packageName = pkg,
+            activeRules = rules
+        )
+        if (isBlocked) {
+            Timber.tag(TAG).d("MusicFeatureEngine: Track '%s - %s' (%s) is blacklisted. Skipping persistence.", title, artist, pkg)
+            return null
+        }
 
         val trackKey = computeTrackKey(title, artist, album)
         val now = event.timestamp

@@ -35,6 +35,22 @@ class Converters {
     @TypeConverter
     fun toCategory(value: String): Category = Category.fromKey(value)
 
+    @TypeConverter
+    fun fromBlacklistRuleType(value: com.lirix.app.storage.blacklist.BlacklistRuleType): String = value.name
+
+    @TypeConverter
+    fun toBlacklistRuleType(value: String): com.lirix.app.storage.blacklist.BlacklistRuleType = runCatching {
+        com.lirix.app.storage.blacklist.BlacklistRuleType.valueOf(value)
+    }.getOrDefault(com.lirix.app.storage.blacklist.BlacklistRuleType.TITLE)
+
+    @TypeConverter
+    fun fromBlacklistMatchMode(value: com.lirix.app.storage.blacklist.BlacklistMatchMode): String = value.name
+
+    @TypeConverter
+    fun toBlacklistMatchMode(value: String): com.lirix.app.storage.blacklist.BlacklistMatchMode = runCatching {
+        com.lirix.app.storage.blacklist.BlacklistMatchMode.valueOf(value)
+    }.getOrDefault(com.lirix.app.storage.blacklist.BlacklistMatchMode.CONTAINS_IGNORE_CASE)
+
     /**
      * Converts FloatArray (e.g. audio fingerprint embedding) to raw Little-Endian BLOB.
      */

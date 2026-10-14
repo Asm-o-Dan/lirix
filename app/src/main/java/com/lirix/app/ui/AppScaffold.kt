@@ -48,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.lirix.app.storage.TrackEntity
+import com.lirix.app.ui.blacklist.BlacklistSettingsScreen
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -127,6 +128,7 @@ fun AppScaffold(
     }
 
     var isCapsuleVisible by rememberSaveable { mutableStateOf(true) }
+    var isBlacklistSettingsOpen by rememberSaveable { mutableStateOf(false) }
 
     val lirixColors = LirixThemeTokens.colors
 
@@ -246,12 +248,18 @@ fun AppScaffold(
                             activeTeachTrack = track
                             activeTeachUrl = null
                             isTeachModeOpen = true
+                        },
+                        onOpenBlacklistSettings = {
+                            isBlacklistSettingsOpen = true
                         }
                     )
                     AppTab.LIBRARY -> LibraryScreen(
                         onTrackSelected = { track ->
                             viewingTrack = track
                             currentTab = AppTab.NOW_PLAYING
+                        },
+                        onOpenBlacklistSettings = {
+                            isBlacklistSettingsOpen = true
                         }
                     )
                     AppTab.WRAPPED -> WrappedScreen()
@@ -303,6 +311,15 @@ fun AppScaffold(
                     },
                     onLyricsAttached = {
                         currentTab = AppTab.NOW_PLAYING
+                    }
+                )
+            }
+
+            // Blacklist Settings overlay
+            if (isBlacklistSettingsOpen) {
+                BlacklistSettingsScreen(
+                    onBack = {
+                        isBlacklistSettingsOpen = false
                     }
                 )
             }

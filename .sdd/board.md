@@ -98,6 +98,23 @@
 | TASK-THEME-WRAPPED | Глубокая миграция всех компонентов WrappedScreen на LirixThemeTokens | ui/WrappedScreen.kt | media-ui | TASK-THEME-05B | Coder UI | DONE |
 | TASK-THEME-OVERLAY | Интеграция LirixTheme и LirixThemeTokens в FloatingLyricsOverlayView | ui/components/FloatingLyricsOverlayView.kt | media-ui | TASK-THEME-05A | Coder UI | DONE |
 | TASK-CORE-01 | Устранение критических уязвимостей (ACCESS_NETWORK_STATE, FileProvider, MediaSession Singleton) | AndroidManifest.xml, ShareManager.kt, MediaSessionCollector.kt | media-core | TASK-AUDIT-01 | Android Core Engineer | DONE |
-| TASK-THEME-FIX-01 | Динамическая тема ExhaustedLyricsPlaceholder, заметок и мгновенный ре-теминг винила | ui/NowPlayingScreen.kt, ui/components/AnalogTurntable.kt | media-ui | USER_REQUEST | Coder UI | IN_PROGRESS |
+| TASK-THEME-FIX-01 | Динамическая тема ExhaustedLyricsPlaceholder, заметок и мгновенный ре-теминг винила | ui/NowPlayingScreen.kt, ui/components/AnalogTurntable.kt | media-ui | USER_REQUEST | Coder UI | DONE |
 | TASK-DECOMP-01 | Декомпозиция NowPlayingScreen (изоляция рекомпозиций таймера, модули вкладок) | ui/NowPlayingScreen.kt, ui/player/* | media-ui | TASK-AUDIT-01 | Coder UI | READY |
+| TASK-PR-ENGINE | Автоматизированный движок публикации pr_engine.py на базе 17 Social Media Skills | .sdd/tools/pr_engine.py | dev-rel | USER_REQUEST | SDD Coordinator | DONE |
+| TASK-PR-01 | Полная статья для Хабра с разбором архитектуры, MediaSession и 120 FPS | .sdd/pr/habr_article_lirix.md | dev-rel | TASK-PR-ENGINE | DevRel / TechWriter | DONE |
+| TASK-PR-02 | Готовый пакет публикаций и интерактивов для Telegram-каналов с разметкой | .sdd/pr/telegram_channel_bundle.md | dev-rel | TASK-PR-ENGINE | DevRel / Copywriter | DONE |
+| ARCH-BLK-01 | Архитектурный проект системы черного списка и авто-очистки базы | .sdd/architecture_blacklist_filters.md | Arch | ADR-016 | Архитектор | DONE |
+| TASK-DESIGN-AUDIT-02 | Глубокий UI/UX дизайн-аудит по /frontend-design и проектирование BlacklistSettingsScreen | .sdd/reports/UI_DESIGN_AUDIT_FRONTEND.md | media-ui | USER_REQUEST | Дизайн Аудитор | DONE |
+| SPEC-BLK-01 | Спецификация BlacklistRuleEntity, DAO и Room v11 MIGRATION_10_11 | .sdd/specs/media-core/blacklist_storage_spec.md | media-core | ARCH-BLK-01 | Спецификатор B | DONE |
+| SPEC-BLK-02 | Спецификация экрана конструктора запретов BlacklistSettingsScreen | .sdd/specs/media-ui/blacklist_settings_spec.md | media-ui | ARCH-BLK-01 | Спецификатор E | DONE |
+| TASK-BLK-01 | Сущности BlacklistRuleEntity, DAO и миграция MIGRATION_10_11 | storage/blacklist/*, storage/AppDatabase.kt | media-core | SPEC-BLK-01 | Coder (Storage) | DONE |
+| TASK-BLK-02 | Движок BlacklistMatcher и каскадная очистка BlacklistPurgeEngine | feature/blacklist/* | media-core | TASK-BLK-01 | Coder (Core) | DONE |
+| TASK-BLK-03 | Интеграция Ingress Guard в MusicFeatureEngine | feature/MusicFeatureEngine.kt | media-core | TASK-BLK-02 | Coder (Core) | DONE |
+| TASK-BLK-04 | Экран BlacklistSettingsScreen и BottomSheet конструктор | ui/blacklist/* | media-ui | TASK-BLK-02 | Coder (UI) | DONE |
+| TASK-BLK-05 | Навигация и точки входа (OverflowMenu и LibraryScreen) | ui/components/*, ui/AppScaffold.kt | media-ui | TASK-BLK-04 | Coder (UI) | DONE |
+| TASK-BLK-QA | Unit-тесты для миграции Room v11, Matcher и PurgeEngine | test/BlacklistEngineTest.kt | qa | TASK-BLK-02 | QA Engineer | DONE |
+| TASK-BLK-06 | Запросы динамических пресетов и подсказок из фонотеки в MusicDao | storage/MusicDao.kt, test/BlacklistEngineTest.kt | media-core | ADR-018 | Coder (Storage) | DONE |
+| TASK-BLK-07 | Интеграция выборки подсказок в BlacklistViewModel | ui/blacklist/BlacklistViewModel.kt | media-ui | TASK-BLK-06 | Coder (Core) | DONE |
+| TASK-BLK-08 | Динамические чипы подсказок из фонотеки в BottomSheet конструкторе | ui/blacklist/BlacklistRuleConstructorSheet.kt | media-ui | TASK-BLK-07 | Coder (UI) | DONE |
+| TASK-BLK-09 | Реактивный предпросмотр конкретных удаляемых треков в конструкторе | feature/blacklist/*, ui/blacklist/* | media-ui | ADR-019 | Coder (Core & UI) | DONE |
 

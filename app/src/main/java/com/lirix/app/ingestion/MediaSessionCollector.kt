@@ -345,7 +345,7 @@ class MediaSessionCollector private constructor(private val context: Context) {
         Timber.tag(TAG).i("Recorded Media Event: [%s] %s - %s (%s)", packageName, artist, title, stateName)
 
         val db = com.lirix.app.storage.AppDatabase.getInstance(context)
-        val musicEngine = com.lirix.app.feature.MusicFeatureEngine(db.musicDao(), db.lyricsDao())
+        val musicEngine = com.lirix.app.feature.MusicFeatureEngine(db.musicDao(), db.lyricsDao(), blacklistDao = db.blacklistDao())
 
         if (!title.isNullOrBlank()) {
             val cleanArtist = artist.orEmpty().ifBlank { "Unknown Artist" }
@@ -455,6 +455,13 @@ class MediaSessionCollector private constructor(private val context: Context) {
 
         private val _livePlaybackFlow = MutableStateFlow<LivePlaybackSnapshot?>(null)
         val livePlaybackFlow: StateFlow<LivePlaybackSnapshot?> = _livePlaybackFlow.asStateFlow()
+
+        fun markCurrentTrackBlacklisted(isBlacklisted: Boolean) {
+            val current = _livePlaybackFlow.value
+            if (current != null && current.isBlacklisted != isBlacklisted) {
+                _livePlaybackFlow.value = current.copy(isBlacklisted = isBlacklisted)
+            }
+        }
 
         private val activeMediaControllers = ConcurrentHashMap<String, MediaController>()
 

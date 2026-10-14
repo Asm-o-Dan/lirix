@@ -143,7 +143,7 @@ class NotificationListener : NotificationListenerService() {
                 }
 
                 val db = com.lirix.app.storage.AppDatabase.getInstance(applicationContext)
-                val musicEngine = com.lirix.app.feature.MusicFeatureEngine(db.musicDao(), db.lyricsDao())
+                val musicEngine = com.lirix.app.feature.MusicFeatureEngine(db.musicDao(), db.lyricsDao(), blacklistDao = db.blacklistDao())
                 val recordedTrack = musicEngine.recordPlaybackSignal(
                     title = parsed.title,
                     artist = cleanArtist,

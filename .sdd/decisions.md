@@ -213,3 +213,137 @@ AmDm.ru является ценным источником, однако мно�
 2. `WrappedScreen.kt`: полная замена всех 81 вхождений `AppColors.*` на `LirixThemeTokens.colors` (адаптивный фон баннера архетипа, карточки метрик, цветные шкалы компаса активности).
 3. `NowPlayingScreen.kt` (Chords & Tap-to-Sync): текст аккордов `lirixColors.textPrimary` (читается на любом фоне), тулбар и кнопки управления адаптированы под акценты темы; кнопка Tap-to-Sync оформлена в `lirixColors.surfaceCard` + `lirixColors.accentPrimary`.
 4. `FloatingLyricsOverlayView.kt`: внедрение реактивного наблюдения за `ThemePreferencesRepository.selectedTheme`, оборачивание контента в `LirixTheme(themeType = currentTheme)`, полная миграция 33 вызовов на `LirixThemeTokens.colors`.
+
+## ADR-016: Система Черного Списка и Конструктор Запретов Медиатеки (Blacklist Rules & Auto-Purge)
+
+### Контекст
+Пользователь запросил новую ключевую возможность:
+«возможность блокировать сохранение записей в медиатеке по названию или по автору или по провайдеру(приложению) для этого нужен отдельный экран настроек с конструктором запретов при с создании запрета идёт проверка всей медиатеки и удаляется все что попадает под данное правило»
+
+### Архитектурные Решения
+1. **Зона `storage` & `media-core`**:
+   - Новая сущность Room: `BlacklistRuleEntity` (id, ruleType: TITLE/ARTIST/PACKAGE_NAME, pattern, matchMode, isEnabled, createdAt).
+   - Миграция схемы базы данных Room: v10 -> v11 (`MIGRATION_10_11`).
+   - `BlacklistDao`: управление правилами (CRUD, Flow).
+   - Атомарная процедура каскадной очистки медиатеки `purgeMatchingTracks(rule)`: удаление подходящих записей из `music_tracks` и `music_listening_sessions`.
+2. **Зона `media-ingress` & `media-core`**:
+   - Фильтр реального времени: `BlacklistFilterManager` проверяет входящие события воспроизведения. Если трек подпадает под активное правило — блокируется его сохранение в Room и учет во Wrapped-статистике.
+3. **Зона `media-ui`**:
+   - Новый экран `BlacklistSettingsScreen` с конструктором правил (выбор типа критерия, подсказки системных пакетов плееров, превью количества удаляемых треков перед подтверждением).
+   - Интеграция перехода на экран настроек из Overflow Menu (⋮) и из экрана Медиатеки.
+   - 100% соответствие дизайн-системе `LirixThemeTokens.colors` (4 темы).
+4. **Контроль качества**:
+   - TDD unit-тесты миграции Room, фильтрации и каскадного удаления.
+
+## ADR-017: UI/UX Дизайн-Аудит и Визуальный Эталон BlacklistSettingsScreen (/frontend-design)
+
+### Контекст
+В рамках подготовки к верстке экрана «Черный список / Конструктор запретов» проведен бескомпромиссный аудит интерфейса Lirix по методологии `/frontend-design` (отказ от нейрослопа, аналоговая глубина, тактильный отклик, эргономика 20:9, 100% консистентность 4 тем).
+
+### Решения (UI Design Audit Lead)
+1. **Отчет аудита**: Сформирован документ `.sdd/reports/UI_DESIGN_AUDIT_FRONTEND.md`.
+2. **Токенизация**:
+   - Выявлен Token Gap: отсутствие семантических токенов опасности (`dangerPrimary`, `dangerContainer`) в `LirixColors`, приводящий к хардкоду старых цветов. Требуется расширение палитры.
+   - Выявлен критический дефект в `TeachModeScreen.kt`: захардкоженные цвета `AppColors.*` вместо `LirixThemeTokens.colors`. Запланирован рефакторинг.
+3. **Эргономика сенсорных зон**:
+   - Все интерактивные элементы управления (кнопки перемотки 10s, иконки шапки, чипы) должны быть расширены до $\ge 48\times 48\,\text{dp}$ через `minimumInteractiveComponentSize()`.
+4. **Архитектура `BlacklistSettingsScreen`**:
+   - Список активных правил с микро-бейджами `[НАЗВАНИЕ]`, `[АРТИСТ]`, `[ПРОВАЙДЕР]`, счетчиками удалений и поддержкой свайп-удаления.
+   - Конструктор правила в виде BottomSheet в зоне доступности большого пальца с быстрым выбором популярных плееров (Spotify, VK, Яндекс Музыка, Telegram, YouTube) и реактивным счетчиком предварительной оценки удалений (`Удалится: N треков`).
+
+## ADR-018: Динамические пресеты и подсказки из фонотеки в конструкторе черного списка
+
+### Контекст
+Пользователь уточнил требование к конструктору запретов:
+«пресеты должны браться из текущей базы»
+
+Ранее пресеты были захардкожены статическим списком пакетов (Spotify, VK Музыка, Яндекс Музыка, Telegram), а для категорий «По артисту» и «По названию» быстрые чипы отсутствовали вовсе. При реальном использовании фонотека пользователя уже содержит уникальный набор пакетов (провайдеров), топовых исполнителей и недавних треков, которые пользователь хочет блокировать в 1 клик.
+
+### Архитектурные Решения
+1. **Зона `media-core` & `storage` (`MusicDao.kt`)**:
+   - Реализовать реактивные / suspend выборки уникальных значений из текущих данных базы:
+     - `getDistinctSourcePackages()`: `SELECT DISTINCT sourcePackage FROM music_listening_sessions WHERE sourcePackage IS NOT NULL AND sourcePackage != ''`
+     - `getTopArtists(limit = 15)`: `SELECT DISTINCT artist FROM music_tracks WHERE artist IS NOT NULL AND artist != '' ORDER BY playCount DESC LIMIT :limit`
+     - `getRecentTrackTitles(limit = 15)`: `SELECT DISTINCT title FROM music_tracks WHERE title IS NOT NULL AND title != '' ORDER BY lastPlayedAt DESC, playCount DESC LIMIT :limit`
+2. **Зона `media-ui` (`BlacklistViewModel.kt`)**:
+   - Добавить поле в `BlacklistUiState`:
+     `val dbSuggestions: List<String> = emptyList()`
+   - При открытии конструктора (`openConstructor`) и при смене типа критерия (`setDraftType(type)`):
+     асинхронно опрашивать `MusicDao` и заполнять `dbSuggestions` актуальными значениями из фонотеки.
+   - Для `PACKAGE_NAME`: если в базе пусто (еще не записаны сессии), объединять с дефолтными системными плеерами в качестве умного фоллбэка.
+3. **Зона `media-ui` (`BlacklistRuleConstructorSheet.kt`)**:
+   - Заменить статическую строку `APP_PRESETS` на динамическую горизонтальную ленту чипов `dbSuggestions` для **всех трех категорий**:
+     - `TITLE`: «Треки из вашей фонотеки:»
+     - `ARTIST`: «Исполнители из вашей фонотеки:»
+     - `PACKAGE_NAME`: «Приложения из истории фонотеки:»
+   - При нажатии на чип: мгновенная подстановка в поле `draftPattern` и реактивный перерасчет `draftPurgePreviewCount` (дебаунс 250мс).
+   - Стилизация в дизайн-системе `LirixThemeTokens.colors` с выделением активного чипа.
+
+## ADR-019: Реактивная фильтрация и превью конкретных удаляемых треков в конструкторе
+
+### Контекст
+Пользователь запросил:
+«пусть то что ты вводишь в значения фильтрует треки из вашей фонотеки чтобы сразу показывало что удалит»
+
+При вводе текста в поле значения или выборе подстроки пользователь должен не просто видеть абстрактный счетчик `N`, а сразу в реальном времени видеть список конкретных треков из своей фонотеки, которые совпали с введенным правилом и будут удалены при нажатии «Создать правило защиты».
+
+### Архитектурные Решения
+1. **Зона `media-core` (`BlacklistPurgeEngine.kt`)**:
+   - Добавить метод:
+     `suspend fun findMatchingTracks(rule: BlacklistRuleEntity, limit: Int = 20): List<TrackEntity>`
+     который возвращает полные сущности треков (`TrackEntity`), удовлетворяющие фильтру `BlacklistMatcher.matches()`.
+2. **Зона `media-ui` (`BlacklistViewModel.kt`)**:
+   - Расширить `BlacklistUiState`:
+     `val previewMatchingTracks: List<TrackEntity> = emptyList()`
+   - В `recalculatePreview()` (дебаунс 250мс):
+     - Если `draftPattern.isBlank()`: `previewMatchingTracks = emptyList()`, `draftPurgePreviewCount = 0`.
+     - Если `draftPattern.isNotBlank()`:
+       `val matches = purgeEngine.findMatchingTracks(tempRule, limit = 20)`
+       `val totalCount = purgeEngine.previewPurgeCount(tempRule)`
+       `_uiState.update { it.copy(draftPurgePreviewCount = totalCount, previewMatchingTracks = matches, isCalculatingPreview = false) }`
+3. **Зона `media-ui` (`BlacklistRuleConstructorSheet.kt`)**:
+   - Если `draftPattern.isBlank()`:
+     Отображать чипы-подсказки из базы `suggestions` («Треки / Исполнители / Приложения из вашей фонотеки»).
+   - Если `draftPattern.isNotBlank()`:
+     - Заголовок секции: «Будет удалено из фонотеки (${previewCount}):»
+     - Если `previewMatchingTracks.isNotEmpty()`:
+       Горизонтальная лента чипов с предупреждающим бейджем `❌ ${track.title} • ${track.artist}` (акцентный/danger стиль).
+     - Если `previewMatchingTracks.isEmpty()` и `!isCalculatingPreview`:
+       Информационный бейдж: «✓ Ни один трек в фонотеке не подпадает под это правило».
+
+
+
+## ADR-020: Мультиплатформенный пивот на Compose Multiplatform (Windows Desktop + Android)
+
+### Контекст
+Пользователь запросил:
+«максимум общего кода: делаем ветку/модуль Compose Multiplatform Desktop — сохраняем 4 темы, анимацию тонарма, аккорды и переносим готовый движок.»
+
+Текущая кодовая база Lirix содержит отточенные и проверенные компоненты:
+- Алгоритмы парсинга и синхронизации караоке (`LrcSyncEngine`).
+- Парсеры аккордов и табов (`AmDmChordParser`, `MyChordsParser`, `GuitarChordDictionary`).
+- Аналитику Wrapped и 26 ачивок (`WrappedStatsEngine`, `GamificationEngine`).
+- Фильтр черного списка и каскадную очистку (`BlacklistMatcher`, `BlacklistPurgeEngine`).
+- Аналоговый виниловый стол с кинетическим тонармом (`AnalogTurntable`).
+- Дизайн-систему с 4 глубокими темами (`LirixThemeTokens`, `AppColors`).
+
+Чтобы перенести приложение на Windows с сохранением 100% логики и визуального стиля без дублирования кода на C# или веб-стек, принимается решение о переходе на модульную архитектуру Kotlin Multiplatform (KMP) + Compose Multiplatform Desktop.
+
+### Архитектурные Решения
+1. **Модульная структура проекта**:
+   - `:shared` (KMP модуль):
+     - `commonMain`: ядро движков, бизнес-логика, модели, Room/SQLite сущности, дизайн-токены `LirixThemeTokens`, общие Compose-компоненты (винил, караоке, аккорды, карточки).
+   - `:app` (Android Application):
+     - Android-специфичные сервисы (`NotificationListener`, `FloatingLyricsService`, Android `MediaSessionCollector`).
+   - `:desktop` (Windows Desktop Application):
+     - Точка входа Compose Desktop (`main()`, `application`, `Window`).
+     - Windows Ingress: перехват мультимедиа через WinRT GSMTC (`GlobalSystemMediaTransportControlsSessionManager`) посредством JNA.
+     - Системный трей Windows (`Tray`).
+     - Глобальные хоткеи (Global Hotkeys) для фонового управления.
+     - Click-Through прозрачный оверлей караоке поверх игр и окон (`WS_EX_TRANSPARENT`).
+2. **План выполнения по гейтам SDD**:
+   - Gate 1: Архитектурный проект и схема зависимостей Gradle (`.sdd/architecture_kmp_desktop.md`).
+   - Gate 2: Выделение общего модуля `:shared` без ломки Android-приложения.
+   - Gate 3: Реализация модуля `:desktop` с перехватом Windows GSMTC.
+   - Gate 4: Интеграция 4 тем, винила и караоке в Windows Desktop окно.
+   - Gate 5: Дистрибуция: сборка Windows инсталлятора (`.msi` / `.exe`).

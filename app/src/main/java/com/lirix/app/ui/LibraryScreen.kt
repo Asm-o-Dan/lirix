@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -99,7 +100,8 @@ enum class LibraryTabFilter(val title: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
-    onTrackSelected: (TrackEntity) -> Unit = {}
+    onTrackSelected: (TrackEntity) -> Unit = {},
+    onOpenBlacklistSettings: () -> Unit = {}
 ) {
     val lirixColors = LirixThemeTokens.colors
     val context = LocalContext.current
@@ -211,6 +213,18 @@ fun LibraryScreen(
                         contentDescription = "Тема оформления",
                         tint = lirixColors.accentPrimary,
                         modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onOpenBlacklistSettings,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = "Фильтры медиатеки",
+                        tint = lirixColors.textSecondary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 

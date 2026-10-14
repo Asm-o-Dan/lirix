@@ -178,7 +178,8 @@ fun NowPlayingScreen(
     initialTrack: ParsedTrackInfo? = null,
     selectedTrack: TrackEntity? = null,
     onTrackConsumed: () -> Unit = {},
-    onOpenTeachMode: ((TrackEntity?) -> Unit)? = null
+    onOpenTeachMode: ((TrackEntity?) -> Unit)? = null,
+    onOpenBlacklistSettings: () -> Unit = {}
 ) {
     val lirixColors = LirixThemeTokens.colors
     val context = LocalContext.current
@@ -979,7 +980,8 @@ fun NowPlayingScreen(
                             onToggleVinyl = {
                                 isVinylCollapsed = !isVinylCollapsed
                             },
-                            onThemeSelectClick = { showThemeDialog = true }
+                            onThemeSelectClick = { showThemeDialog = true },
+                            onOpenBlacklistSettings = onOpenBlacklistSettings
                         )
                     }
                 }

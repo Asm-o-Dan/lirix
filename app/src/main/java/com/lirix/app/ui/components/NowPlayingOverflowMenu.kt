@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
@@ -57,6 +58,7 @@ fun NowPlayingOverflowMenu(
     isVinylCollapsed: Boolean,
     onToggleVinyl: () -> Unit,
     onThemeSelectClick: () -> Unit = {},
+    onOpenBlacklistSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val tokens = LirixThemeTokens.colors
@@ -222,6 +224,27 @@ fun NowPlayingOverflowMenu(
             onClick = {
                 onDismissRequest()
                 onThemeSelectClick()
+            }
+        )
+
+        DropdownMenuItem(
+            text = {
+                Text(
+                    text = "🛡 Черный список фонотеки",
+                    color = tokens.textPrimary,
+                    fontSize = 14.sp
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Shield,
+                    contentDescription = null,
+                    tint = tokens.accentPrimary
+                )
+            },
+            onClick = {
+                onDismissRequest()
+                onOpenBlacklistSettings()
             }
         )
     }

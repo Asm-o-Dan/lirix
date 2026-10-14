@@ -17,7 +17,8 @@ data class LivePlaybackSnapshot(
     val playbackSpeed: Float = 1.0f,
     val durationMs: Long = 0L,
     val timestamp: Long = System.currentTimeMillis(),
-    val albumArtUri: String? = null
+    val albumArtUri: String? = null,
+    val isBlacklisted: Boolean = false
 ) {
     fun currentPositionMs(currentElapsedRealtimeMs: Long = android.os.SystemClock.elapsedRealtime()): Long {
         if (!isPlaying || playbackSpeed <= 0f) return basePositionMs
