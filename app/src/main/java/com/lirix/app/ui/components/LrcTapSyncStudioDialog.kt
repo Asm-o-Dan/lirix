@@ -294,9 +294,10 @@ fun LrcTapSyncStudioDialog(
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                if (prevItem.timestampMs != null) {
+                                val prevTimestampMs = prevItem.timestampMs
+                                if (prevTimestampMs != null) {
                                     Text(
-                                        text = LrcSyncEngine.formatTimestamp(prevItem.timestampMs),
+                                        text = LrcSyncEngine.formatTimestamp(prevTimestampMs),
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontFamily = FontFamily.Monospace,
                                             fontSize = 11.sp

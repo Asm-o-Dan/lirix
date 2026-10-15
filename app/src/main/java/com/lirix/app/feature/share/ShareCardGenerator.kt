@@ -521,9 +521,10 @@ object ShareCardGenerator {
                     val thumbRect = RectF(thumbLeft, thumbTop, thumbLeft + thumbSize, thumbTop + thumbSize)
 
                     var trackArtBitmap: Bitmap? = topCoverBitmaps.getOrNull(idx)
-                    if (trackArtBitmap == null && trackItem.albumArtUri != null) {
+                    val artUri = trackItem.albumArtUri
+                    if (trackArtBitmap == null && artUri != null) {
                         try {
-                            val f = File(trackItem.albumArtUri.removePrefix("file://"))
+                            val f = File(artUri.removePrefix("file://"))
                             if (f.exists() && f.length() > 0L) {
                                 trackArtBitmap = BitmapFactory.decodeFile(f.absolutePath)
                             }

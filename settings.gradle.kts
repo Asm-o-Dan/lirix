@@ -22,3 +22,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "lirix"
 include(":app")
+include(":shared")
+include(":desktop")

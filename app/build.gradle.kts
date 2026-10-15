@@ -96,6 +96,9 @@ android {
 }
 
 dependencies {
+    // Shared KMP Module
+    implementation(project(":shared"))
+
     // AndroidX Core & Lifecycle
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

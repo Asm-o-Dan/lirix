@@ -117,4 +117,17 @@
 | TASK-BLK-07 | Интеграция выборки подсказок в BlacklistViewModel | ui/blacklist/BlacklistViewModel.kt | media-ui | TASK-BLK-06 | Coder (Core) | DONE |
 | TASK-BLK-08 | Динамические чипы подсказок из фонотеки в BottomSheet конструкторе | ui/blacklist/BlacklistRuleConstructorSheet.kt | media-ui | TASK-BLK-07 | Coder (UI) | DONE |
 | TASK-BLK-09 | Реактивный предпросмотр конкретных удаляемых треков в конструкторе | feature/blacklist/*, ui/blacklist/* | media-ui | ADR-019 | Coder (Core & UI) | DONE |
+| TASK-KMP-01 | Настройка мульти-проектного Gradle: подключение :shared и :desktop | settings.gradle.kts, libs.versions.toml | build-sys | ADR-020 | Build Engineer | DONE |
+| TASK-KMP-02 | Создание KMP-модуля :shared с таргетами android и desktop | shared/build.gradle.kts | build-sys | TASK-KMP-01 | Build Engineer | DONE |
+| TASK-KMP-03 | Миграция чистых движков (LRC, Chords, BlacklistMatcher, Wrapped) в :shared | shared/src/commonMain/* | media-core | TASK-KMP-02 | Core Coder | DONE |
+| TASK-KMP-04 | Перенос тем LirixThemeTokens и AnalogTurntable в :shared | shared/src/commonMain/ui/* | media-ui | TASK-KMP-03 | UI Coder | DONE |
+| TASK-KMP-05 | Платформенные швы: LirixLog, MediaIngressProvider, ThemePreferences | shared/src/commonMain/platform/* | media-core | TASK-KMP-03 | Core Coder | DONE |
+| TASK-KMP-06 | Переход на Room KMP 2.7.1 и sqlite-bundled для Desktop | shared/src/commonMain/storage/* | media-core | TASK-KMP-05 | DB Engineer | DONE |
+| TASK-KMP-07 | C# .NET 8.0 Native AOT мост к WinRT GSMTC (lirix-media-bridge.exe) | native/lirix-media-bridge/* | win-ingress | ADR-020 | Windows Engineer | DONE |
+| TASK-KMP-08 | Desktop Ingress сервис и арбитраж сессий поверх моста | desktop/src/main/kotlin/ingress/* | win-ingress | TASK-KMP-07 | Windows Engineer | DONE |
+| TASK-KMP-09 | Декомпозиция NowPlayingScreen (TASK-DECOMP-01) и общий UI плеера | shared/src/commonMain/ui/player/* | media-ui | TASK-KMP-04 | UI Coder | DONE |
+| TASK-KMP-10 | Windows Desktop DeckLayout с интерактивным тонармом-скраббером | desktop/src/main/kotlin/ui/* | media-ui | TASK-KMP-09 | UI Coder | DONE |
+| TASK-KMP-11 | Прозрачный Click-Through HUD караоке (Ctrl+Alt+H) | desktop/src/main/kotlin/hud/* | media-ui | TASK-KMP-10 | Windows Engineer | DONE |
+| TASK-KMP-12 | Системный трей Windows, глобальные хоткеи и Discord RPC | desktop/src/main/kotlin/system/* | win-sys | TASK-KMP-10 | Windows Engineer | DONE |
+| TASK-KMP-13 | Сборка дистрибутива Windows MSI / EXE (packageMsi) | desktop/build.gradle.kts | release | TASK-KMP-11..12 | DevOps / QA | DONE |
 

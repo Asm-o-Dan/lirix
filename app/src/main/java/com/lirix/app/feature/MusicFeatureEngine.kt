@@ -624,10 +624,7 @@ class MusicFeatureEngine(
         }
 
         fun computeTrackKey(title: String, artist: String, album: String = ""): String {
-            val normalized = "${title.trim().lowercase()}|${artist.trim().lowercase()}|${album.trim().lowercase()}"
-            val md = MessageDigest.getInstance("SHA-256")
-            val digest = md.digest(normalized.toByteArray(Charsets.UTF_8))
-            return digest.joinToString("") { "%02x".format(it) }
+            return com.lirix.app.feature.music.MusicTrackParser.computeTrackKey(title, artist, album)
         }
     }
 }
