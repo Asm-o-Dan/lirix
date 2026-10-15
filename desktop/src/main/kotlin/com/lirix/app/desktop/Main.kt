@@ -13,8 +13,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import androidx.compose.runtime.rememberCoroutineScope
 import com.lirix.app.desktop.hud.DesktopHudWindow
 import com.lirix.app.desktop.ingress.DesktopGsmtcIngressProvider
+import com.lirix.app.desktop.lyrics.DesktopLyricsService
 import com.lirix.app.desktop.system.DiscordRpcManager
 import com.lirix.app.desktop.system.GlobalHotkeysManager
 import com.lirix.app.desktop.system.LirixTray
@@ -25,8 +27,10 @@ import com.lirix.app.ui.theme.ColorPalettes
 import com.lirix.app.ui.theme.LocalLirixColors
 
 fun main() = application {
+    val coroutineScope = rememberCoroutineScope()
     val ingressProvider = remember { DesktopGsmtcIngressProvider() }
     val discordRpc = remember { DiscordRpcManager() }
+    val lyricsService = remember { DesktopLyricsService(coroutineScope) }
 
     var isMainWindowVisible by remember { mutableStateOf(true) }
     var isHudVisible by remember { mutableStateOf(false) }
@@ -34,6 +38,12 @@ fun main() = application {
 
     val windowState = rememberWindowState(size = DpSize(1100.dp, 720.dp))
     val playback by ingressProvider.currentPlayback.collectAsState()
+    val lyricsState by lyricsService.lyricsState.collectAsState()
+
+    // Trigger reactive lyrics and chords fetching whenever active track changes
+    LaunchedEffect(playback?.title, playback?.artist, playback?.album) {
+        lyricsService.onTrackChanged(playback?.title, playback?.artist, playback?.album)
+    }
 
     val demoLrcLines = remember {
         listOf(
@@ -100,7 +110,8 @@ fun main() = application {
                     selectedTheme = selectedTheme,
                     onThemeSelected = { newTheme ->
                         selectedTheme = newTheme
-                    }
+                    },
+                    lyricsState = lyricsState
                 )
             }
         }
@@ -113,7 +124,7 @@ fun main() = application {
             visible = isHudVisible,
             onCloseRequest = { isHudVisible = false },
             playback = playback,
-            lyricsLines = demoLrcLines
+            lyricsLines = lyricsState.lrcLines
         )
     }
 }

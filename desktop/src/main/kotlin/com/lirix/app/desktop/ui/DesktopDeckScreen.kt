@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lirix.app.desktop.lyrics.DesktopLyricsState
 import com.lirix.app.ingestion.LivePlaybackSnapshot
 import com.lirix.app.platform.MediaIngressProvider
 import com.lirix.app.ui.components.AnalogTurntable
@@ -52,6 +53,7 @@ fun DesktopDeckScreen(
     ingressProvider: MediaIngressProvider,
     selectedTheme: AppThemeType,
     onThemeSelected: (AppThemeType) -> Unit,
+    lyricsState: DesktopLyricsState = DesktopLyricsState(),
     modifier: Modifier = Modifier
 ) {
     val colors = LirixThemeTokens.colors
@@ -159,9 +161,12 @@ F           E7          Am
 
                     Spacer(modifier = Modifier.height(10.dp))
 
+                    val displayTitle = if (lyricsState.displayTitle.isNotBlank()) lyricsState.displayTitle else (playback?.title ?: "Ожидание трека")
+                    val displayArtist = if (lyricsState.displayArtist.isNotBlank()) lyricsState.displayArtist else (playback?.artist ?: "Lirix Desktop Player")
+
                     TrackMetadataHeader(
-                        title = playback?.title ?: "Ожидание трека",
-                        artist = playback?.artist ?: "Lirix Desktop Player",
+                        title = displayTitle,
+                        artist = displayArtist,
                         album = playback?.album,
                         packageName = playback?.packageName,
                         modifier = Modifier.padding(horizontal = 8.dp)
@@ -285,18 +290,77 @@ F           E7          Am
                         .weight(1f)
                 ) {
                     if (selectedRightTab == 0) {
-                        LyricsScrollPanel(
-                            lines = demoLrcLines,
-                            currentPositionMs = currentPositionMs,
-                            onSeekTo = { pos -> ingressProvider.seekTo(pos) },
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (lyricsState.isLoading) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "🔍",
+                                        fontSize = 40.sp,
+                                        modifier = Modifier.padding(bottom = 12.dp)
+                                    )
+                                    Text(
+                                        text = "Поиск караоке и текста песни...",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.textPrimary
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Базы: LrcLib, AmDm, MyChords, Genius",
+                                        fontSize = 12.sp,
+                                        color = colors.textMuted
+                                    )
+                                }
+                            }
+                        } else {
+                            val linesToDisplay = if (lyricsState.lrcLines.isNotEmpty()) {
+                                lyricsState.lrcLines
+                            } else if (playback == null) {
+                                demoLrcLines
+                            } else {
+                                emptyList()
+                            }
+
+                            LyricsScrollPanel(
+                                lines = linesToDisplay,
+                                currentPositionMs = currentPositionMs,
+                                onSeekTo = { pos -> ingressProvider.seekTo(pos) },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     } else {
-                        ChordsTabContent(
-                            chordsText = demoChords,
-                            durationMs = durationMs,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (lyricsState.isLoading) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Поиск аккордов на AmDm и MyChords...",
+                                    fontSize = 14.sp,
+                                    color = colors.textMuted
+                                )
+                            }
+                        } else {
+                            val chordsToDisplay = if (!lyricsState.chords.isNullOrBlank()) {
+                                lyricsState.chords
+                            } else if (playback == null) {
+                                demoChords
+                            } else {
+                                ""
+                            }
+
+                            ChordsTabContent(
+                                chordsText = chordsToDisplay,
+                                durationMs = durationMs,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                 }
             }
