@@ -29,7 +29,7 @@ compose.desktop {
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe
             )
             packageName = "Lirix"
-            packageVersion = "1.2.0"
+            packageVersion = "1.2.1"
             description = "Lirix Music & Lyrics Studio Hub for Windows"
             vendor = "Lirix Team"
             copyright = "© 2026 Lirix Team"

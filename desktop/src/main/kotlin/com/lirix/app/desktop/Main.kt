@@ -94,25 +94,50 @@ fun main() = application {
         trackTitle = playback?.title
     )
 
-    // Main Studio Deck Window
+    var isCompactMode by remember { mutableStateOf(false) }
+
+    // Dynamically adjust window size when toggling between Studio Deck and Compact Widget
+    LaunchedEffect(isCompactMode) {
+        if (isCompactMode) {
+            windowState.size = DpSize(480.dp, 145.dp)
+        } else {
+            windowState.size = DpSize(1100.dp, 720.dp)
+        }
+    }
+
+    // Main Window (Studio Deck or Compact Player Widget)
     if (isMainWindowVisible) {
         Window(
             onCloseRequest = { isMainWindowVisible = false }, // Minimize to tray
             state = windowState,
-            title = "Lirix Music Hub — Studio Deck"
+            title = if (isCompactMode) "Lirix Mini Player" else "Lirix Music Hub — Studio Deck",
+            resizable = !isCompactMode
         ) {
             val currentTokens = ColorPalettes.getTokens(selectedTheme)
 
             CompositionLocalProvider(LocalLirixColors provides currentTokens) {
-                DesktopDeckScreen(
-                    playback = playback,
-                    ingressProvider = ingressProvider,
-                    selectedTheme = selectedTheme,
-                    onThemeSelected = { newTheme ->
-                        selectedTheme = newTheme
-                    },
-                    lyricsState = lyricsState
-                )
+                if (isCompactMode) {
+                    com.lirix.app.desktop.ui.components.DesktopCompactWidget(
+                        playback = playback,
+                        ingressProvider = ingressProvider,
+                        lyricsState = lyricsState,
+                        onExpandToStudio = { isCompactMode = false }
+                    )
+                } else {
+                    DesktopDeckScreen(
+                        playback = playback,
+                        ingressProvider = ingressProvider,
+                        selectedTheme = selectedTheme,
+                        onThemeSelected = { newTheme ->
+                            selectedTheme = newTheme
+                        },
+                        lyricsState = lyricsState,
+                        isHudVisible = isHudVisible,
+                        onToggleHud = { isHudVisible = !isHudVisible },
+                        isCompactMode = false,
+                        onToggleCompactMode = { isCompactMode = true }
+                    )
+                }
             }
         }
     }

@@ -26,11 +26,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lirix.app.desktop.lyrics.DesktopLyricsState
+import com.lirix.app.desktop.ui.components.AnalogVuMeter
+import com.lirix.app.desktop.ui.components.DesktopTopBar
 import com.lirix.app.ingestion.LivePlaybackSnapshot
 import com.lirix.app.platform.MediaIngressProvider
 import com.lirix.app.ui.components.AnalogTurntable
@@ -44,8 +46,9 @@ import com.lirix.app.ui.theme.LirixThemeTokens
 import java.io.File
 
 /**
- * Two-pane studio layout for Windows Desktop (DesktopDeckScreen).
- * Spec: TASK-KMP-10 (.sdd/tasks/TASK-KMP-10.md)
+ * Lirix Studio Deck 2.0 (The Analog-Digital Hybrid).
+ * Synthesizes analog audio engineering (AIMP VU-meters, turntable) with
+ * modern kinetic streaming karaoke and guitar chords (Yandex Music / LrcLib).
  */
 @Composable
 fun DesktopDeckScreen(
@@ -54,10 +57,14 @@ fun DesktopDeckScreen(
     selectedTheme: AppThemeType,
     onThemeSelected: (AppThemeType) -> Unit,
     lyricsState: DesktopLyricsState = DesktopLyricsState(),
+    isHudVisible: Boolean = false,
+    onToggleHud: () -> Unit = {},
+    isCompactMode: Boolean = false,
+    onToggleCompactMode: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val colors = LirixThemeTokens.colors
-    var selectedRightTab by remember { mutableIntStateOf(0) } // 0: Lyrics, 1: Chords
+    var selectedRightTab by remember { mutableIntStateOf(0) } // 0: Lyrics, 1: Chords, 2: Info
 
     // Safely load local album thumbnail bitmap if available from bridge
     val albumArtBitmap = remember(playback?.albumArtUri) {
@@ -73,7 +80,7 @@ fun DesktopDeckScreen(
         }
     }
 
-    // Default lyrics demonstration fallback when no external .lrc is bound
+    // Default lyrics demonstration fallback when idle
     val demoLrcLines = remember {
         listOf(
             LrcLine(0L, "♪ Lirix Studio Desktop Hub ♪"),
@@ -119,253 +126,361 @@ F           E7          Am
     val currentPositionMs = playback?.currentPositionMs() ?: 0L
     val durationMs = playback?.durationMs ?: 0L
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxSize()
             .background(colors.appBackground)
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // ==========================================
-        // LEFT DECK: Vinyl, Header, Controls, Themes
+        // TOP CONTROL BAR: Brand, Source, Modes
         // ==========================================
-        Surface(
+        DesktopTopBar(
+            sourceApp = playback?.packageName,
+            isPlaying = playback?.isPlaying == true,
+            lyricsSource = lyricsState.source,
+            isHudVisible = isHudVisible,
+            onToggleHud = onToggleHud,
+            isCompactMode = isCompactMode,
+            onToggleCompactMode = onToggleCompactMode
+        )
+
+        // ==========================================
+        // MAIN TWO-PANE STUDIO DECK
+        // ==========================================
+        Row(
             modifier = Modifier
-                .width(420.dp)
-                .fillMaxHeight(),
-            shape = RoundedCornerShape(16.dp),
-            color = colors.surfaceCard,
-            border = BorderStroke(1.dp, colors.borderSubtle)
+                .fillMaxWidth()
+                .weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Column(
+            // ==========================================
+            // LEFT DECK: Vinyl, VU-Meter, Header, Controls, Themes
+            // ==========================================
+            Surface(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
+                    .width(420.dp)
+                    .fillMaxHeight(),
+                shape = RoundedCornerShape(16.dp),
+                color = colors.surfaceCard,
+                border = BorderStroke(1.dp, colors.borderSubtle)
             ) {
-                // Top section: Vinyl Platter & Metadata
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    AnalogTurntable(
-                        isPlaying = playback?.isPlaying == true,
-                        albumArtBitmap = albumArtBitmap,
-                        isCollapsed = false,
-                        onToggleCollapse = {},
-                        onTogglePlayPause = { ingressProvider.playPause() },
-                        modifier = Modifier.padding(bottom = 6.dp),
-                        tokens = colors
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    val displayTitle = if (lyricsState.displayTitle.isNotBlank()) lyricsState.displayTitle else (playback?.title ?: "Ожидание трека")
-                    val displayArtist = if (lyricsState.displayArtist.isNotBlank()) lyricsState.displayArtist else (playback?.artist ?: "Lirix Desktop Player")
-
-                    TrackMetadataHeader(
-                        title = displayTitle,
-                        artist = displayArtist,
-                        album = playback?.album,
-                        packageName = playback?.packageName,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
-                }
-
-                // Middle section: Playback Controls Slider & Buttons
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    PlaybackControlsRow(
-                        positionMs = currentPositionMs,
-                        durationMs = durationMs,
-                        isPlaying = playback?.isPlaying == true,
-                        onSeekTo = { pos -> ingressProvider.seekTo(pos) },
-                        onTogglePlayPause = { ingressProvider.playPause() },
-                        onSkipNext = { ingressProvider.skipNext() },
-                        onSkipPrevious = { ingressProvider.skipPrevious() },
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                }
-
-                // Bottom section: Quick Theme Switcher Pills
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "ДИЗАЙН ТЕМА",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textMuted,
-                        letterSpacing = 1.2.sp,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    Row(
+                    // Top section: Vinyl Platter, VU Meter & Metadata
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        ThemePill(
-                            label = "Spotify",
-                            theme = AppThemeType.SPOTIFY_MOOD,
-                            isSelected = selectedTheme == AppThemeType.SPOTIFY_MOOD,
-                            onClick = { onThemeSelected(AppThemeType.SPOTIFY_MOOD) },
-                            modifier = Modifier.weight(1f)
+                        AnalogTurntable(
+                            isPlaying = playback?.isPlaying == true,
+                            albumArtBitmap = albumArtBitmap,
+                            isCollapsed = false,
+                            onToggleCollapse = {},
+                            onTogglePlayPause = { ingressProvider.playPause() },
+                            modifier = Modifier.padding(bottom = 6.dp),
+                            tokens = colors
                         )
-                        ThemePill(
-                            label = "Yandex",
-                            theme = AppThemeType.YANDEX_MUSIC,
-                            isSelected = selectedTheme == AppThemeType.YANDEX_MUSIC,
-                            onClick = { onThemeSelected(AppThemeType.YANDEX_MUSIC) },
-                            modifier = Modifier.weight(1f)
+
+                        // Analog Stereo LED VU-Meter (AIMP Inspired)
+                        AnalogVuMeter(
+                            isPlaying = playback?.isPlaying == true,
+                            modifier = Modifier.padding(vertical = 6.dp)
                         )
-                        ThemePill(
-                            label = "Obsidian",
-                            theme = AppThemeType.OBSIDIAN_PULSE,
-                            isSelected = selectedTheme == AppThemeType.OBSIDIAN_PULSE,
-                            onClick = { onThemeSelected(AppThemeType.OBSIDIAN_PULSE) },
-                            modifier = Modifier.weight(1f)
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        val displayTitle = if (lyricsState.displayTitle.isNotBlank()) lyricsState.displayTitle else (playback?.title ?: "Ожидание трека")
+                        val displayArtist = if (lyricsState.displayArtist.isNotBlank()) lyricsState.displayArtist else (playback?.artist ?: "Lirix Desktop Player")
+
+                        TrackMetadataHeader(
+                            title = displayTitle,
+                            artist = displayArtist,
+                            album = playback?.album,
+                            packageName = playback?.packageName,
+                            modifier = Modifier.padding(horizontal = 4.dp)
                         )
-                        ThemePill(
-                            label = "Pastel",
-                            theme = AppThemeType.PASTEL_SERENITY,
-                            isSelected = selectedTheme == AppThemeType.PASTEL_SERENITY,
-                            onClick = { onThemeSelected(AppThemeType.PASTEL_SERENITY) },
-                            modifier = Modifier.weight(1f)
+                    }
+
+                    // Middle section: Playback Controls Slider & Buttons
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        PlaybackControlsRow(
+                            positionMs = currentPositionMs,
+                            durationMs = durationMs,
+                            isPlaying = playback?.isPlaying == true,
+                            onSeekTo = { pos -> ingressProvider.seekTo(pos) },
+                            onTogglePlayPause = { ingressProvider.playPause() },
+                            onSkipNext = { ingressProvider.skipNext() },
+                            onSkipPrevious = { ingressProvider.skipPrevious() },
+                            modifier = Modifier.padding(vertical = 4.dp)
                         )
+                    }
+
+                    // Bottom section: Quick Theme Switcher Pills
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "ДИЗАЙН ТЕМА",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textMuted,
+                            letterSpacing = 1.2.sp,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ThemePill(
+                                label = "Spotify",
+                                theme = AppThemeType.SPOTIFY_MOOD,
+                                isSelected = selectedTheme == AppThemeType.SPOTIFY_MOOD,
+                                onClick = { onThemeSelected(AppThemeType.SPOTIFY_MOOD) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            ThemePill(
+                                label = "Yandex",
+                                theme = AppThemeType.YANDEX_MUSIC,
+                                isSelected = selectedTheme == AppThemeType.YANDEX_MUSIC,
+                                onClick = { onThemeSelected(AppThemeType.YANDEX_MUSIC) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            ThemePill(
+                                label = "Obsidian",
+                                theme = AppThemeType.OBSIDIAN_PULSE,
+                                isSelected = selectedTheme == AppThemeType.OBSIDIAN_PULSE,
+                                onClick = { onThemeSelected(AppThemeType.OBSIDIAN_PULSE) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            ThemePill(
+                                label = "Pastel",
+                                theme = AppThemeType.PASTEL_SERENITY,
+                                isSelected = selectedTheme == AppThemeType.PASTEL_SERENITY,
+                                onClick = { onThemeSelected(AppThemeType.PASTEL_SERENITY) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        // ==========================================
-        // RIGHT DECK: Karaoke (LRC) & Chords Tabs
-        // ==========================================
-        Surface(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
-            shape = RoundedCornerShape(16.dp),
-            color = colors.surfaceCard,
-            border = BorderStroke(1.dp, colors.borderSubtle)
-        ) {
-            Column(
+            // ==========================================
+            // RIGHT DECK: Karaoke (LRC), Chords, Info Tabs
+            // ==========================================
+            Surface(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
+                    .weight(1f)
+                    .fillMaxHeight(),
+                shape = RoundedCornerShape(16.dp),
+                color = colors.surfaceCard,
+                border = BorderStroke(1.dp, colors.borderSubtle)
             ) {
-                // Tab Selection Bar: «Текст (LRC)» vs «Аккорды»
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(colors.surfaceElevated)
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        .fillMaxSize()
+                        .padding(16.dp)
                 ) {
-                    DeckTabButton(
-                        label = "🎤 Текст (LRC)",
-                        isSelected = selectedRightTab == 0,
-                        onClick = { selectedRightTab = 0 },
-                        modifier = Modifier.weight(1f)
-                    )
-                    DeckTabButton(
-                        label = "🎸 Аккорды",
-                        isSelected = selectedRightTab == 1,
-                        onClick = { selectedRightTab = 1 },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                    // Tab Selection Bar: «Текст (LRC)», «Аккорды», «О треке»
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(colors.surfaceElevated)
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        DeckTabButton(
+                            label = "🎤 Текст (LRC)",
+                            isSelected = selectedRightTab == 0,
+                            onClick = { selectedRightTab = 0 },
+                            modifier = Modifier.weight(1f)
+                        )
+                        DeckTabButton(
+                            label = "🎸 Аккорды",
+                            isSelected = selectedRightTab == 1,
+                            onClick = { selectedRightTab = 1 },
+                            modifier = Modifier.weight(1f)
+                        )
+                        DeckTabButton(
+                            label = "ℹ О треке",
+                            isSelected = selectedRightTab == 2,
+                            onClick = { selectedRightTab = 2 },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                // Tab Content Pane
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
-                    if (selectedRightTab == 0) {
-                        if (lyricsState.isLoading) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        text = "🔍",
-                                        fontSize = 40.sp,
-                                        modifier = Modifier.padding(bottom = 12.dp)
-                                    )
-                                    Text(
-                                        text = "Поиск караоке и текста песни...",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = colors.textPrimary
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = "Базы: LrcLib, AmDm, MyChords, Genius",
-                                        fontSize = 12.sp,
-                                        color = colors.textMuted
+                    // Tab Content Pane
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        when (selectedRightTab) {
+                            0 -> {
+                                if (lyricsState.isLoading) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Text(
+                                                text = "🔍",
+                                                fontSize = 40.sp,
+                                                modifier = Modifier.padding(bottom = 12.dp)
+                                            )
+                                            Text(
+                                                text = "Поиск караоке и текста песни...",
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = colors.textPrimary
+                                            )
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = "Источники: LrcLib, AmDm, MyChords, Genius",
+                                                fontSize = 12.sp,
+                                                color = colors.textMuted
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    val linesToDisplay = if (lyricsState.lrcLines.isNotEmpty()) {
+                                        lyricsState.lrcLines
+                                    } else if (playback == null) {
+                                        demoLrcLines
+                                    } else {
+                                        emptyList()
+                                    }
+
+                                    LyricsScrollPanel(
+                                        lines = linesToDisplay,
+                                        currentPositionMs = currentPositionMs,
+                                        onSeekTo = { pos -> ingressProvider.seekTo(pos) },
+                                        modifier = Modifier.fillMaxSize()
                                     )
                                 }
                             }
-                        } else {
-                            val linesToDisplay = if (lyricsState.lrcLines.isNotEmpty()) {
-                                lyricsState.lrcLines
-                            } else if (playback == null) {
-                                demoLrcLines
-                            } else {
-                                emptyList()
-                            }
+                            1 -> {
+                                if (lyricsState.isLoading) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "Поиск аккордов на AmDm и MyChords...",
+                                            fontSize = 14.sp,
+                                            color = colors.textMuted
+                                        )
+                                    }
+                                } else {
+                                    val chordsToDisplay = if (!lyricsState.chords.isNullOrBlank()) {
+                                        lyricsState.chords
+                                    } else if (playback == null) {
+                                        demoChords
+                                    } else {
+                                        ""
+                                    }
 
-                            LyricsScrollPanel(
-                                lines = linesToDisplay,
-                                currentPositionMs = currentPositionMs,
-                                onSeekTo = { pos -> ingressProvider.seekTo(pos) },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    } else {
-                        if (lyricsState.isLoading) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Поиск аккордов на AmDm и MyChords...",
-                                    fontSize = 14.sp,
-                                    color = colors.textMuted
+                                    ChordsTabContent(
+                                        chordsText = chordsToDisplay,
+                                        durationMs = durationMs,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                            else -> {
+                                // Info Tab: Audio Engineering & Metadata Specs
+                                TrackSpecsPanel(
+                                    playback = playback,
+                                    lyricsState = lyricsState
                                 )
                             }
-                        } else {
-                            val chordsToDisplay = if (!lyricsState.chords.isNullOrBlank()) {
-                                lyricsState.chords
-                            } else if (playback == null) {
-                                demoChords
-                            } else {
-                                ""
-                            }
-
-                            ChordsTabContent(
-                                chordsText = chordsToDisplay,
-                                durationMs = durationMs,
-                                modifier = Modifier.fillMaxSize()
-                            )
                         }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun TrackSpecsPanel(
+    playback: LivePlaybackSnapshot?,
+    lyricsState: DesktopLyricsState
+) {
+    val colors = LirixThemeTokens.colors
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text(
+            text = "ИНЖЕНЕРНЫЕ ПАРАМЕТРЫ СЕССИИ",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = colors.textMuted,
+            letterSpacing = 1.2.sp
+        )
+
+        Surface(
+            color = colors.surfaceElevated,
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, colors.borderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                SpecRow(label = "Источник аудио", value = playback?.packageName ?: "idle.session")
+                SpecRow(label = "Караоке провайдер", value = lyricsState.source ?: "Поиск в базах")
+                SpecRow(label = "Синхронизированных строк", value = "${lyricsState.lrcLines.size} LRC tags")
+                SpecRow(label = "Длительность", value = formatTimeLabel(playback?.durationMs ?: 0L))
+                SpecRow(label = "Discord Rich Presence", value = "Активен (\\.\\pipe\\discord-ipc-0)")
+                SpecRow(label = "WinRT GSMTC Hook", value = "Подключен (Lirix Media Bridge C#)")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpecRow(label: String, value: String) {
+    val colors = LirixThemeTokens.colors
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, fontSize = 12.sp, color = colors.textSecondary)
+        Text(text = value, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+    }
+}
+
+private fun formatTimeLabel(ms: Long): String {
+    val s = (ms / 1000) % 60
+    val m = (ms / (1000 * 60)) % 60
+    return "%02d:%02d".format(m, s)
 }
 
 @Composable

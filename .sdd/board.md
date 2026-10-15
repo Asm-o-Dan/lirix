@@ -130,4 +130,11 @@
 | TASK-KMP-11 | Прозрачный Click-Through HUD караоке (Ctrl+Alt+H) | desktop/src/main/kotlin/hud/* | media-ui | TASK-KMP-10 | Windows Engineer | DONE |
 | TASK-KMP-12 | Системный трей Windows, глобальные хоткеи и Discord RPC | desktop/src/main/kotlin/system/* | win-sys | TASK-KMP-10 | Windows Engineer | DONE |
 | TASK-KMP-13 | Сборка дистрибутива Windows MSI / EXE (packageMsi) | desktop/build.gradle.kts | release | TASK-KMP-11..12 | DevOps / QA | DONE |
+| TASK-UI-DSK-01 | Сравнительный UI/UX аудит AIMP vs Яндекс Музыка и спецификация дизайна | .sdd/reports/UI_DESKTOP_AIMP_YANDEX_AUDIT.md | media-ui | USER_REQUEST | UI/UX Designer | DONE |
+| TASK-UI-DSK-02 | Аналоговый стерео LED VU-индикатор пиковых уровней звука L/R | desktop/src/main/kotlin/com/lirix/app/desktop/ui/components/AnalogVuMeter.kt | media-ui | TASK-UI-DSK-01 | UI Coder | DONE |
+| TASK-UI-DSK-03 | Desktop TopBar со статусом аудио-ингресса, бейджем GSMTC и тумблерами режимов | desktop/src/main/kotlin/com/lirix/app/desktop/ui/components/DesktopTopBar.kt | media-ui | TASK-UI-DSK-01 | UI Coder | DONE |
+| TASK-UI-DSK-04 | AIMP-style плавающий компактный мини-плеер DesktopCompactWidget | desktop/src/main/kotlin/com/lirix/app/desktop/ui/components/DesktopCompactWidget.kt | media-ui | TASK-UI-DSK-01 | UI Coder | DONE |
+| TASK-UI-DSK-05 | Сборка DesktopDeckScreen 2.0 (Винил + VU-метр + Караоке + Аккорды + Инфо трека) | desktop/src/main/kotlin/com/lirix/app/desktop/ui/DesktopDeckScreen.kt | media-ui | TASK-UI-DSK-02..04 | UI Coder | DONE |
+| TASK-UI-DSK-06 | Интеграция переключения режимов Studio / Compact в Main.kt с динамическим размером окна | desktop/src/main/kotlin/com/lirix/app/desktop/Main.kt | media-ui | TASK-UI-DSK-05 | UI Coder | DONE |
+| TASK-UI-DSK-07 | Сборка дистрибутива createDistributable и верификация запуска | desktop/build/compose/binaries/main/app/Lirix/Lirix.exe | release | TASK-UI-DSK-06 | Build Engineer | DONE |
 
