@@ -18,6 +18,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -28,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -42,19 +51,21 @@ import java.io.File
 /**
  * Compact floating Mini-Player widget inspired by AIMP's tray mini-dock.
  * Highly functional for side-by-side multitasking while coding or gaming.
+ * Spec: TASK-UI-PROMPTER-FIX-01 §2
  */
 @Composable
 fun DesktopCompactWidget(
     playback: LivePlaybackSnapshot?,
     ingressProvider: MediaIngressProvider,
-    lyricsState: DesktopLyricsState,
-    onExpandToStudio: () -> Unit,
+    lyricsState: DesktopLyricsState = DesktopLyricsState(),
+    onExpandToStudio: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val colors = LirixThemeTokens.colors
     val currentPositionMs = playback?.currentPositionMs() ?: 0L
     val durationMs = playback?.durationMs ?: 0L
 
+    // Safely load album cover
     val albumArtBitmap = remember(playback?.albumArtUri) {
         playback?.albumArtUri?.let { path ->
             try {
@@ -68,35 +79,40 @@ fun DesktopCompactWidget(
         }
     }
 
-    // Current active karaoke line
+    // Active lyric line calculation
     val activeLineText = remember(lyricsState.lrcLines, currentPositionMs) {
-        val line = lyricsState.lrcLines.lastOrNull { it.timestampMs <= currentPositionMs }
-        line?.text ?: if (lyricsState.isLoading) "Поиск текста..." else (playback?.album ?: "Lirix Compact Deck")
+        if (lyricsState.lrcLines.isEmpty()) {
+            "..."
+        } else {
+            val matching = lyricsState.lrcLines.lastOrNull { it.timestampMs <= currentPositionMs }
+            matching?.text ?: lyricsState.lrcLines.first().text
+        }
     }
 
     Surface(
         modifier = modifier
-            .fillMaxSize()
-            .clip(RoundedCornerShape(16.dp)),
+            .width(380.dp)
+            .height(110.dp),
+        shape = RoundedCornerShape(14.dp),
         color = colors.surfaceCard,
         border = BorderStroke(1.dp, colors.borderSubtle)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(14.dp),
+                .padding(10.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Row: Album art, Title/Artist, and Expand button
+            // Top Row: Album Art + Track Info + Studio Expand Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Mini Cover / Vinyl Disc
+                // Mini 44x44 Album Art
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(44.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(colors.surfaceElevated)
                         .border(1.dp, colors.borderSubtle, RoundedCornerShape(8.dp)),
@@ -109,7 +125,12 @@ fun DesktopCompactWidget(
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        Text(text = "🎵", fontSize = 20.sp)
+                        Icon(
+                            imageVector = Icons.Filled.MusicNote,
+                            contentDescription = "Music",
+                            tint = colors.textMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
@@ -134,7 +155,7 @@ fun DesktopCompactWidget(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "♪ $activeLineText",
+                        text = activeLineText,
                         color = colors.accentPrimary,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
@@ -154,12 +175,23 @@ fun DesktopCompactWidget(
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "🎛 Студия",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Dashboard,
+                            contentDescription = "Студия",
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = "Студия",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary
+                        )
+                    }
                 }
             }
 
@@ -201,18 +233,27 @@ fun DesktopCompactWidget(
                     color = colors.textMuted
                 )
 
-                // Compact Transport Buttons [⏮] [⏯] [⏭]
+                // Compact Transport Buttons
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CompactIconButton(label = "⏮", onClick = { ingressProvider.skipPrevious() })
                     CompactIconButton(
-                        label = if (playback?.isPlaying == true) "⏸" else "▶",
+                        icon = Icons.Filled.SkipPrevious,
+                        contentDescription = "Предыдущий",
+                        onClick = { ingressProvider.skipPrevious() }
+                    )
+                    CompactIconButton(
+                        icon = if (playback?.isPlaying == true) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (playback?.isPlaying == true) "Пауза" else "Воспроизведение",
                         isPrimary = true,
                         onClick = { ingressProvider.playPause() }
                     )
-                    CompactIconButton(label = "⏭", onClick = { ingressProvider.skipNext() })
+                    CompactIconButton(
+                        icon = Icons.Filled.SkipNext,
+                        contentDescription = "Следующий",
+                        onClick = { ingressProvider.skipNext() }
+                    )
                 }
             }
         }
@@ -221,7 +262,8 @@ fun DesktopCompactWidget(
 
 @Composable
 private fun CompactIconButton(
-    label: String,
+    icon: ImageVector,
+    contentDescription: String,
     onClick: () -> Unit,
     isPrimary: Boolean = false
 ) {
@@ -235,11 +277,11 @@ private fun CompactIconButton(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            color = if (isPrimary) colors.appBackground else colors.textPrimary,
-            fontWeight = FontWeight.Bold
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (isPrimary) colors.appBackground else colors.textPrimary,
+            modifier = Modifier.size(14.dp)
         )
     }
 }

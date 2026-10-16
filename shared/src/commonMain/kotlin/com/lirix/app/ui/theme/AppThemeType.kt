@@ -53,6 +53,24 @@ enum class AppThemeType(
         previewAccent = Color(0xFF7A9A7B),
         previewBackground = Color(0xFFFBF9F5),
         isDark = false
+    ),
+    GRAPHITE_CHALK(
+        id = "graphite_chalk",
+        title = "Graphite & Chalk",
+        subtitle = "Суфлёрский монитор (Dark, #1B1E24)",
+        previewPrimary = Color(0xFFF2EFE9),
+        previewAccent = Color(0xFF7FA6F0),
+        previewBackground = Color(0xFF1B1E24),
+        isDark = true
+    ),
+    PAPER_INK(
+        id = "paper_ink",
+        title = "Paper & Ink",
+        subtitle = "Книжный суфлёр (Light, #F5F2EB)",
+        previewPrimary = Color(0xFF181B20),
+        previewAccent = Color(0xFF3A68B8),
+        previewBackground = Color(0xFFF5F2EB),
+        isDark = false
     );
 
     companion object {

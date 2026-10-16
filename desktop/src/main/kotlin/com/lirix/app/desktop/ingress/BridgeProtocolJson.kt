@@ -23,7 +23,15 @@ data class BridgeInboundMessage(
     val positionMs: Long = 0L,
     val isPlaying: Boolean? = null,
     val status: String? = null,
-    val thumbnailPath: String? = null
+    val thumbnailPath: String? = null,
+    val leftDbfs: Float? = null,
+    val rightDbfs: Float? = null,
+    val leftPeak: Float? = null,
+    val rightPeak: Float? = null,
+    val masterPeak: Float? = null,
+    val masterDbfs: Float? = null,
+    val isClipping: Boolean? = null,
+    val isActive: Boolean? = null
 )
 
 @Serializable

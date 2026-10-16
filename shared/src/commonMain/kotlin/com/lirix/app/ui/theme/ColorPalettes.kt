@@ -96,12 +96,62 @@ object ColorPalettes {
         isDark = false
     )
 
+    val GraphiteChalk = LirixColors(
+        appBackground = LirixThemeTokens.Graphite,
+        surfacePrimary = LirixThemeTokens.Slate,
+        surfaceCard = Color(0xFF2B303A),
+        surfaceElevated = Color(0xFF323844),
+        accentPrimary = LirixThemeTokens.AccentFallbackDark,
+        accentSecondary = Color(0xFF9ABCF5),
+        accentGlow = Color(0x267FA6F0),
+        textPrimary = LirixThemeTokens.Chalk,
+        textSecondary = LirixThemeTokens.Mist,
+        textMuted = Color(0xFF6C7482),
+        borderSubtle = LirixThemeTokens.Hairline,
+        karaokeActive = LirixThemeTokens.Chalk,
+        karaokeInactive = LirixThemeTokens.Mist,
+        chordBadgeBg = LirixThemeTokens.Slate,
+        chordBadgeText = LirixThemeTokens.AccentFallbackDark,
+        fretboardWood = Color(0xFF15181D),
+        cardCornerRadius = 8.dp,
+        pillCornerRadius = 16.dp,
+        isDark = true,
+        hairline = LirixThemeTokens.Hairline,
+        clipIndicator = LirixThemeTokens.Clip
+    )
+
+    val PaperInk = LirixColors(
+        appBackground = LirixThemeTokens.Parchment,
+        surfacePrimary = LirixThemeTokens.Vellum,
+        surfaceCard = Color(0xFFE2DDD1),
+        surfaceElevated = Color(0xFFFFFFFF),
+        accentPrimary = LirixThemeTokens.AccentFallbackLight,
+        accentSecondary = Color(0xFF5A84D0),
+        accentGlow = Color(0x203A68B8),
+        textPrimary = LirixThemeTokens.Ink,
+        textSecondary = LirixThemeTokens.Pencil,
+        textMuted = Color(0xFF8A919E),
+        borderSubtle = LirixThemeTokens.HairlineLight,
+        karaokeActive = LirixThemeTokens.Ink,
+        karaokeInactive = LirixThemeTokens.Pencil,
+        chordBadgeBg = LirixThemeTokens.Vellum,
+        chordBadgeText = LirixThemeTokens.AccentFallbackLight,
+        fretboardWood = Color(0xFFDCD6C7),
+        cardCornerRadius = 8.dp,
+        pillCornerRadius = 16.dp,
+        isDark = false,
+        hairline = LirixThemeTokens.HairlineLight,
+        clipIndicator = LirixThemeTokens.ClipLight
+    )
+
     fun getTokens(theme: AppThemeType): LirixColors {
         return when (theme) {
             AppThemeType.SPOTIFY_MOOD -> SpotifyMood
             AppThemeType.YANDEX_MUSIC -> YandexMusic
             AppThemeType.OBSIDIAN_PULSE -> ObsidianPulse
             AppThemeType.PASTEL_SERENITY -> PastelSerenity
+            AppThemeType.GRAPHITE_CHALK -> GraphiteChalk
+            AppThemeType.PAPER_INK -> PaperInk
         }
     }
 }

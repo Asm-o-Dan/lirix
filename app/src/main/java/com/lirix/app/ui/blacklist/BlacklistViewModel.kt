@@ -39,7 +39,8 @@ data class BlacklistUiState(
     val isCalculatingPreview: Boolean = false,
     val dbSuggestions: List<String> = emptyList(),
     // Notifications
-    val snackbarMessage: String? = null
+    val snackbarMessage: String? = null,
+    val showUndoForPurge: Boolean = false
 ) {
     val filteredRules: List<BlacklistRuleEntity>
         get() = when (activeFilterTab) {
@@ -204,6 +205,9 @@ class BlacklistViewModel(private val db: AppDatabase) : ViewModel() {
         }
     }
 
+    private var lastPurgedTracks: List<TrackEntity>? = null
+    private var lastCreatedRuleId: String? = null
+
     fun saveDraftAndPurge() {
         val state = _uiState.value
         val pattern = state.draftPattern.trim()
@@ -218,22 +222,46 @@ class BlacklistViewModel(private val db: AppDatabase) : ViewModel() {
                 isEnabled = true
             )
             db.blacklistDao().insertRule(newRule)
-            val report = purgeEngine.purgeMatchingTracks(newRule)
+            val (report, purgedBackup) = purgeEngine.purgeMatchingTracksWithBackup(newRule)
+            lastPurgedTracks = purgedBackup
+            lastCreatedRuleId = newRule.id
             _uiState.update {
                 it.copy(
                     isConstructorOpen = false,
                     snackbarMessage = if (report.deletedTracksCount > 0) {
-                        "Правило создано. Удалено ${report.deletedTracksCount} треков."
+                        "Удалено ${report.deletedTracksCount} треков."
                     } else {
-                        "Правило создано. Медиатека защищена."
-                    }
+                        "Правило игнорирования создано."
+                    },
+                    showUndoForPurge = report.deletedTracksCount > 0
+                )
+            }
+        }
+    }
+
+    fun undoLastPurge() {
+        viewModelScope.launch {
+            val tracks = lastPurgedTracks
+            val ruleId = lastCreatedRuleId
+            if (!tracks.isNullOrEmpty()) {
+                purgeEngine.restoreTracks(tracks)
+            }
+            if (ruleId != null) {
+                db.blacklistDao().deleteRule(ruleId)
+            }
+            lastPurgedTracks = null
+            lastCreatedRuleId = null
+            _uiState.update {
+                it.copy(
+                    snackbarMessage = "Удаление отменено, треки восстановлены.",
+                    showUndoForPurge = false
                 )
             }
         }
     }
 
     fun clearSnackbar() {
-        _uiState.update { it.copy(snackbarMessage = null) }
+        _uiState.update { it.copy(snackbarMessage = null, showUndoForPurge = false) }
     }
 
     companion object {

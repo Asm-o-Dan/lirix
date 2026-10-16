@@ -120,3 +120,24 @@ fun AlbumArtThumbnail(
         }
     }
 }
+
+@Composable
+fun AlbumArtImage(
+    artUri: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 44.dp,
+    shape: Shape = RoundedCornerShape(10.dp),
+    borderColor: Color = AppColors.BorderSubtle,
+    contentDescription: String? = null,
+    fallbackIcon: ImageVector = Icons.Default.MusicNote
+) {
+    AlbumArtThumbnail(
+        artUri = artUri,
+        modifier = modifier,
+        size = size,
+        shape = shape,
+        borderColor = borderColor,
+        contentDescription = contentDescription,
+        fallbackIcon = fallbackIcon
+    )
+}

@@ -333,21 +333,12 @@ public sealed class GsmtcWatcher : IDisposable
 
     private static void SendClosed()
     {
-        SendJson(new ClosedMessage(), BridgeJsonContext.Relaxed.ClosedMessage);
+        BridgeOutput.SendJson(new ClosedMessage(), BridgeJsonContext.Relaxed.ClosedMessage);
     }
 
     private static void SendJson<T>(T message, JsonTypeInfo<T> typeInfo)
     {
-        try
-        {
-            lock (_stdoutLock)
-            {
-                var json = JsonSerializer.Serialize(message, typeInfo);
-                Console.Out.WriteLine(json);
-                Console.Out.Flush();
-            }
-        }
-        catch { }
+        BridgeOutput.SendJson(message, typeInfo);
     }
 
     public void Dispose()

@@ -27,3 +27,12 @@ build_tmp/
 screen_*.png
 *.pyc
 __pycache__/
+
+# Local device dumps and orchestration snapshots
+/lirix_db.bin
+/temp_ui*.xml
+/temp_ui*.png
+/.sdd/reports/poster-previews/
+/test_out.txt
+/.sdd/reports/connect_pcm_baseline/
+/.sdd/intake/connect_pcm_*.json

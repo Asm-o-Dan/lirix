@@ -1,87 +1,95 @@
 package com.lirix.app.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.res.Configuration
+import android.graphics.BitmapFactory
+import android.provider.Settings
+import android.view.WindowManager
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.input.pointer.pointerInput
-
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DevicesOther
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Share
-import com.lirix.app.service.FloatingLyricsService
-import com.lirix.app.storage.ThemePreferencesRepository
-import com.lirix.app.ui.components.NowPlayingOverflowMenu
-import com.lirix.app.ui.components.ThemeSelectionDialog
-import com.lirix.app.ui.components.TimingCalibrationDialog
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -98,15 +106,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -115,56 +134,66 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lirix.app.feature.AggregatedLyricsProvider
-import com.lirix.app.feature.MusicFeatureEngine
-import com.lirix.app.feature.lyrics.AmDmChordParser
 import com.lirix.app.feature.lyrics.ChordAutoscrollCalculator
 import com.lirix.app.feature.lyrics.ChordTransposer
 import com.lirix.app.feature.lyrics.GuitarChordDictionary
-import com.lirix.app.feature.lyrics.GuitarChordDialog
-import com.lirix.app.feature.share.ShareCardGenerator
-import com.lirix.app.feature.share.ShareManager
-import com.lirix.app.ui.components.AnalogTurntable
-import com.lirix.app.ui.components.LrcTapSyncStudioDialog
-import com.lirix.app.ui.components.ShareFormatDialog
-import android.content.Intent
-import android.graphics.BitmapFactory
-import android.net.Uri
-import java.io.File
-import java.net.URLEncoder
+import com.lirix.app.feature.MusicFeatureEngine
+import com.lirix.app.ingestion.SyncOffsetStore
+import com.lirix.app.feature.AggregatedLyricsProvider
+import com.lirix.app.feature.lyrics.AmDmChordParser
 import com.lirix.app.feature.FallbackLyricsScraper
 import com.lirix.app.feature.LrcLibLyricsProvider
-import com.lirix.app.feature.LyricsSourceIds
+import com.lirix.app.feature.lyrics.LrcSyncEngine
 import com.lirix.app.feature.music.ParsedTrackInfo
-import com.lirix.app.ui.components.rememberAlbumArtBitmap
+import com.lirix.app.feature.share.ShareCardGenerator
+import com.lirix.app.feature.share.ShareManager
 import com.lirix.app.ingestion.MediaSessionCollector
 import com.lirix.app.ingestion.NotificationListener
-import com.lirix.app.ingestion.SyncOffsetStore
 import com.lirix.app.storage.AppDatabase
 import com.lirix.app.storage.LyricsCacheEntity
+import com.lirix.app.storage.ThemePreferencesRepository
+import com.lirix.app.connect.AndroidConnectManager
+import com.lirix.app.service.FloatingLyricsService
 import com.lirix.app.storage.TrackEntity
-import com.lirix.app.ui.components.NotificationPermissionDialog
-import com.lirix.app.ui.theme.AppColors
+import com.lirix.app.ui.connect.DeviceConnectBottomSheet
+import com.lirix.app.ui.player.ChordsTabContent
+import com.lirix.app.ui.components.AlbumArtImage
+import com.lirix.app.ui.components.EditLyricsDialog
+import com.lirix.app.ui.components.EmptyPlayerStateView
+import com.lirix.app.ui.components.LrcTapSyncStudioDialog
+import com.lirix.app.ui.components.NowPlayingOverflowMenu
+import com.lirix.app.ui.components.OverlayPermissionDialog
+import com.lirix.app.ui.components.PermissionRequestBanner
+import com.lirix.app.ui.components.PlayerEmptyStateType
+import com.lirix.app.ui.components.ShareFormatDialog
+import com.lirix.app.ui.components.ThemeSelectionDialog
+import com.lirix.app.ui.components.TimingCalibrationDialog
+import com.lirix.app.ui.theme.FontFeature
+import com.lirix.app.ui.theme.GolosTextFontFamily
 import com.lirix.app.ui.theme.LirixThemeTokens
-import androidx.compose.material.icons.filled.Security
+import com.lirix.app.ui.theme.LiterataFontFamily
+import com.lirix.app.ui.theme.toSentenceCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
+/**
+ * 4 modes of NowPlayingScreen deck (SPEC-UI-MOBILE-2.0 / ADR-023).
+ */
 enum class NowPlayingMode(val label: String) {
     KARAOKE("Караоке"),
-    LYRICS("Текст"),
     CHORDS("Аккорды"),
+    LYRICS("Текст"),
     NOTES("Заметки")
 }
 
 typealias KaraokeLine = com.lirix.app.feature.lyrics.KaraokeLine
 
 fun parseLrcLinesStrict(rawLrc: String): List<KaraokeLine> =
-    com.lirix.app.feature.lyrics.LrcSyncEngine.parseLrcLinesStrict(rawLrc)
-
+    LrcSyncEngine.parseLrcLinesStrict(rawLrc)
 
 fun formatMs(ms: Long): String {
     val totalSec = (ms / 1000L).coerceAtLeast(0L)
@@ -173,28 +202,41 @@ fun formatMs(ms: Long): String {
     return "%02d:%02d".format(m, s)
 }
 
+/**
+ * Mobile Teleprompter Deck (SPEC-UI-MOBILE-2.0 / ADR-023).
+ *
+ * Requirements:
+ * 1. Fixed heights for control zones + lyrics column on Modifier.weight(1f).
+ * 2. Auto-collapse metadata into header on screens < 700dp (360x640), keeping prompter >= 300dp.
+ * 3. Focus mode via Double-Tap on prompter (gives up to 72% height / 540dp to text).
+ * 4. TalkBack customAction("Скрыть метаданные / Переключить фокус").
+ * 5. Interactive seek on long press (blocked if canSeek == false).
+ * 6. FLAG_KEEP_SCREEN_ON active on player screen in portrait & landscape; cleared after 5 min pause.
+ * 7. Reduced motion: ANIMATOR_DURATION_SCALE == 0 disables springs and animations.
+ * 8. Font scale stepper 'Аа' (80%..150%) + delay shift ±0.1s + 4 tabs.
+ * 9. Landscape prompter 800x360: 280dp left column with verticalScroll(), 520dp prompter right column.
+ * 10. All 5 empty/error states implemented.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NowPlayingScreen(
     initialTrack: ParsedTrackInfo? = null,
     selectedTrack: TrackEntity? = null,
     onTrackConsumed: () -> Unit = {},
     onOpenTeachMode: ((TrackEntity?) -> Unit)? = null,
-    onOpenBlacklistSettings: () -> Unit = {}
+    onOpenBlacklistSettings: () -> Unit = {},
+    onBack: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     val lirixColors = LirixThemeTokens.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val db = remember { AppDatabase.getInstance(context) }
-    val engine = remember { MusicFeatureEngine(musicDao = db.musicDao(), lyricsDao = db.lyricsDao()) }
     val snackbarHostState = remember { SnackbarHostState() }
-    var isRejectingLyrics by remember { mutableStateOf(false) }
-    var hasRejections by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
 
     val livePlayback by MediaSessionCollector.livePlaybackFlow.collectAsStateWithLifecycle()
-    val isOverlayActive by FloatingLyricsService.isRunning.collectAsStateWithLifecycle()
     val syncOffsetStore = remember { SyncOffsetStore(context) }
-
     val recentTracks by db.musicDao().observeRecentTracks().collectAsStateWithLifecycle(initialValue = emptyList())
     val isLiveActive = livePlayback != null && livePlayback!!.isPlaying
 
@@ -250,22 +292,11 @@ fun NowPlayingScreen(
         }
     }
 
-    val effectiveAlbumArtUri = remember(livePlayback?.albumArtUri, currentTrack?.albumArtUri, isLiveActive) {
-        if (isLiveActive) {
-            livePlayback?.albumArtUri?.takeIf { it.isNotBlank() }
-                ?: currentTrack?.albumArtUri?.takeIf { it.isNotBlank() }
-        } else {
-            currentTrack?.albumArtUri?.takeIf { it.isNotBlank() }
-                ?: livePlayback?.albumArtUri?.takeIf { it.isNotBlank() }
-        }
-    }
-    val vinylCenterArt = rememberAlbumArtBitmap(effectiveAlbumArtUri)
-
     var syncOffsetMs by remember(currentTrack?.trackKey) {
         mutableLongStateOf(syncOffsetStore.getOffset(currentTrack?.trackKey.orEmpty()))
     }
 
-    var selectedMode by remember { mutableStateOf(NowPlayingMode.KARAOKE) }
+    var selectedMode by rememberSaveable { mutableStateOf(NowPlayingMode.KARAOKE) }
     val pagerState = rememberPagerState(initialPage = selectedMode.ordinal) { NowPlayingMode.entries.size }
 
     LaunchedEffect(pagerState.currentPage) {
@@ -297,179 +328,128 @@ fun NowPlayingScreen(
     val chordsScrollState = rememberScrollState()
     var transposeSemitones by rememberSaveable(currentTrack?.trackKey) { mutableIntStateOf(0) }
     var chordTextZoom by rememberSaveable { mutableFloatStateOf(1.0f) }
-    var selectedChordDiagram by remember { mutableStateOf<String?>(null) }
-    var isVinylCollapsed by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(currentTrack?.trackKey) {
-        isEditingNotes = false
-        isAutoscrollRunning = false
-        isTouchPaused = false
-        transposeSemitones = 0
-        selectedChordDiagram = null
-    }
+    // Text Scale Stepper 'Аа' (0.8f to 1.5f)
+    var textScaleFactor by rememberSaveable { mutableFloatStateOf(1.0f) }
 
-    LaunchedEffect(lyricsCache) {
-        val hasLrc = !lyricsCache?.syncedLyricsLrc.isNullOrBlank()
-        val hasPlain = !lyricsCache?.plainLyrics.isNullOrBlank()
-        if (!hasLrc && hasPlain && selectedMode == NowPlayingMode.KARAOKE) {
-            selectedMode = NowPlayingMode.LYRICS
-        } else if (hasLrc && selectedMode == NowPlayingMode.LYRICS) {
-            selectedMode = NowPlayingMode.KARAOKE
+    // Focus Mode (Double-Tap)
+    var isFocusMode by rememberSaveable { mutableStateOf(false) }
+
+    // Preferences for one-time hints
+    val prefs = remember { context.getSharedPreferences("lirix_ui_prompter_prefs", Context.MODE_PRIVATE) }
+    var hasShownFocusHint by remember { mutableStateOf(prefs.getBoolean("hint_focus_shown", false)) }
+    var hasShownSeekHint by remember { mutableStateOf(prefs.getBoolean("hint_seek_shown", false)) }
+    var keepScreenOnSetting by rememberSaveable { mutableStateOf(prefs.getBoolean("keep_screen_on", true)) }
+
+    // Reduced motion check
+    val isReducedMotion = remember(context) {
+        try {
+            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+        } catch (_: Exception) {
+            false
         }
     }
 
+    // Playback state and seek availability
     var localPlaybackPositionMs by remember { mutableLongStateOf(0L) }
     var localIsPlaying by remember { mutableStateOf(false) }
-
     val isPlaying = livePlayback?.isPlaying ?: localIsPlaying
     var playbackPositionMs by remember { mutableLongStateOf(0L) }
+    val canSeek = (livePlayback != null && livePlayback!!.durationMs > 0L) || localIsPlaying
+    val totalTrackDuration = livePlayback?.durationMs ?: 0L
+
+    val density = LocalDensity.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val isImeVisible = WindowInsets.isImeVisible
+    var isNotesFocused by remember { mutableStateOf(false) }
+    val isHideControlsForNotes = (selectedMode == NowPlayingMode.NOTES && (isImeVisible || isNotesFocused)) || isImeVisible
+    val hasSyncedLyrics = !lyricsCache?.syncedLyricsLrc.isNullOrBlank() || !currentTrack?.syncedLyrics.isNullOrBlank()
+    val isKaraokeWithLyrics = selectedMode == NowPlayingMode.KARAOKE && hasSyncedLyrics
+
+    val saveNotes: () -> Unit = {
+        val trackKey = currentTrack?.trackKey
+        if (trackKey != null) {
+            scope.launch(Dispatchers.IO) {
+                db.musicDao().updateUserNotes(trackKey, notesInputText)
+                val cached = db.lyricsDao().getLyrics(trackKey)
+                if (cached != null) {
+                    db.lyricsDao().saveLyrics(cached.copy(userNotes = notesInputText, updatedAt = System.currentTimeMillis()))
+                }
+            }
+        }
+    }
+
+    // Keep screen on management (FLAG_KEEP_SCREEN_ON) with 5-minute pause timeout
+    var pausedDurationMs by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(isPlaying) {
+        if (!isPlaying) {
+            pausedDurationMs = 0L
+            while (isActive && pausedDurationMs < 300_000L) {
+                delay(1000L)
+                pausedDurationMs += 1000L
+            }
+        } else {
+            pausedDurationMs = 0L
+        }
+    }
+
+    val shouldKeepScreenOn = keepScreenOnSetting && (isPlaying || pausedDurationMs < 300_000L)
+    DisposableEffect(shouldKeepScreenOn) {
+        val window = (context as? Activity)?.window
+        if (shouldKeepScreenOn) {
+            window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    // First launch hints
+    LaunchedEffect(currentTrack?.trackKey) {
+        if (currentTrack != null) {
+            if (!hasShownFocusHint) {
+                delay(1000L)
+                snackbarHostState.showSnackbar(
+                    message = "Двойной тап по тексту — режим максимального фокуса",
+                    duration = SnackbarDuration.Short
+                )
+                prefs.edit().putBoolean("hint_focus_shown", true).apply()
+                hasShownFocusHint = true
+            } else if (!hasShownSeekHint && canSeek) {
+                delay(2000L)
+                snackbarHostState.showSnackbar(
+                    message = "Удерживайте строку для перемотки",
+                    duration = SnackbarDuration.Short
+                )
+                prefs.edit().putBoolean("hint_seek_shown", true).apply()
+                hasShownSeekHint = true
+            }
+        }
+    }
+
     var showShareDialog by remember { mutableStateOf(false) }
     var showTapSyncStudio by remember { mutableStateOf(false) }
+    var showEditLyricsDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showCalibrationDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    val connectManager = remember { AndroidConnectManager.getInstance(context) }
+    var showConnectBottomSheet by remember { mutableStateOf(false) }
+    val isLocalPlayback by connectManager.handoffStateMachine.isLocalPlayback.collectAsStateWithLifecycle()
+    val isRemotePlaying = !isLocalPlayback
+    val isOverlayRunning by FloatingLyricsService.isRunning.collectAsStateWithLifecycle()
+    var showOverlayPermissionDialog by remember { mutableStateOf(false) }
     val themeRepo = remember { ThemePreferencesRepository.getInstance(context) }
     val currentTheme by themeRepo.selectedTheme.collectAsStateWithLifecycle()
 
     var isNotificationPermissionGranted by remember {
         mutableStateOf(NotificationListener.isPermissionGranted(context))
     }
-    var showPermissionDialog by rememberSaveable {
-        mutableStateOf(!NotificationListener.isPermissionGranted(context))
-    }
 
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                val granted = NotificationListener.isPermissionGranted(context)
-                isNotificationPermissionGranted = granted
-                if (granted) {
-                    showPermissionDialog = false
-                    try {
-                        android.service.notification.NotificationListenerService.requestRebind(
-                            android.content.ComponentName(context, NotificationListener::class.java)
-                        )
-                    } catch (_: Exception) {}
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    if (showPermissionDialog) {
-        NotificationPermissionDialog(
-            onDismissRequest = { showPermissionDialog = false },
-            onPermissionGrantedCheck = {
-                val granted = NotificationListener.isPermissionGranted(context)
-                isNotificationPermissionGranted = granted
-                if (granted) showPermissionDialog = false
-            }
-        )
-    }
-
-    if (showTapSyncStudio && currentTrack != null) {
-        val plainLyricsText = lyricsCache?.plainLyrics ?: currentTrack.plainLyrics.orEmpty()
-        LrcTapSyncStudioDialog(
-            trackTitle = currentTrack.title,
-            artist = currentTrack.artist,
-            initialPlainText = plainLyricsText,
-            onDismissRequest = { showTapSyncStudio = false },
-            onSaveLrc = { generatedLrc ->
-                showTapSyncStudio = false
-                scope.launch(Dispatchers.IO) {
-                    val updatedEntity = LyricsCacheEntity(
-                        trackKey = currentTrack.trackKey,
-                        plainLyrics = plainLyricsText,
-                        syncedLyricsLrc = generatedLrc,
-                        chordsAmDm = lyricsCache?.chordsAmDm,
-                        userNotes = lyricsCache?.userNotes,
-                        provider = "USER:TAP_SYNC",
-                        updatedAt = System.currentTimeMillis()
-                    )
-                    // 1. Dual-Write to lyrics_cache
-                    db.lyricsDao().saveLyrics(updatedEntity)
-                    // 2. Dual-Write to music_tracks
-                    db.musicDao().updateLyrics(currentTrack.trackKey, plainLyricsText, generatedLrc)
-                    withContext(Dispatchers.Main) {
-                        lyricsCache = updatedEntity
-                        selectedMode = NowPlayingMode.KARAOKE
-                        snackbarHostState.showSnackbar(
-                            message = "Караоке синхронизировано и сохранено!",
-                            duration = androidx.compose.material3.SnackbarDuration.Short
-                        )
-                    }
-                }
-            }
-        )
-    }
-
-    if (showShareDialog && currentTrack != null) {
-        val trackToShare = currentTrack
-        ShareFormatDialog(
-            onDismissRequest = { showShareDialog = false },
-            onFormatSelected = { format ->
-                val artBmp = effectiveAlbumArtUri?.let { uri ->
-                    try {
-                        val path = uri.removePrefix("file://")
-                        val file = File(path)
-                        if (file.exists() && file.length() > 0L) BitmapFactory.decodeFile(file.absolutePath) else null
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
-                val activeLyricLine = run {
-                    val lrc = lyricsCache?.syncedLyricsLrc
-                    if (!lrc.isNullOrBlank()) {
-                        val parsed = parseLrcLinesStrict(lrc)
-                        val idx = parsed.indexOfLast { it.timestampMs <= playbackPositionMs }
-                        if (idx != -1) parsed[idx].text else parsed.firstOrNull()?.text
-                    } else {
-                        lyricsCache?.plainLyrics?.lineSequence()?.firstOrNull { it.isNotBlank() }
-                    }
-                }
-                val cardBitmap = ShareCardGenerator.generateNowPlayingCard(
-                    context = context,
-                    track = trackToShare,
-                    currentLyricLine = activeLyricLine,
-                    format = format,
-                    albumArtBitmap = artBmp
-                )
-                ShareManager.shareBitmap(
-                    context = context,
-                    bitmap = cardBitmap,
-                    chooserTitle = "Поделиться треком ${trackToShare.title}"
-                )
-            }
-        )
-    }
-
-    if (selectedChordDiagram != null) {
-        val transposedText = remember(lyricsCache?.chordsAmDm, transposeSemitones) {
-            ChordTransposer.transposeText(lyricsCache?.chordsAmDm.orEmpty(), transposeSemitones)
-        }
-        val currentSongChords = remember(transposedText) {
-            GuitarChordDictionary.extractChordsFromText(transposedText)
-        }
-        GuitarChordDialog(
-            initialChordName = selectedChordDiagram!!,
-            availableChords = currentSongChords,
-            onDismissRequest = { selectedChordDiagram = null }
-        )
-    }
-
-    // Reset local playback position on track switch if livePlayback is null
-    LaunchedEffect(currentTrack?.trackKey) {
-        if (livePlayback == null || !livePlayback!!.isPlaying) {
-            localPlaybackPositionMs = 0L
-            playbackPositionMs = 0L
-        }
-    }
-
-    // High-precision 60-120 fps interpolation cycle using withFrameMillis
+    // High-precision playback position updates
     LaunchedEffect(livePlayback?.isPlaying, livePlayback?.lastPositionUpdateTimeMs, livePlayback?.basePositionMs, syncOffsetMs, localIsPlaying) {
         val snapshot = livePlayback
         if (snapshot != null) {
@@ -493,51 +473,7 @@ fun NowPlayingScreen(
         }
     }
 
-    // Autoscroll loop for CHORDS tab (TASK-CHR-01)
-    LaunchedEffect(isAutoscrollRunning, isTouchPaused, autoscrollMultiplier, livePlayback?.durationMs, chordsScrollState.maxValue) {
-        if (!isAutoscrollRunning || isTouchPaused) return@LaunchedEffect
-
-        val durationMs = livePlayback?.durationMs ?: 0L
-        val linesCount = lyricsCache?.chordsAmDm?.lines()?.count { it.isNotBlank() } ?: 0
-        val totalScrollPx = chordsScrollState.maxValue.toFloat()
-
-        val baseSpeed = ChordAutoscrollCalculator.calculateBaseSpeedPxPerSec(
-            durationMs = durationMs,
-            linesCount = linesCount,
-            totalScrollPx = totalScrollPx
-        )
-        val effectiveSpeed = ChordAutoscrollCalculator.clampMultiplier(autoscrollMultiplier) * baseSpeed
-
-        var lastFrameNanos = 0L
-        while (isActive && isAutoscrollRunning && !isTouchPaused) {
-            withFrameNanos { frameNanos ->
-                if (lastFrameNanos != 0L) {
-                    val deltaMs = (frameNanos - lastFrameNanos) / 1_000_000L
-                    if (deltaMs > 0) {
-                        val stepDelta = ChordAutoscrollCalculator.calculateStepDelta(effectiveSpeed, deltaMs)
-                        if (chordsScrollState.value >= chordsScrollState.maxValue) {
-                            isAutoscrollRunning = false
-                        } else {
-                            chordsScrollState.dispatchRawDelta(stepDelta)
-                        }
-                    }
-                }
-                lastFrameNanos = frameNanos
-            }
-        }
-    }
-
-    // Touch interruption detection for CHORDS autoscroll (TASK-CHR-01)
-    LaunchedEffect(chordsScrollState.isScrollInProgress) {
-        if (chordsScrollState.isScrollInProgress && isAutoscrollRunning) {
-            isTouchPaused = true
-        } else if (!chordsScrollState.isScrollInProgress && isTouchPaused && isAutoscrollRunning) {
-            delay(2500L)
-            isTouchPaused = false
-        }
-    }
-
-    // Load or fetch lyrics when current track changes
+    // Load lyrics from database or online providers
     LaunchedEffect(currentTrack?.trackKey) {
         val track = currentTrack ?: return@LaunchedEffect
         isLoadingLyrics = true
@@ -548,11 +484,6 @@ fun NowPlayingScreen(
             val cached = db.lyricsDao().getLyrics(track.trackKey)
             if (cached != null) {
                 lyricsCache = cached
-                // Синхронизируем с music_tracks, если там было пусто
-                if (track.plainLyrics == null && track.syncedLyrics == null) {
-                    db.musicDao().updateLyrics(track.trackKey, cached.plainLyrics, cached.syncedLyricsLrc)
-                }
-                hasRejections = db.lyricsDao().getRejectionsCountForTrack(track.trackKey) > 0
                 isLoadingLyrics = false
             } else {
                 val rejected = db.lyricsDao().getRejectedSourceIds(track.trackKey).toSet()
@@ -568,1320 +499,1064 @@ fun NowPlayingScreen(
                         userNotes = track.userNotes,
                         provider = fetched.sourceId.ifBlank { fetched.source }
                     )
-                    // 1. Сохраняем в lyrics_cache
                     db.lyricsDao().saveLyrics(entity)
-                    // 2. Dual-Write: сохраняем в music_tracks!
                     db.musicDao().updateLyrics(track.trackKey, plain, synced)
                     lyricsCache = entity
                 } else {
                     lyricsCache = null
                 }
-                hasRejections = db.lyricsDao().getRejectionsCountForTrack(track.trackKey) > 0
                 isLoadingLyrics = false
             }
         }
     }
 
-    // On-demand async fetch for AmDm chords when switching to CHORDS tab
-    LaunchedEffect(selectedMode, currentTrack?.trackKey, lyricsCache?.chordsAmDm) {
-        if (selectedMode == NowPlayingMode.CHORDS && currentTrack != null && lyricsCache?.chordsAmDm.isNullOrBlank()) {
-            val track = currentTrack ?: return@LaunchedEffect
-            isLoadingChords = true
-            withContext(Dispatchers.IO) {
-                val scraper = FallbackLyricsScraper()
-                val cleanArtist = LrcLibLyricsProvider.cleanArtistName(track.artist)
-                val cleanTitle = LrcLibLyricsProvider.cleanTrackName(track.title)
-                val amdmDetails = scraper.scrapeAmDmDetails(cleanArtist, cleanTitle)
-                val parsedChords = amdmDetails?.chords ?: AmDmChordParser.parseAmDmHtml(amdmDetails?.plainLyrics)
-                if (!parsedChords.isNullOrBlank()) {
-                    val current = lyricsCache
-                    val updatedEntity = if (current != null) {
-                        current.copy(chordsAmDm = parsedChords)
-                    } else {
-                        LyricsCacheEntity(
-                            trackKey = track.trackKey,
-                            plainLyrics = amdmDetails?.plainLyrics ?: track.plainLyrics,
-                            syncedLyricsLrc = track.syncedLyrics,
-                            chordsAmDm = parsedChords,
-                            userNotes = track.userNotes,
-                            provider = LyricsSourceIds.AMDM
-                        )
-                    }
-                    db.lyricsDao().saveLyrics(updatedEntity)
-                    withContext(Dispatchers.Main) {
-                        lyricsCache = updatedEntity
-                        isLoadingChords = false
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        isLoadingChords = false
-                    }
-                }
-            }
+    // Orientation and Screen arithmetic
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val screenHeightDp = configuration.screenHeightDp
+    val isCompactPortrait = !isLandscape && screenHeightDp < 700
+
+    val sourceLabel = remember(currentTrack?.sourcePackage) {
+        when {
+            currentTrack?.sourcePackage?.contains("yandex") == true -> "Яндекс Музыке"
+            currentTrack?.sourcePackage?.contains("spotify") == true -> "Spotify"
+            currentTrack?.sourcePackage?.contains("vk") == true -> "VK Музыке"
+            else -> "плеере"
         }
     }
 
-    val onSearchWeb: () -> Unit = {
-        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        if (onOpenTeachMode != null) {
-            onOpenTeachMode(currentTrack)
+    // System Back handles exiting notes edit mode, exiting focus mode, or navigating back
+    BackHandler {
+        if (selectedMode == NowPlayingMode.NOTES && (isNotesFocused || isImeVisible)) {
+            keyboardController?.hide()
+            focusManager.clearFocus()
+            isNotesFocused = false
+            saveNotes()
+        } else if (isFocusMode) {
+            isFocusMode = false
         } else {
-            val query = "${currentTrack?.title.orEmpty()} ${currentTrack?.artist.orEmpty()} текст песни".trim()
-            try {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + URLEncoder.encode(query, "UTF-8"))).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                context.startActivity(intent)
-            } catch (_: Exception) {}
+            onBack()
         }
     }
 
-    val onResetRejections: () -> Unit = {
-        val trackKey = currentTrack?.trackKey
-        if (trackKey != null) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            scope.launch(Dispatchers.IO) {
-                isLoadingLyrics = true
-                val result = engine.clearAllRejections(trackKey)
-                lyricsCache = if (result.hasLyrics) {
-                    db.lyricsDao().getLyrics(trackKey)
-                } else null
-                hasRejections = db.lyricsDao().getRejectionsCountForTrack(trackKey) > 0
-                isLoadingLyrics = false
-                snackbarHostState.showSnackbar(
-                    message = if (result.hasLyrics) "Источники сброшены. Загружен ${result.source}" else "Источники сброшены",
-                    duration = SnackbarDuration.Short
-                )
-            }
-        }
-    }
-
-    val onRetryDefault: () -> Unit = {
-        currentTrack?.let { track ->
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            scope.launch(Dispatchers.IO) {
-                isLoadingLyrics = true
-                if (db.musicDao().getTrackByKey(track.trackKey) == null) {
-                    db.musicDao().insertOrUpdateTrack(track)
-                }
-                val rejected = db.lyricsDao().getRejectedSourceIds(track.trackKey).toSet()
-                val fetched = AggregatedLyricsProvider(lyricsDao = db.lyricsDao()).getLyrics(track, rejectedSourceIds = rejected)
-                if (fetched.hasLyrics && fetched.sourceId !in rejected) {
-                    val plain = fetched.plainLyrics ?: fetched.lyricsText
-                    val synced = fetched.syncedLyrics
-                    val entity = LyricsCacheEntity(
-                        trackKey = track.trackKey,
-                        plainLyrics = plain,
-                        syncedLyricsLrc = synced,
-                        chordsAmDm = fetched.chords ?: AmDmChordParser.parseAmDmHtml(plain),
-                        userNotes = track.userNotes,
-                        provider = fetched.sourceId.ifBlank { fetched.source }
-                    )
-                    db.lyricsDao().saveLyrics(entity)
-                    db.musicDao().updateLyrics(track.trackKey, plain, synced)
-                    lyricsCache = entity
-                }
-                hasRejections = db.lyricsDao().getRejectionsCountForTrack(track.trackKey) > 0
-                isLoadingLyrics = false
-            }
-        }
+    if (!isNotificationPermissionGranted) {
+        PermissionRequestBanner(
+            onPermissionGranted = { isNotificationPermissionGranted = true }
+        )
+        return
     }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(lirixColors.appBackground)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-        // Track Header & Analog Vinyl Disk
-        if (currentTrack != null) {
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // Collapsible Analog Turntable with Kinetic Tonearm & Track-Skipping Swipe Gestures
-            var vinylSwipeDragAmount by remember { mutableFloatStateOf(0f) }
-            Box(
-                modifier = Modifier.pointerInput(currentTrack.trackKey) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { vinylSwipeDragAmount = 0f },
-                        onDragEnd = {
-                            if (vinylSwipeDragAmount < -120f) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                MediaSessionCollector.skipToNext()
-                            } else if (vinylSwipeDragAmount > 120f) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                MediaSessionCollector.skipToPrevious()
-                            }
-                            vinylSwipeDragAmount = 0f
-                        },
-                        onDragCancel = { vinylSwipeDragAmount = 0f },
-                        onHorizontalDrag = { change, dragAmount ->
-                            change.consume()
-                            vinylSwipeDragAmount += dragAmount
-                        }
-                    )
-                }
+        if (currentTrack == null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
             ) {
-                AnalogTurntable(
-                    isPlaying = isPlaying,
-                    albumArtBitmap = vinylCenterArt,
-                    isCollapsed = isVinylCollapsed,
-                    onToggleCollapse = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        isVinylCollapsed = !isVinylCollapsed
-                    },
-                    onTogglePlayPause = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        val newLocal = !isPlaying
-                        localIsPlaying = newLocal
-                        MediaSessionCollector.togglePlayPause()
+                // Верхняя панель управления в пустом состоянии
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Lirix",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = lirixColors.textPrimary
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { showConnectBottomSheet = true },
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DevicesOther,
+                                contentDescription = "Подключить устройство (ПК)",
+                                tint = if (isRemotePlaying) lirixColors.accentPrimary else lirixColors.textPrimary
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { showOverflowMenu = true },
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Меню",
+                                tint = lirixColors.textSecondary
+                            )
+                        }
                     }
+                }
+
+                EmptyPlayerStateView(
+                    stateType = PlayerEmptyStateType.NO_ACTIVE_PLAYER,
+                    modifier = Modifier.weight(1f),
+                    onConnectClick = { showConnectBottomSheet = true }
                 )
             }
-
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Track metadata & Favorite toggle (with 38dp mini-disc when vinyl is collapsed)
+        } else if (isLandscape) {
+            // =========================================================================
+            // TASK-UI-MOB-03: Ландшафтный пульт 800x360 для пюпитра
+            // =========================================================================
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(WindowInsets.displayCutout.asPaddingValues())
+                    .padding(WindowInsets.navigationBars.asPaddingValues())
             ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                // Левая колонка органов управления (280dp) с verticalScroll()
+                Column(
+                    modifier = Modifier
+                        .width(280.dp)
+                        .fillMaxHeight()
+                        .background(lirixColors.surfacePrimary)
+                        .border(BorderStroke(1.dp, lirixColors.borderSubtle))
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Компактный вращающийся мини-диск (38dp), когда винил свёрнут
-                    if (isVinylCollapsed) {
-                        val infiniteTransition = rememberInfiniteTransition(label = "MiniVinylSpin")
-                        val spinAngle by infiniteTransition.animateFloat(
-                            initialValue = 0f,
-                            targetValue = 360f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(durationMillis = 16000, easing = LinearEasing),
-                                repeatMode = RepeatMode.Restart
-                            ),
-                            label = "MiniVinylSpinAngle"
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(lirixColors.surfaceCard)
-                                .border(
-                                    1.2.dp,
-                                    Brush.sweepGradient(
-                                        listOf(
-                                            lirixColors.accentPrimary,
-                                            lirixColors.accentSecondary,
-                                            lirixColors.accentPrimary
-                                        )
-                                    ),
-                                    CircleShape
-                                )
-                                .clickable {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    isVinylCollapsed = false
-                                }
-                                .rotate(if (isPlaying) spinAngle else 0f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            // Mini Vinyl Grooves
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .border(0.8.dp, lirixColors.borderSubtle.copy(alpha = 0.5f), CircleShape)
+                    // TopBar: Назад, Источник, Меню
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Назад",
+                                tint = lirixColors.textPrimary
                             )
-                            // Center label / Art
-                            if (vinylCenterArt != null) {
-                                Image(
-                                    bitmap = vinylCenterArt,
-                                    contentDescription = "Развернуть винил",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clip(CircleShape)
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(4.dp)
-                                        .clip(CircleShape)
-                                        .background(lirixColors.appBackground)
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.MusicNote,
-                                    contentDescription = "Развернуть винил",
-                                    tint = lirixColors.accentSecondary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
                         }
-                    }
 
-                    Column(modifier = Modifier.weight(1f, fill = false)) {
                         Text(
-                            text = currentTrack.title,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = (-0.3).sp
-                            ),
-                            color = lirixColors.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = currentTrack.artist.ifBlank { "Unknown Artist" },
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
+                            text = "В $sourceLabel ▾",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                             color = lirixColors.accentPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                    }
-                }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (!isNotificationPermissionGranted) {
                         IconButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                showPermissionDialog = true
-                            },
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(AppColors.AmberGold.copy(alpha = 0.18f))
-                                .border(1.dp, AppColors.AmberGold, CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Security,
-                                contentDescription = "Настроить доступ к уведомлениям",
-                                tint = AppColors.AmberGold,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    IconButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            scope.launch(Dispatchers.IO) {
-                                db.musicDao().setFavorite(currentTrack.trackKey, !currentTrack.isFavorite)
-                            }
-                        },
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(if (currentTrack.isFavorite) AppColors.ExpenseContainer else lirixColors.surfacePrimary)
-                            .border(1.dp, if (currentTrack.isFavorite) AppColors.ExpenseRed.copy(alpha = 0.5f) else lirixColors.borderSubtle, CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = if (currentTrack.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Favorite",
-                            tint = if (currentTrack.isFavorite) AppColors.ExpenseRed else lirixColors.textSecondary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    Box {
-                        IconButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                showOverflowMenu = true
-                            },
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(lirixColors.surfacePrimary)
-                                .border(1.dp, lirixColors.borderSubtle, CircleShape)
+                            onClick = { showOverflowMenu = true },
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Дополнительные действия",
-                                tint = lirixColors.textPrimary,
-                                modifier = Modifier.size(22.dp)
+                                contentDescription = "Меню",
+                                tint = lirixColors.textSecondary
                             )
                         }
-
-                        val hasSyncedLrc = !lyricsCache?.syncedLyricsLrc.isNullOrBlank()
-                        val isUserNote = lyricsCache?.provider == LyricsSourceIds.USER_NOTE || lyricsCache?.provider?.startsWith("note:") == true
-                        val canReject = lyricsCache != null && !isUserNote && (!lyricsCache!!.plainLyrics.isNullOrBlank() || hasSyncedLrc)
-
-                        NowPlayingOverflowMenu(
-                            expanded = showOverflowMenu,
-                            onDismissRequest = { showOverflowMenu = false },
-                            isOverlayActive = isOverlayActive,
-                            onToggleOverlay = {
-                                if (!FloatingLyricsService.isPermissionGranted(context)) {
-                                    FloatingLyricsService.requestPermission(context)
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            message = "Предоставьте разрешение «Поверх других приложений»",
-                                            duration = SnackbarDuration.Short
-                                        )
-                                    }
-                                } else {
-                                    FloatingLyricsService.toggle(context)
-                                }
-                            },
-                            onShareClick = { showShareDialog = true },
-                            onRejectSourceClick = {
-                                val trackKey = currentTrack.trackKey
-                                val oldProvider = lyricsCache?.provider.orEmpty()
-                                if (canReject && !isRejectingLyrics) {
-                                    isRejectingLyrics = true
-                                    scope.launch(Dispatchers.IO) {
-                                        val nextResult = engine.rejectCurrentLyrics(trackKey, oldProvider)
-                                        lyricsCache = if (nextResult.hasLyrics) {
-                                            db.lyricsDao().getLyrics(trackKey)
-                                        } else null
-                                        hasRejections = db.lyricsDao().getRejectionsCountForTrack(trackKey) > 0
-                                        isRejectingLyrics = false
-
-                                        val snackbarResult = snackbarHostState.showSnackbar(
-                                            message = if (nextResult.hasLyrics) {
-                                                "Текст заменён на ${nextResult.source}"
-                                            } else {
-                                                "Источник отклонён. Других текстов нет"
-                                            },
-                                            actionLabel = "Отменить",
-                                            duration = SnackbarDuration.Short
-                                        )
-
-                                        if (snackbarResult == SnackbarResult.ActionPerformed) {
-                                            val restored = engine.undoLyricsRejection(trackKey, oldProvider)
-                                            lyricsCache = if (restored.hasLyrics) {
-                                                db.lyricsDao().getLyrics(trackKey)
-                                            } else null
-                                            hasRejections = db.lyricsDao().getRejectionsCountForTrack(trackKey) > 0
-                                        }
-                                    }
-                                }
-                            },
-                            onCalibrateClick = { showCalibrationDialog = true },
-                            onTeachModeClick = { onOpenTeachMode?.invoke(currentTrack) },
-                            isVinylCollapsed = isVinylCollapsed,
-                            onToggleVinyl = {
-                                isVinylCollapsed = !isVinylCollapsed
-                            },
-                            onThemeSelectClick = { showThemeDialog = true },
-                            onOpenBlacklistSettings = onOpenBlacklistSettings
-                        )
                     }
-                }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 1. Ergonomic Transport Bar (Time + Replay10 + Play/Pause 56dp + Forward10 + Duration)
-            val totalTrackDuration = currentTrack.totalDurationMs.takeIf { it > 0L }
-                ?: (livePlayback?.durationMs ?: 0L)
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
-                    .background(lirixColors.surfacePrimary)
-                    .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Time elapsed
-                Text(
-                    text = formatMs(playbackPositionMs),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    ),
-                    color = lirixColors.accentSecondary
-                )
-
-                // Skip -10s
-                IconButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        val targetMs = (playbackPositionMs - 10000L).coerceAtLeast(0L)
-                        val audioTargetMs = (targetMs - syncOffsetMs).coerceAtLeast(0L)
-                        playbackPositionMs = targetMs
-                        localPlaybackPositionMs = targetMs
-                        MediaSessionCollector.seekTo(audioTargetMs)
-                    },
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Replay10,
-                        contentDescription = "-10s",
-                        tint = lirixColors.textSecondary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                // Play / Pause toggle (54dp prominent gradient button)
-                IconButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        localIsPlaying = !isPlaying
-                        MediaSessionCollector.togglePlayPause()
-                    },
-                    modifier = Modifier
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                listOf(lirixColors.accentPrimary, lirixColors.accentSecondary)
+                    // Блок метаданных
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AlbumArtImage(
+                            artUri = currentTrack.albumArtUri,
+                            size = 48.dp,
+                            shape = RoundedCornerShape(6.dp),
+                            contentDescription = currentTrack.title
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = currentTrack.title,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = lirixColors.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
-                        )
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = if (lirixColors.isDark) Color.Black else Color.White,
-                        modifier = Modifier.size(30.dp)
-                    )
-                }
-
-                // Skip +10s
-                IconButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        val targetMs = if (totalTrackDuration > 0L) {
-                            (playbackPositionMs + 10000L).coerceAtMost(totalTrackDuration)
-                        } else {
-                            playbackPositionMs + 10000L
-                        }
-                        val audioTargetMs = (targetMs - syncOffsetMs).coerceAtLeast(0L)
-                        playbackPositionMs = targetMs
-                        localPlaybackPositionMs = targetMs
-                        MediaSessionCollector.seekTo(audioTargetMs)
-                    },
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Forward10,
-                        contentDescription = "+10s",
-                        tint = lirixColors.textSecondary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                // Total Duration
-                Text(
-                    text = if (totalTrackDuration > 0L) formatMs(totalTrackDuration) else "--:--",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    ),
-                    color = lirixColors.textMuted
-                )
-            }
-
-
-        } else {
-            if (!isNotificationPermissionGranted) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp)
-                        .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
-                        .background(lirixColors.surfacePrimary)
-                        .border(
-                            BorderStroke(
-                                1.5.dp,
-                                Brush.horizontalGradient(
-                                    listOf(
-                                        AppColors.AmberGold.copy(alpha = 0.8f),
-                                        lirixColors.accentPrimary.copy(alpha = 0.8f)
-                                    )
-                                )
-                            ),
-                            RoundedCornerShape(lirixColors.cardCornerRadius)
-                        )
-                        .padding(20.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(AppColors.AmberGold.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Security,
-                                contentDescription = null,
-                                tint = AppColors.AmberGold,
-                                modifier = Modifier.size(26.dp)
+                            Text(
+                                text = currentTrack.artist,
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                                color = lirixColors.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Требуется доступ к плееру",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = lirixColors.textPrimary,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Чтобы Lirix автоматически подхватывал треки из Spotify, VK или Яндекс Музыки, включите доступ к уведомлениям.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = lirixColors.textSecondary,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Button(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                showPermissionDialog = true
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = lirixColors.accentPrimary),
-                            shape = RoundedCornerShape(12.dp)
+                    }
+
+                    // Трекбар времени
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Настроить доступ к музыке",
-                                color = if (lirixColors.isDark) Color.Black else Color.White,
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                                text = formatMs(playbackPositionMs),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFeatureSettings = FontFeature.tabularFigures()
+                                ),
+                                color = lirixColors.textSecondary
+                            )
+                            Text(
+                                text = if (totalTrackDuration > 0L) formatMs(totalTrackDuration) else "--:--",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFeatureSettings = FontFeature.tabularFigures()
+                                ),
+                                color = lirixColors.textMuted
+                            )
+                        }
+                        if (totalTrackDuration > 0L) {
+                            Slider(
+                                value = playbackPositionMs.toFloat().coerceIn(0f, totalTrackDuration.toFloat()),
+                                onValueChange = { newPos ->
+                                    val target = newPos.toLong()
+                                    playbackPositionMs = target
+                                    localPlaybackPositionMs = target
+                                    MediaSessionCollector.seekTo((target - syncOffsetMs).coerceAtLeast(0L))
+                                },
+                                valueRange = 0f..totalTrackDuration.toFloat(),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = lirixColors.accentPrimary,
+                                    activeTrackColor = lirixColors.accentPrimary,
+                                    inactiveTrackColor = lirixColors.borderSubtle
+                                ),
+                                modifier = Modifier.height(36.dp)
                             )
                         }
                     }
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Музыка не играет\nВключите трек в любимом плеере",
-                        color = lirixColors.textSecondary,
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
-            }
-        }
 
-        Spacer(modifier = Modifier.height(10.dp))
+                    // Панель транспорта (Connect, ⏮, ▶ 56x56, ⏭)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(contentAlignment = Alignment.TopEnd) {
+                            IconButton(
+                                onClick = { showConnectBottomSheet = true },
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .semantics {
+                                        role = Role.Button
+                                        contentDescription = "Воспроизвести на устройстве"
+                                    }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DevicesOther,
+                                    contentDescription = null,
+                                    tint = if (isRemotePlaying) lirixColors.accentPrimary else lirixColors.textSecondary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            if (isRemotePlaying) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 8.dp, end = 8.dp)
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF00E676))
+                                )
+                            }
+                        }
 
-        // Mode Switcher Segmented Control (Караоке / Текст / Аккорды / Заметки)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
-                .background(lirixColors.surfacePrimary)
-                .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            NowPlayingMode.entries.forEach { mode ->
-                val isSelected = selectedMode == mode
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                MediaSessionCollector.skipToPrevious()
+                            },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(Icons.Default.SkipPrevious, "Предыдущий", tint = lirixColors.textPrimary)
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = lirixColors.accentPrimary,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    val newPlaying = !isPlaying
+                                    localIsPlaying = newPlaying
+                                    MediaSessionCollector.togglePlayPause()
+                                }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isPlaying) "Пауза" else "Играть",
+                                    tint = lirixColors.appBackground,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                MediaSessionCollector.skipToNext()
+                            },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(Icons.Default.SkipNext, "Следующий", tint = lirixColors.textPrimary)
+                        }
+                    }
+
+                    // Компактный сдвиг ⏱ и степпер 'Аа' (только в караоке при наличии текста)
+                    AnimatedVisibility(visible = isKaraokeWithLyrics) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Сдвиг
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("⏱", fontSize = 14.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "%.1f с".format(syncOffsetMs / 1000f),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFeatureSettings = FontFeature.tabularFigures()
+                                    ),
+                                    color = lirixColors.textSecondary
+                                )
+                                IconButton(
+                                    onClick = {
+                                        syncOffsetMs -= 100L
+                                        syncOffsetStore.setOffset(currentTrack.trackKey, syncOffsetMs)
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Text("−", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
+                                }
+                                IconButton(
+                                    onClick = {
+                                        syncOffsetMs += 100L
+                                        syncOffsetStore.setOffset(currentTrack.trackKey, syncOffsetMs)
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Text("+", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
+                                }
+                            }
+
+                            // Степпер Аа
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Аа", style = MaterialTheme.typography.labelSmall, color = lirixColors.textSecondary)
+                                IconButton(
+                                    onClick = { textScaleFactor = (textScaleFactor - 0.1f).coerceIn(0.8f, 1.5f) },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Text("−", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
+                                }
+                                IconButton(
+                                    onClick = { textScaleFactor = (textScaleFactor + 0.1f).coerceIn(0.8f, 1.5f) },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Text("+", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
+                                }
+                            }
+                        }
+                    }
+
+                    // Селектор режимов (Караоке │ Аккорды │ Текст │ Зам.)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(lirixColors.surfaceCard)
+                            .padding(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        NowPlayingMode.entries.forEach { mode ->
+                            val isSelected = selectedMode == mode
+                            val shortLabel = if (mode == NowPlayingMode.NOTES) "Зам." else mode.label
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 36.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) lirixColors.accentPrimary else Color.Transparent)
+                                    .clickable { selectedMode = mode }
+                                    .padding(vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = shortLabel,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    ),
+                                    color = if (isSelected) lirixColors.appBackground else lirixColors.textSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Правая колонка суфлёра (520dp)
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
-                        .background(if (isSelected) lirixColors.accentPrimary else Color.Transparent)
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            selectedMode = mode
-                        }
-                        .padding(vertical = 7.dp),
-                    contentAlignment = Alignment.Center
+                        .fillMaxHeight()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Text(
-                        text = mode.label,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
-                        ),
-                        color = if (isSelected) {
-                            if (lirixColors.isDark) Color.Black else Color.White
-                        } else lirixColors.textSecondary
+                    RenderTeleprompterContent(
+                        selectedMode = selectedMode,
+                        lyricsCache = lyricsCache,
+                        currentTrack = currentTrack,
+                        playbackPositionMs = playbackPositionMs,
+                        isPlaying = isPlaying,
+                        syncOffsetMs = syncOffsetMs,
+                        canSeek = canSeek,
+                        fontScale = textScaleFactor,
+                        isLandscape = true,
+                        isReducedMotion = isReducedMotion,
+                        onSeekTo = { targetMs ->
+                            playbackPositionMs = targetMs
+                            localPlaybackPositionMs = targetMs
+                            MediaSessionCollector.seekTo((targetMs - syncOffsetMs).coerceAtLeast(0L))
+                        },
+                        onStartTapSync = { showTapSyncStudio = true },
+                        onEditLyrics = { showEditLyricsDialog = true },
+                        onOpenTeachMode = { onOpenTeachMode?.invoke(currentTrack) },
+                        transposeSemitones = transposeSemitones,
+                        onTransposeChange = { transposeSemitones = it },
+                        chordsScrollState = chordsScrollState,
+                        notesText = notesInputText,
+                        onNotesChange = { notesInputText = it },
+                        onSaveNotes = saveNotes,
+                        onNotesFocusChange = { isNotesFocused = it },
+                        totalTrackDuration = totalTrackDuration
                     )
                 }
             }
-        }
+        } else {
+            // =========================================================================
+            // TASK-UI-MOB-02: Автономный NowPlayingScreen (Портрет 360x800)
+            // =========================================================================
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // 1. TopBar (48dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "В медиатеку",
+                            tint = lirixColors.textPrimary
+                        )
+                    }
 
-        Spacer(modifier = Modifier.height(8.dp))
+                    val headerText = if (isCompactPortrait || isFocusMode) {
+                        "${currentTrack.title} — ${currentTrack.artist} ▾"
+                    } else {
+                        "В $sourceLabel ▾"
+                    }
 
-        // Mode Content Card
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
-                .background(lirixColors.surfacePrimary)
-                .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onDoubleTap = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            val newLocal = !isPlaying
-                            localIsPlaying = newLocal
-                            MediaSessionCollector.togglePlayPause()
-                        }
-                    )
-                }
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isLoadingLyrics) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(
-                        color = lirixColors.accentPrimary,
-                        strokeWidth = 3.dp,
-                        modifier = Modifier.size(36.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Загрузка текста и аккордов...",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = lirixColors.textSecondary
+                        text = headerText,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        ),
+                        color = lirixColors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+
+                    if (selectedMode == NowPlayingMode.NOTES && (isImeVisible || isNotesFocused)) {
+                        TextButton(
+                            onClick = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                                isNotesFocused = false
+                                saveNotes()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Готово",
+                                tint = lirixColors.accentPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Готово",
+                                color = lirixColors.accentPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { showConnectBottomSheet = true },
+                                modifier = Modifier.size(44.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DevicesOther,
+                                    contentDescription = "Подключить устройство (ПК)",
+                                    tint = if (isRemotePlaying) lirixColors.accentPrimary else lirixColors.textSecondary
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { showOverflowMenu = true },
+                                modifier = Modifier.size(44.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "Меню",
+                                    tint = lirixColors.textSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 2. Блок метаданных (64dp): скрывается при автосжатии (<700dp), в режиме «Фокус» или при редактировании заметок
+                AnimatedVisibility(visible = !isCompactPortrait && !isFocusMode && !isHideControlsForNotes) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AlbumArtImage(
+                            artUri = currentTrack.albumArtUri,
+                            size = 48.dp,
+                            shape = RoundedCornerShape(6.dp),
+                            contentDescription = currentTrack.title
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = currentTrack.title,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = lirixColors.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "${currentTrack.artist}${if (currentTrack.album.isNotBlank()) ", «${currentTrack.album}»" else ""}",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                                color = lirixColors.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = if (!lyricsCache?.syncedLyricsLrc.isNullOrBlank()) "Текст: синхронно" else "Текст: статично",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                                color = lirixColors.accentPrimary
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                scope.launch(Dispatchers.IO) {
+                                    db.musicDao().setFavorite(currentTrack.trackKey, !currentTrack.isFavorite)
+                                }
+                            },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (currentTrack.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Избранное",
+                                tint = if (currentTrack.isFavorite) lirixColors.accentSecondary else lirixColors.textSecondary
+                            )
+                        }
+                    }
+                }
+
+                // 3. Колонка лирики (Суфлёр) — Modifier.weight(1f)
+                // Поддерживает Двойной тап (Double-Tap) для включения режима «Фокус»
+                // и семантику TalkBack customAction
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .semantics {
+                            customActions = listOf(
+                                CustomAccessibilityAction("Скрыть метаданные / Переключить фокус") {
+                                    isFocusMode = !isFocusMode
+                                    true
+                                }
+                            )
+                        }
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onDoubleTap = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    isFocusMode = !isFocusMode
+                                }
+                            )
+                        }
+                        .padding(horizontal = 16.dp)
+                ) {
+                    RenderTeleprompterContent(
+                        selectedMode = selectedMode,
+                        lyricsCache = lyricsCache,
+                        currentTrack = currentTrack,
+                        playbackPositionMs = playbackPositionMs,
+                        isPlaying = isPlaying,
+                        syncOffsetMs = syncOffsetMs,
+                        canSeek = canSeek,
+                        fontScale = textScaleFactor,
+                        isLandscape = false,
+                        isReducedMotion = isReducedMotion,
+                        onSeekTo = { targetMs ->
+                            playbackPositionMs = targetMs
+                            localPlaybackPositionMs = targetMs
+                            MediaSessionCollector.seekTo((targetMs - syncOffsetMs).coerceAtLeast(0L))
+                        },
+                        onStartTapSync = { showTapSyncStudio = true },
+                        onEditLyrics = { showEditLyricsDialog = true },
+                        onOpenTeachMode = { onOpenTeachMode?.invoke(currentTrack) },
+                        transposeSemitones = transposeSemitones,
+                        onTransposeChange = { transposeSemitones = it },
+                        chordsScrollState = chordsScrollState,
+                        notesText = notesInputText,
+                        onNotesChange = { notesInputText = it },
+                        onSaveNotes = saveNotes,
+                        onNotesFocusChange = { isNotesFocused = it },
+                        totalTrackDuration = totalTrackDuration
                     )
                 }
-            } else {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                    key = { page -> NowPlayingMode.entries[page].name }
-                ) { page ->
-                    val mode = NowPlayingMode.entries[page]
-                    when (mode) {
-                        NowPlayingMode.KARAOKE -> {
-                            val hasAnyLyrics = !lyricsCache?.syncedLyricsLrc.isNullOrBlank() || !lyricsCache?.plainLyrics.isNullOrBlank()
-                            if (hasAnyLyrics) {
-                                HighFidelityKaraokePlayer(
-                                    lrcText = lyricsCache?.syncedLyricsLrc,
-                                    plainText = lyricsCache?.plainLyrics,
-                                    playbackPositionMs = playbackPositionMs,
-                                    isPlaying = isPlaying,
-                                    onSeekTo = { targetMs ->
-                                        val audioTargetMs = (targetMs - syncOffsetMs).coerceAtLeast(0L)
-                                        // Мгновенный перенос фокуса и тайминга в UI
-                                        playbackPositionMs = targetMs
-                                        localPlaybackPositionMs = targetMs
-                                        // Перемотка реального трека в плеере
-                                        MediaSessionCollector.seekTo(audioTargetMs)
-                                    },
-                                    onStartTapSync = { showTapSyncStudio = true },
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                ExhaustedLyricsPlaceholder(
-                                    onSearchWeb = onSearchWeb,
-                                    onResetRejections = onResetRejections,
-                                    onRetryDefault = onRetryDefault,
-                                    hasRejections = hasRejections
-                                )
-                            }
-                        }
-                        NowPlayingMode.LYRICS -> {
-                            val text = lyricsCache?.plainLyrics ?: currentTrack?.plainLyrics
-                            if (!text.isNullOrBlank()) {
-                                PlainLyricsReadingView(
-                                    lyricsText = text,
-                                    onStartTapSync = { showTapSyncStudio = true },
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                ExhaustedLyricsPlaceholder(
-                                    onSearchWeb = onSearchWeb,
-                                    onResetRejections = onResetRejections,
-                                    onRetryDefault = onRetryDefault,
-                                    hasRejections = hasRejections
-                                )
-                            }
-                        }
-                        NowPlayingMode.CHORDS -> {
-                            val chords = lyricsCache?.chordsAmDm
-                            if (!chords.isNullOrBlank()) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    val displayedChords = remember(chords, transposeSemitones) {
-                                        if (transposeSemitones == 0) chords else ChordTransposer.transposeText(chords, transposeSemitones)
-                                    }
 
-                                    // Header bar with Autoscroll, Transpose and Zoom controls (TASK-CHR-01, TASK-CHR-02)
-                                    Surface(
-                                        color = lirixColors.surfaceCard,
-                                        shape = RoundedCornerShape(10.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.borderSubtle),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(bottom = 8.dp)
-                                    ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            // Row 1: Title badge + Autoscroll
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                // Title badge
-                                                Text(
-                                                    text = "🎸 Аккорды AmDm",
-                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                    color = lirixColors.accentSecondary
-                                                )
+                // 4. Трекбар времени (48dp): скрывается в режиме «Фокус» и при редактировании заметок
+                AnimatedVisibility(visible = !isFocusMode && !isHideControlsForNotes) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = formatMs(playbackPositionMs),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                fontFeatureSettings = FontFeature.tabularFigures()
+                            ),
+                            color = lirixColors.textSecondary
+                        )
 
-                                                // Autoscroll Toolbar Widget
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                                ) {
-                                                    // Play/Pause button [ ▶ Старт / ⏸ Пауза ]
-                                                    Surface(
-                                                        shape = RoundedCornerShape(6.dp),
-                                                        color = if (isAutoscrollRunning && !isTouchPaused) lirixColors.accentPrimary.copy(alpha = 0.2f) else lirixColors.surfaceElevated,
-                                                        border = androidx.compose.foundation.BorderStroke(
-                                                            1.dp,
-                                                            if (isAutoscrollRunning && !isTouchPaused) lirixColors.accentPrimary else lirixColors.borderSubtle
-                                                        ),
-                                                        modifier = Modifier.clickable {
-                                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                            isAutoscrollRunning = !isAutoscrollRunning
-                                                            if (isAutoscrollRunning) isTouchPaused = false
-                                                        }
-                                                    ) {
-                                                        Text(
-                                                            text = if (isAutoscrollRunning && !isTouchPaused) "⏸ Пауза" else if (isAutoscrollRunning && isTouchPaused) "⏳ Пауза" else "▶ Старт",
-                                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                            color = if (isAutoscrollRunning) lirixColors.accentPrimary else lirixColors.accentSecondary,
-                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                                        )
-                                                    }
+                        Spacer(modifier = Modifier.width(8.dp))
 
-                                                    // Tempo controller: [-] multiplier [+]
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        modifier = Modifier
-                                                            .clip(RoundedCornerShape(6.dp))
-                                                            .background(lirixColors.surfaceElevated)
-                                                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                                                    ) {
-                                                        Text(
-                                                            text = "−",
-                                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                            color = if (autoscrollMultiplier > ChordAutoscrollCalculator.MIN_MULTIPLIER) lirixColors.textPrimary else lirixColors.textMuted,
-                                                            modifier = Modifier
-                                                                .clickable(enabled = autoscrollMultiplier > ChordAutoscrollCalculator.MIN_MULTIPLIER) {
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                                    autoscrollMultiplier = ChordAutoscrollCalculator.nextMultiplier(autoscrollMultiplier, increase = false)
-                                                                }
-                                                                .padding(horizontal = 4.dp)
-                                                        )
-
-                                                        Text(
-                                                            text = String.format(java.util.Locale.US, "%.2fx", autoscrollMultiplier),
-                                                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold),
-                                                            color = lirixColors.accentSecondary,
-                                                            modifier = Modifier.padding(horizontal = 4.dp)
-                                                        )
-
-                                                        Text(
-                                                            text = "+",
-                                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                            color = if (autoscrollMultiplier < ChordAutoscrollCalculator.MAX_MULTIPLIER) lirixColors.textPrimary else lirixColors.textMuted,
-                                                            modifier = Modifier
-                                                                .clickable(enabled = autoscrollMultiplier < ChordAutoscrollCalculator.MAX_MULTIPLIER) {
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                                    autoscrollMultiplier = ChordAutoscrollCalculator.nextMultiplier(autoscrollMultiplier, increase = true)
-                                                                }
-                                                                .padding(horizontal = 4.dp)
-                                                        )
-                                                    }
-
-                                                    // Reset to top button [ ⤾ ]
-                                                    Surface(
-                                                        shape = RoundedCornerShape(6.dp),
-                                                        color = lirixColors.surfaceElevated,
-                                                        border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.borderSubtle),
-                                                        modifier = Modifier.clickable {
-                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                            scope.launch {
-                                                                chordsScrollState.animateScrollTo(0)
-                                                            }
-                                                        }
-                                                    ) {
-                                                        Text(
-                                                            text = "⤾",
-                                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                            color = lirixColors.textSecondary,
-                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                        )
-                                                    }
-                                                }
-                                            }
-
-                                            // Row 2: Transposition [ ♭ -1 ] [ Тон: ±N ] [ ♯ +1 ] and Zoom [ A- ] [ 100% ] [ A+ ]
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                // Transpose controller
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(lirixColors.surfaceElevated)
-                                                        .padding(horizontal = 2.dp, vertical = 2.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "♭ -1",
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                        color = if (transposeSemitones > -11) lirixColors.textPrimary else lirixColors.textMuted,
-                                                        modifier = Modifier
-                                                            .clickable(enabled = transposeSemitones > -11) {
-                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                                transposeSemitones--
-                                                            }
-                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    )
-
-                                                    val toneLabel = when {
-                                                        transposeSemitones == 0 -> "Тон: 0"
-                                                        transposeSemitones > 0 -> "+$transposeSemitones"
-                                                        else -> "$transposeSemitones (Капо: ${-transposeSemitones})"
-                                                    }
-                                                    Text(
-                                                        text = toneLabel,
-                                                        style = MaterialTheme.typography.labelSmall.copy(
-                                                            fontFamily = FontFamily.Monospace,
-                                                            fontWeight = FontWeight.Bold
-                                                        ),
-                                                        color = if (transposeSemitones != 0) lirixColors.accentPrimary else lirixColors.textSecondary,
-                                                        modifier = Modifier
-                                                            .clickable {
-                                                                if (transposeSemitones != 0) {
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                    transposeSemitones = 0
-                                                                }
-                                                            }
-                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    )
-
-                                                    Text(
-                                                        text = "♯ +1",
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                        color = if (transposeSemitones < 11) lirixColors.textPrimary else lirixColors.textMuted,
-                                                        modifier = Modifier
-                                                            .clickable(enabled = transposeSemitones < 11) {
-                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                                transposeSemitones++
-                                                            }
-                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    )
-                                                }
-
-                                                // Font zoom controller
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(lirixColors.surfaceElevated)
-                                                        .padding(horizontal = 2.dp, vertical = 2.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "A−",
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                        color = if (chordTextZoom > 0.85f) lirixColors.textPrimary else lirixColors.textMuted,
-                                                        modifier = Modifier
-                                                            .clickable(enabled = chordTextZoom > 0.85f) {
-                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                                chordTextZoom = (chordTextZoom - 0.15f).coerceAtLeast(0.85f)
-                                                            }
-                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    )
-
-                                                    Text(
-                                                        text = "${(chordTextZoom * 100).toInt()}%",
-                                                        style = MaterialTheme.typography.labelSmall.copy(
-                                                            fontFamily = FontFamily.Monospace,
-                                                            fontWeight = FontWeight.Bold
-                                                        ),
-                                                        color = lirixColors.accentSecondary,
-                                                        modifier = Modifier
-                                                            .clickable {
-                                                                if (chordTextZoom != 1.0f) {
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                    chordTextZoom = 1.0f
-                                                                }
-                                                            }
-                                                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                                                    )
-
-                                                    Text(
-                                                        text = "A+",
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                        color = if (chordTextZoom < 1.6f) lirixColors.textPrimary else lirixColors.textMuted,
-                                                        modifier = Modifier
-                                                            .clickable(enabled = chordTextZoom < 1.6f) {
-                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                                chordTextZoom = (chordTextZoom + 0.15f).coerceAtMost(1.6f)
-                                                            }
-                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    )
-                                                }
-                                            }
-
-                                            // Row 3: Song Chords Ribbon (Interactive guitar fingerings)
-                                            val songChords = remember(displayedChords) {
-                                                GuitarChordDictionary.extractChordsFromText(displayedChords)
-                                            }
-                                            if (songChords.isNotEmpty()) {
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                LazyRow(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    item {
-                                                        Text(
-                                                            text = "Аппликатуры:",
-                                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                            color = lirixColors.textMuted,
-                                                            modifier = Modifier.padding(end = 2.dp)
-                                                        )
-                                                    }
-                                                    items(songChords.size) { idx ->
-                                                        val chordName = songChords[idx]
-                                                        Surface(
-                                                            shape = RoundedCornerShape(6.dp),
-                                                            color = lirixColors.surfaceElevated,
-                                                            border = BorderStroke(1.dp, lirixColors.accentPrimary.copy(alpha = 0.5f)),
-                                                            modifier = Modifier.clickable {
-                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                                selectedChordDiagram = chordName
-                                                            }
-                                                        ) {
-                                                            Row(
-                                                                verticalAlignment = Alignment.CenterVertically,
-                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                            ) {
-                                                                Text(
-                                                                    text = "🎸 ",
-                                                                    fontSize = 9.sp
-                                                                )
-                                                                Text(
-                                                                    text = chordName,
-                                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                                        fontFamily = FontFamily.Monospace,
-                                                                        fontWeight = FontWeight.Bold
-                                                                    ),
-                                                                    color = lirixColors.accentPrimary
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Scrollable chords body
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .weight(1f)
-                                            .verticalScroll(chordsScrollState)
-                                    ) {
-                                        Text(
-                                            text = displayedChords,
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                fontFamily = FontFamily.Monospace,
-                                                fontSize = (13 * chordTextZoom).sp,
-                                                lineHeight = (22 * chordTextZoom).sp
-                                            ),
-                                            color = lirixColors.textPrimary,
-                                            modifier = Modifier.padding(bottom = 32.dp)
-                                        )
-                                    }
-                                }
-                            } else {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    if (isLoadingChords) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(32.dp)
-                                            )
-                                            Spacer(modifier = Modifier.height(12.dp))
-                                            Text(
-                                                text = "Поиск подбора на AmDm...",
-                                                color = lirixColors.textSecondary,
-                                                style = MaterialTheme.typography.bodyMedium
-                                            )
-                                        }
-                                    } else {
-                                        Text(
-                                            text = "Аккорды AmDm не найдены для этого трека",
-                                            color = lirixColors.textSecondary,
-                                            textAlign = TextAlign.Center,
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        NowPlayingMode.NOTES -> {
-                            val activeNotes = recentTracks.find { it.trackKey == currentTrack?.trackKey }?.userNotes
-                                ?: currentTrack?.userNotes.orEmpty()
-
-                            Column(
+                        if (totalTrackDuration > 0L) {
+                            Slider(
+                                value = playbackPositionMs.toFloat().coerceIn(0f, totalTrackDuration.toFloat()),
+                                onValueChange = { newPos ->
+                                    val target = newPos.toLong()
+                                    playbackPositionMs = target
+                                    localPlaybackPositionMs = target
+                                    MediaSessionCollector.seekTo((target - syncOffsetMs).coerceAtLeast(0L))
+                                },
+                                valueRange = 0f..totalTrackDuration.toFloat(),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = lirixColors.accentPrimary,
+                                    activeTrackColor = lirixColors.accentPrimary,
+                                    inactiveTrackColor = lirixColors.borderSubtle
+                                ),
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                                    .padding(8.dp)
+                                    .weight(1f)
+                                    .heightIn(min = 48.dp)
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(2.dp)
+                                    .background(lirixColors.borderSubtle)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(
+                            text = if (totalTrackDuration > 0L) formatMs(totalTrackDuration) else "--:--",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                fontFeatureSettings = FontFeature.tabularFigures()
+                            ),
+                            color = lirixColors.textMuted
+                        )
+                    }
+                }
+
+                // 5. Контекстная строка сдвига и размера текста (48dp): только для караоке с синхронизацией
+                AnimatedVisibility(visible = isKaraokeWithLyrics && !isFocusMode && !isHideControlsForNotes) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Сдвиг текста
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Сдвиг %.1f с".format(syncOffsetMs / 1000f),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = lirixColors.textSecondary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = lirixColors.surfaceCard,
+                                border = BorderStroke(1.dp, lirixColors.borderSubtle),
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clickable {
+                                        syncOffsetMs -= 100L
+                                        syncOffsetStore.setOffset(currentTrack.trackKey, syncOffsetMs)
+                                    }
                             ) {
-                                // Top Action Bar
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Surface(
-                                        color = lirixColors.surfaceCard,
-                                        shape = RoundedCornerShape(8.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.borderSubtle)
-                                    ) {
-                                        Text(
-                                            text = "📝 Персональные заметки",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = lirixColors.accentPrimary,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                        )
-                                    }
-
-                                    if (currentTrack != null) {
-                                        if (isEditingNotes) {
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                // Cancel button
-                                                IconButton(
-                                                    onClick = {
-                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                        notesInputText = activeNotes
-                                                        isEditingNotes = false
-                                                    },
-                                                    modifier = Modifier.size(32.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Close,
-                                                        contentDescription = "Отмена",
-                                                        tint = lirixColors.textSecondary,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                }
-
-                                                // Save button
-                                                Surface(
-                                                    color = lirixColors.accentPrimary.copy(alpha = 0.15f),
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.accentPrimary),
-                                                    modifier = Modifier.clickable {
-                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                        val trackKey = currentTrack.trackKey
-                                                        val newNotes = notesInputText.trim()
-                                                        scope.launch(Dispatchers.IO) {
-                                                            db.musicDao().updateUserNotes(trackKey, newNotes)
-                                                        }
-                                                        isEditingNotes = false
-                                                    }
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Check,
-                                                            contentDescription = "Сохранить",
-                                                            tint = lirixColors.accentPrimary,
-                                                            modifier = Modifier.size(16.dp)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(
-                                                            text = "Сохранить",
-                                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                            color = lirixColors.accentPrimary
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            // Edit button
-                                            IconButton(
-                                                onClick = {
-                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                    notesInputText = activeNotes
-                                                    isEditingNotes = true
-                                                },
-                                                modifier = Modifier.size(32.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Edit,
-                                                    contentDescription = "Редактировать",
-                                                    tint = lirixColors.accentPrimary,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        }
-                                    }
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("−", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
                                 }
-
-                                if (isEditingNotes) {
-                                    OutlinedTextField(
-                                        value = notesInputText,
-                                        onValueChange = { notesInputText = it },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        placeholder = {
-                                            Text(
-                                                text = "Запишите гитарный строй, каподастр, любимые строчки или мысли об этой песне...",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = lirixColors.textMuted
-                                            )
-                                        },
-                                        minLines = 6,
-                                        maxLines = 15,
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = lirixColors.surfacePrimary,
-                                            unfocusedContainerColor = lirixColors.surfacePrimary,
-                                            focusedBorderColor = lirixColors.accentPrimary,
-                                            unfocusedBorderColor = lirixColors.borderSubtle,
-                                            focusedTextColor = lirixColors.textPrimary,
-                                            unfocusedTextColor = lirixColors.textPrimary,
-                                            cursorColor = lirixColors.accentPrimary
-                                        )
-                                    )
-                                } else {
-                                    if (activeNotes.isNotBlank()) {
-                                        Surface(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clickable {
-                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                    notesInputText = activeNotes
-                                                    isEditingNotes = true
-                                                },
-                                            color = lirixColors.surfaceCard,
-                                            shape = RoundedCornerShape(12.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.borderSubtle)
-                                        ) {
-                                            Text(
-                                                text = activeNotes,
-                                                style = MaterialTheme.typography.bodyMedium.copy(
-                                                    lineHeight = 24.sp,
-                                                    fontSize = 14.sp
-                                                ),
-                                                color = lirixColors.textPrimary,
-                                                modifier = Modifier.padding(14.dp)
-                                            )
-                                        }
-                                    } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 24.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Text(
-                                                    text = "Заметок пока нет...",
-                                                    color = lirixColors.textSecondary,
-                                                    style = MaterialTheme.typography.bodyMedium
-                                                )
-                                                Spacer(modifier = Modifier.height(12.dp))
-                                                Surface(
-                                                    color = lirixColors.surfaceCard,
-                                                    shape = RoundedCornerShape(10.dp),
-                                                    border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.accentPrimary.copy(alpha = 0.5f)),
-                                                    modifier = Modifier.clickable {
-                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                        notesInputText = ""
-                                                        isEditingNotes = true
-                                                    }
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Add,
-                                                            contentDescription = null,
-                                                            tint = lirixColors.accentPrimary,
-                                                            modifier = Modifier.size(16.dp)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                        Text(
-                                                            text = "Добавить заметку",
-                                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                                            color = lirixColors.accentPrimary
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = lirixColors.surfaceCard,
+                                border = BorderStroke(1.dp, lirixColors.borderSubtle),
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clickable {
+                                        syncOffsetMs += 100L
+                                        syncOffsetStore.setOffset(currentTrack.trackKey, syncOffsetMs)
                                     }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("+", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
+                                }
+                            }
+                        }
+
+                        // Степпер Аа
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Аа ${(textScaleFactor * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = lirixColors.textSecondary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = lirixColors.surfaceCard,
+                                border = BorderStroke(1.dp, lirixColors.borderSubtle),
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clickable {
+                                        textScaleFactor = (textScaleFactor - 0.1f).coerceIn(0.8f, 1.5f)
+                                    }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("−", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = lirixColors.surfaceCard,
+                                border = BorderStroke(1.dp, lirixColors.borderSubtle),
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clickable {
+                                        textScaleFactor = (textScaleFactor + 0.1f).coerceIn(0.8f, 1.5f)
+                                    }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("+", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
                                 }
                             }
                         }
                     }
                 }
+
+                // 6. Селектор режимов (48dp): Караоке │ Аккорды │ Текст │ Заметки
+                AnimatedVisibility(visible = !isHideControlsForNotes) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .padding(horizontal = 16.dp)
+                            .clip(RoundedCornerShape(lirixColors.pillCornerRadius))
+                            .background(lirixColors.surfaceCard)
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        NowPlayingMode.entries.forEach { mode ->
+                            val isSelected = selectedMode == mode
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(lirixColors.pillCornerRadius))
+                                    .background(if (isSelected) lirixColors.accentPrimary else Color.Transparent)
+                                    .clickable { selectedMode = mode },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = mode.label,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    ),
+                                    color = if (isSelected) lirixColors.appBackground else lirixColors.textSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 7. Панель транспорта (56dp)
+                AnimatedVisibility(visible = !isHideControlsForNotes) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Кнопка Lirix Connect с бейджем активности
+                        Box(contentAlignment = Alignment.TopEnd) {
+                            IconButton(
+                                onClick = { showConnectBottomSheet = true },
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .semantics {
+                                        role = Role.Button
+                                        contentDescription = "Воспроизвести на устройстве"
+                                    }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DevicesOther,
+                                    contentDescription = null,
+                                    tint = if (isRemotePlaying) lirixColors.accentPrimary else lirixColors.textSecondary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            if (isRemotePlaying) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 8.dp, end = 8.dp)
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF00E676))
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                MediaSessionCollector.skipToPrevious()
+                            },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SkipPrevious,
+                                contentDescription = "Предыдущий",
+                                tint = lirixColors.textPrimary,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = lirixColors.accentPrimary,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    val newPlaying = !isPlaying
+                                    localIsPlaying = newPlaying
+                                    MediaSessionCollector.togglePlayPause()
+                                }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isPlaying) "Пауза" else "Играть",
+                                    tint = lirixColors.appBackground,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                MediaSessionCollector.skipToNext()
+                            },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SkipNext,
+                                contentDescription = "Следующий",
+                                tint = lirixColors.textPrimary,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+
+                        // Кнопка «Поделиться»
+                        IconButton(
+                            onClick = { showShareDialog = true },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .semantics {
+                                    role = Role.Button
+                                    contentDescription = "Поделиться карточкой"
+                                }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = null,
+                                tint = lirixColors.textSecondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+
+                // 8. Нижний буфер (8dp)
+                if (!isHideControlsForNotes) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
         }
-    }
 
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp)
+                .padding(bottom = 70.dp)
         )
 
-        if (showCalibrationDialog) {
+        if (showOverflowMenu) {
+            NowPlayingOverflowMenu(
+                expanded = showOverflowMenu,
+                onDismissRequest = { showOverflowMenu = false },
+                isOverlayActive = isOverlayRunning,
+                onConnectClick = {
+                    showOverflowMenu = false
+                    showConnectBottomSheet = true
+                },
+                onEditLyricsClick = {
+                    showOverflowMenu = false
+                    showEditLyricsDialog = true
+                },
+                onToggleOverlay = {
+                    showOverflowMenu = false
+                    if (!FloatingLyricsService.isPermissionGranted(context)) {
+                        showOverlayPermissionDialog = true
+                    } else {
+                        val willEnable = !isOverlayRunning
+                        FloatingLyricsService.toggle(context)
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = if (willEnable) "Плавающий оверлей включён" else "Плавающий оверлей выключен",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }
+                },
+                onCalibrateClick = {
+                    showOverflowMenu = false
+                    showCalibrationDialog = true
+                },
+                onThemeSelectClick = {
+                    showOverflowMenu = false
+                    showThemeDialog = true
+                },
+                onTeachModeClick = {
+                    showOverflowMenu = false
+                    currentTrack?.let { onOpenTeachMode?.invoke(it) }
+                },
+                onOpenBlacklistSettings = {
+                    showOverflowMenu = false
+                    onOpenBlacklistSettings()
+                },
+                onShareClick = {
+                    showOverflowMenu = false
+                    if (currentTrack != null) {
+                        showShareDialog = true
+                    } else {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Сначала включите воспроизведение трека")
+                        }
+                    }
+                }
+            )
+        }
+
+        if (showOverlayPermissionDialog) {
+            OverlayPermissionDialog(
+                onDismissRequest = { showOverlayPermissionDialog = false },
+                onOpenSettings = {
+                    showOverlayPermissionDialog = false
+                    FloatingLyricsService.requestPermission(context)
+                }
+            )
+        }
+
+        if (showCalibrationDialog && currentTrack != null) {
+            val track = currentTrack
             TimingCalibrationDialog(
                 currentOffsetMs = syncOffsetMs,
                 onOffsetChange = { newOffset ->
-                    syncOffsetMs = newOffset.coerceIn(
-                        SyncOffsetStore.MIN_OFFSET_MS,
-                        SyncOffsetStore.MAX_OFFSET_MS
-                    )
-                    currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, syncOffsetMs) }
+                    syncOffsetMs = newOffset.coerceIn(SyncOffsetStore.MIN_OFFSET_MS, SyncOffsetStore.MAX_OFFSET_MS)
+                    syncOffsetStore.setOffset(track.trackKey, syncOffsetMs)
                 },
                 onResetOffset = {
                     syncOffsetMs = 0L
-                    currentTrack?.let { syncOffsetStore.setOffset(it.trackKey, 0L) }
+                    syncOffsetStore.setOffset(track.trackKey, 0L)
                 },
                 onDismissRequest = { showCalibrationDialog = false }
             )
@@ -1890,18 +1565,313 @@ fun NowPlayingScreen(
         if (showThemeDialog) {
             ThemeSelectionDialog(
                 currentTheme = currentTheme,
-                onThemeSelected = { newTheme ->
-                    themeRepo.setTheme(newTheme)
-                },
+                onThemeSelected = { newTheme -> themeRepo.setTheme(newTheme) },
                 onDismissRequest = { showThemeDialog = false }
+            )
+        }
+
+        if (showTapSyncStudio && currentTrack != null) {
+            val track = currentTrack
+            val plainLyricsText = lyricsCache?.plainLyrics ?: track.plainLyrics.orEmpty()
+            LrcTapSyncStudioDialog(
+                trackTitle = track.title,
+                artist = track.artist,
+                initialPlainText = plainLyricsText,
+                onDismissRequest = { showTapSyncStudio = false },
+                onSaveLrc = { generatedLrc ->
+                    showTapSyncStudio = false
+                    scope.launch(Dispatchers.IO) {
+                        val updatedEntity = LyricsCacheEntity(
+                            trackKey = track.trackKey,
+                            plainLyrics = plainLyricsText,
+                            syncedLyricsLrc = generatedLrc,
+                            chordsAmDm = lyricsCache?.chordsAmDm,
+                            userNotes = lyricsCache?.userNotes,
+                            provider = "USER:TAP_SYNC",
+                            updatedAt = System.currentTimeMillis()
+                        )
+                        db.lyricsDao().saveLyrics(updatedEntity)
+                        db.musicDao().updateLyrics(track.trackKey, plainLyricsText, generatedLrc)
+                        withContext(Dispatchers.Main) {
+                            lyricsCache = updatedEntity
+                            selectedMode = NowPlayingMode.KARAOKE
+                            snackbarHostState.showSnackbar("Караоке синхронизировано и сохранено!")
+                        }
+                    }
+                }
+            )
+        }
+
+        if (showEditLyricsDialog && currentTrack != null) {
+            val track = currentTrack
+            val plainLyricsText = lyricsCache?.plainLyrics ?: track.plainLyrics.orEmpty()
+            EditLyricsDialog(
+                trackTitle = track.title,
+                artist = track.artist,
+                initialLyrics = plainLyricsText,
+                onDismissRequest = { showEditLyricsDialog = false },
+                onSaveLyrics = { updatedLyrics ->
+                    showEditLyricsDialog = false
+                    scope.launch(Dispatchers.IO) {
+                        val cached = db.lyricsDao().getLyrics(track.trackKey)
+                        val updatedEntity = (cached ?: LyricsCacheEntity(
+                            trackKey = track.trackKey,
+                            plainLyrics = updatedLyrics,
+                            syncedLyricsLrc = track.syncedLyrics,
+                            chordsAmDm = null,
+                            userNotes = track.userNotes,
+                            provider = "USER:EDIT"
+                        )).copy(
+                            plainLyrics = updatedLyrics,
+                            updatedAt = System.currentTimeMillis()
+                        )
+                        db.lyricsDao().saveLyrics(updatedEntity)
+                        db.musicDao().updateLyrics(track.trackKey, updatedLyrics, updatedEntity.syncedLyricsLrc)
+                        withContext(Dispatchers.Main) {
+                            lyricsCache = updatedEntity
+                            snackbarHostState.showSnackbar("Текст песни сохранён")
+                        }
+                    }
+                }
+            )
+        }
+
+        if (showShareDialog && currentTrack != null) {
+            val track = currentTrack
+            ShareFormatDialog(
+                onDismissRequest = { showShareDialog = false },
+                onFormatSelected = { format ->
+                    val exportTheme = com.lirix.app.feature.share.PosterThemeSnapshot.fromColors(lirixColors)
+                    val activeLyricLine = run {
+                        val lrc = lyricsCache?.syncedLyricsLrc
+                        if (!lrc.isNullOrBlank()) {
+                            val parsed = parseLrcLinesStrict(lrc)
+                            val idx = parsed.indexOfLast { it.timestampMs <= playbackPositionMs }
+                            if (idx != -1) parsed[idx].text else parsed.firstOrNull()?.text
+                        } else {
+                            lyricsCache?.plainLyrics?.lineSequence()?.firstOrNull { it.isNotBlank() }
+                        }
+                    }
+                    val artBmp = com.lirix.app.feature.share.PosterArtworkLoader.load(context, track.albumArtUri)
+                    val cardBitmap = withContext(Dispatchers.Default) { ShareCardGenerator.generateNowPlayingCard(
+                        context = context,
+                        track = track,
+                        currentLyricLine = activeLyricLine,
+                        format = format,
+                        albumArtBitmap = artBmp,
+                        theme = exportTheme
+                    ) }
+                    check(ShareManager.shareBitmap(
+                        context = context,
+                        bitmap = cardBitmap,
+                        chooserTitle = "Поделиться треком ${track.title}"
+                    )) { "Не удалось открыть меню отправки" }
+                }
+            )
+        }
+
+        if (showConnectBottomSheet) {
+            DeviceConnectBottomSheet(
+                onDismissRequest = { showConnectBottomSheet = false },
+                currentTrackTitle = currentTrack?.title ?: "Lirix Connect",
+                currentTrackArtist = currentTrack?.artist ?: "Беспроводное сопряжение",
+                playbackPositionMs = playbackPositionMs,
+                connectManager = connectManager
             )
         }
     }
 }
 
 /**
- * 120Hz-ready High-Fidelity Karaoke Player with centered auto-scrolling,
- * tactile haptic response, neon glow active line, and graceful plain-text fallback.
+ * Shared teleprompter content renderer across portrait and landscape decks.
+ */
+@Composable
+private fun RenderTeleprompterContent(
+    selectedMode: NowPlayingMode,
+    lyricsCache: LyricsCacheEntity?,
+    currentTrack: TrackEntity,
+    playbackPositionMs: Long,
+    isPlaying: Boolean,
+    syncOffsetMs: Long,
+    canSeek: Boolean,
+    fontScale: Float,
+    isLandscape: Boolean,
+    isReducedMotion: Boolean,
+    onSeekTo: (Long) -> Unit,
+    onStartTapSync: () -> Unit,
+    onEditLyrics: () -> Unit = {},
+    onOpenTeachMode: () -> Unit,
+    transposeSemitones: Int,
+    onTransposeChange: (Int) -> Unit,
+    chordsScrollState: androidx.compose.foundation.ScrollState,
+    notesText: String,
+    onNotesChange: (String) -> Unit,
+    onSaveNotes: () -> Unit = {},
+    onNotesFocusChange: (Boolean) -> Unit = {},
+    totalTrackDuration: Long = 0L
+) {
+    val tokens = LirixThemeTokens.colors
+
+    when (selectedMode) {
+        NowPlayingMode.KARAOKE -> {
+            val hasLrc = !lyricsCache?.syncedLyricsLrc.isNullOrBlank()
+            val hasPlain = !lyricsCache?.plainLyrics.isNullOrBlank()
+
+            if (hasLrc) {
+                HighFidelityKaraokePlayer(
+                    lrcText = lyricsCache?.syncedLyricsLrc,
+                    plainText = lyricsCache?.plainLyrics,
+                    playbackPositionMs = playbackPositionMs,
+                    isPlaying = isPlaying,
+                    onSeekTo = onSeekTo,
+                    onStartTapSync = onStartTapSync,
+                    fontScale = fontScale,
+                    isLandscape = isLandscape,
+                    canSeek = canSeek,
+                    isReducedMotion = isReducedMotion,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else if (hasPlain) {
+                PlainLyricsReadingView(
+                    lyricsText = lyricsCache?.plainLyrics.orEmpty(),
+                    onStartTapSync = onStartTapSync,
+                    onEditLyrics = onEditLyrics,
+                    fontScale = fontScale,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                EmptyPlayerStateView(
+                    stateType = PlayerEmptyStateType.LYRICS_NOT_FOUND,
+                    trackTitle = currentTrack.title,
+                    trackArtist = currentTrack.artist,
+                    onSearchManual = onOpenTeachMode,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        NowPlayingMode.LYRICS -> {
+            val text = lyricsCache?.plainLyrics ?: currentTrack.plainLyrics
+            if (!text.isNullOrBlank()) {
+                PlainLyricsReadingView(
+                    lyricsText = text,
+                    onStartTapSync = onStartTapSync,
+                    onEditLyrics = onEditLyrics,
+                    fontScale = fontScale,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                EmptyPlayerStateView(
+                    stateType = PlayerEmptyStateType.LYRICS_NOT_FOUND,
+                    trackTitle = currentTrack.title,
+                    trackArtist = currentTrack.artist,
+                    onSearchManual = onOpenTeachMode,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        NowPlayingMode.CHORDS -> {
+            val chords = lyricsCache?.chordsAmDm
+                ?: AmDmChordParser.detectAndFormatInlineChords(lyricsCache?.plainLyrics.orEmpty())
+            if (!chords.isNullOrBlank()) {
+                ChordsTabContent(
+                    chordsText = chords,
+                    durationMs = totalTrackDuration,
+                    initialTransposeSemitones = transposeSemitones,
+                    onTransposeChange = onTransposeChange,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                EmptyPlayerStateView(
+                    stateType = PlayerEmptyStateType.LYRICS_NOT_FOUND,
+                    trackTitle = currentTrack.title,
+                    trackArtist = currentTrack.artist,
+                    onSearchManual = onOpenTeachMode,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        NowPlayingMode.NOTES -> {
+            val keyboardController = LocalSoftwareKeyboardController.current
+            val focusManager = LocalFocusManager.current
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
+                    .padding(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Личные заметки к песне",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = tokens.textSecondary
+                    )
+                    TextButton(
+                        onClick = {
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                            onNotesFocusChange(false)
+                            onSaveNotes()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Готово",
+                            tint = tokens.accentPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Готово",
+                            color = tokens.accentPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = notesText,
+                    onValueChange = onNotesChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .onFocusChanged { focusState ->
+                            onNotesFocusChange(focusState.isFocused)
+                        },
+                    placeholder = {
+                        Text("Личные заметки к песне (тональность, каподастр, структура)...")
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = tokens.surfacePrimary,
+                        unfocusedContainerColor = tokens.surfacePrimary,
+                        focusedTextColor = tokens.textPrimary,
+                        unfocusedTextColor = tokens.textPrimary,
+                        focusedBorderColor = tokens.accentPrimary,
+                        unfocusedBorderColor = tokens.borderSubtle
+                    )
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 120Hz Teleprompter Karaoke Player conforming to SPEC-UI-MOBILE-2.0.
+ *
+ * Characteristics:
+ * - Golden ratio vertical anchor (~40% height)
+ * - 3dp left accent bar on active block
+ * - Literata Serif font with Sentence case
+ * - Long-press for seekTo (blocked if canSeek == false)
+ * - Instant transition on reduced motion
  */
 @Composable
 fun HighFidelityKaraokePlayer(
@@ -1911,9 +1881,13 @@ fun HighFidelityKaraokePlayer(
     isPlaying: Boolean,
     onSeekTo: (Long) -> Unit,
     onStartTapSync: (() -> Unit)? = null,
+    fontScale: Float = 1.0f,
+    isLandscape: Boolean = false,
+    canSeek: Boolean = true,
+    isReducedMotion: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val lirixColors = LirixThemeTokens.colors
+    val tokens = LirixThemeTokens.colors
     val lines = remember(lrcText) {
         if (!lrcText.isNullOrBlank()) parseLrcLinesStrict(lrcText) else emptyList()
     }
@@ -1923,20 +1897,9 @@ fun HighFidelityKaraokePlayer(
             PlainLyricsReadingView(
                 lyricsText = plainText,
                 onStartTapSync = onStartTapSync,
+                fontScale = fontScale,
                 modifier = modifier
             )
-        } else {
-            Box(
-                modifier = modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Синхронизированные строки LRC недоступны для этого трека",
-                    color = lirixColors.textSecondary,
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
         }
         return
     }
@@ -1949,115 +1912,94 @@ fun HighFidelityKaraokePlayer(
     val lazyListState = rememberLazyListState()
     val haptic = LocalHapticFeedback.current
 
-    // Precision centered auto-scrolling
+    // Auto-scroll anchor (~40% of viewport height)
     LaunchedEffect(activeIndex, isPlaying) {
         if (lines.isNotEmpty() && activeIndex in lines.indices) {
-            lazyListState.animateScrollToItem(
-                index = activeIndex,
-                scrollOffset = 0
-            )
+            if (isReducedMotion) {
+                lazyListState.scrollToItem(index = activeIndex)
+            } else {
+                lazyListState.animateScrollToItem(
+                    index = activeIndex,
+                    scrollOffset = 0
+                )
+            }
         }
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        // Calculate vertical padding to ensure the active line lands directly at the vertical viewport center
-        val centerPadding = ((maxHeight / 2) - 34.dp).coerceAtLeast(0.dp)
+        // Golden ratio ~40% anchor
+        val topPadding = (maxHeight * 0.38f).coerceAtLeast(0.dp)
+        val bottomPadding = (maxHeight * 0.50f).coerceAtLeast(0.dp)
+
+        val baseFontSize = if (isLandscape) 28.sp else 24.sp
+        val activeFontSize = (baseFontSize.value * fontScale).sp
+        val nearFontSize = (activeFontSize.value * 0.82f).sp
+        val farFontSize = (activeFontSize.value * 0.70f).sp
 
         LazyColumn(
             state = lazyListState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = centerPadding, bottom = centerPadding),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            contentPadding = PaddingValues(top = topPadding, bottom = bottomPadding),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             itemsIndexed(lines, key = { _, line -> line.timestampMs }) { index, line ->
+                val distance = kotlin.math.abs(index - activeIndex)
                 val isActive = index == activeIndex
 
-                val alpha by animateFloatAsState(
-                    targetValue = if (isActive) 1.0f else 0.35f,
-                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
-                    label = "karaokeLineAlpha"
+                val lineAlpha by animateFloatAsState(
+                    targetValue = when (distance) {
+                        0 -> 1.0f
+                        1 -> 0.55f
+                        else -> 0.30f
+                    },
+                    animationSpec = if (isReducedMotion) tween(0) else tween(220, easing = FastOutSlowInEasing),
+                    label = "alpha"
                 )
 
-                val scale by animateFloatAsState(
-                    targetValue = if (isActive) 1.04f else 1.0f,
-                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
-                    label = "karaokeLineScale"
-                )
-
-                val itemShape = RoundedCornerShape(lirixColors.cardCornerRadius)
-                val activeBorderAndBg = if (isActive) {
-                    Modifier
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                listOf(
-                                    lirixColors.accentGlow,
-                                    lirixColors.accentSecondary.copy(alpha = 0.18f),
-                                    lirixColors.accentGlow
-                                )
-                            ),
-                            shape = itemShape
-                        )
-                        .border(
-                            width = 1.dp,
-                            brush = Brush.horizontalGradient(
-                                listOf(lirixColors.accentPrimary, lirixColors.accentSecondary)
-                            ),
-                            shape = itemShape
-                        )
-                } else {
-                    Modifier
+                val fontSize = when (distance) {
+                    0 -> activeFontSize
+                    1 -> nearFontSize
+                    else -> farFontSize
                 }
 
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .scale(scale)
-                        .clip(itemShape)
-                        .then(activeBorderAndBg)
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onSeekTo(line.timestampMs)
-                        }
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        if (isActive) {
-                            Text(
-                                text = formatMs(line.timestampMs),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = lirixColors.accentSecondary,
-                                modifier = Modifier.padding(bottom = 2.dp)
+                        .pointerInput(line.timestampMs, canSeek) {
+                            detectTapGestures(
+                                onLongPress = {
+                                    if (canSeek) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onSeekTo(line.timestampMs)
+                                    }
+                                }
                             )
                         }
-                        Text(
-                            text = line.text,
-                            style = if (isActive) {
-                                MaterialTheme.typography.headlineSmall.copy(
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    lineHeight = 30.sp,
-                                    letterSpacing = (-0.2).sp
-                                )
-                            } else {
-                                MaterialTheme.typography.titleMedium.copy(
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    lineHeight = 24.sp
-                                )
-                            },
-                            color = if (isActive) lirixColors.karaokeActive else lirixColors.karaokeInactive,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .alpha(alpha)
-                        )
-                    }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 3dp left accent bar for active line
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .height(if (isActive) 28.dp else 0.dp)
+                            .background(
+                                color = if (isActive) tokens.accentPrimary else Color.Transparent,
+                                shape = RoundedCornerShape(1.5.dp)
+                            )
+                    )
+
+                    Spacer(modifier = Modifier.width(9.dp))
+
+                    Text(
+                        text = line.text.toSentenceCase(),
+                        fontFamily = LiterataFontFamily,
+                        fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
+                        fontSize = fontSize,
+                        lineHeight = (fontSize.value * 1.35f).sp,
+                        color = tokens.textPrimary.copy(alpha = lineAlpha),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
@@ -2065,15 +2007,17 @@ fun HighFidelityKaraokePlayer(
 }
 
 /**
- * Premium reading sheet for plain text lyrics without LRC timestamps.
+ * Plain lyrics reader with Literata font and sentence case formatting.
  */
 @Composable
-private fun PlainLyricsReadingView(
+fun PlainLyricsReadingView(
     lyricsText: String,
     onStartTapSync: (() -> Unit)? = null,
+    onEditLyrics: (() -> Unit)? = null,
+    fontScale: Float = 1.0f,
     modifier: Modifier = Modifier
 ) {
-    val lirixColors = LirixThemeTokens.colors
+    val tokens = LirixThemeTokens.colors
     val clipboard = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
     var isCopied by remember { mutableStateOf(false) }
@@ -2082,8 +2026,7 @@ private fun PlainLyricsReadingView(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 6.dp, vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -2091,81 +2034,65 @@ private fun PlainLyricsReadingView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                color = lirixColors.surfaceCard,
-                shape = RoundedCornerShape(8.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.borderSubtle)
+                color = tokens.surfaceElevated,
+                shape = RoundedCornerShape(tokens.pillCornerRadius),
+                border = androidx.compose.foundation.BorderStroke(1.dp, tokens.borderSubtle)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MusicNote,
-                        contentDescription = null,
-                        tint = lirixColors.accentSecondary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Режим чтения • LRC таймкоды отсутствуют",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = lirixColors.textSecondary
-                    )
-                }
-            }
-
-            IconButton(
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    clipboard.setText(AnnotatedString(lyricsText))
-                    isCopied = true
-                },
-                modifier = Modifier.size(34.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ContentCopy,
-                    contentDescription = "Copy lyrics",
-                    tint = if (isCopied) lirixColors.accentSecondary else lirixColors.textSecondary,
-                    modifier = Modifier.size(18.dp)
+                Text(
+                    text = "Текст песни без таймингов",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 11.sp
+                    ),
+                    color = tokens.textSecondary,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 )
             }
-        }
 
-        if (onStartTapSync != null) {
-            Spacer(modifier = Modifier.height(10.dp))
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onEditLyrics != null) {
+                    IconButton(
+                        onClick = onEditLyrics,
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Редактировать текст",
+                            tint = tokens.accentPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+
+                if (onStartTapSync != null) {
+                    Button(
+                        onClick = onStartTapSync,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = tokens.surfaceElevated,
+                            contentColor = tokens.accentPrimary
+                        ),
+                        shape = RoundedCornerShape(tokens.pillCornerRadius),
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Text("Синхронизировать", fontSize = 11.sp)
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+
+                IconButton(
+                    onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onStartTapSync()
+                        clipboard.setText(AnnotatedString(lyricsText))
+                        isCopied = true
                     },
-                color = lirixColors.surfaceCard,
-                border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.accentPrimary.copy(alpha = 0.6f)),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                    modifier = Modifier.size(34.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MusicNote,
-                        contentDescription = null,
-                        tint = lirixColors.accentSecondary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "⏱ Создать караоке (Tap-to-Sync)",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        ),
-                        color = lirixColors.accentPrimary
+                        imageVector = if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy,
+                        contentDescription = "Копировать",
+                        tint = if (isCopied) tokens.accentPrimary else tokens.textSecondary,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -2173,96 +2100,15 @@ private fun PlainLyricsReadingView(
 
         Spacer(modifier = Modifier.height(14.dp))
 
+        val sanitizedLyrics = remember(lyricsText) { LrcSyncEngine.sanitizePlainText(lyricsText) }
         Text(
-            text = lyricsText,
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontSize = 17.sp,
-                lineHeight = 28.sp,
-                letterSpacing = 0.2.sp
-            ),
-            color = lirixColors.textPrimary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp)
+            text = sanitizedLyrics.lines().joinToString("\n") { it.toSentenceCase() },
+            fontFamily = LiterataFontFamily,
+            fontWeight = FontWeight.Normal,
+            fontSize = (18 * fontScale).sp,
+            lineHeight = (26 * fontScale).sp,
+            color = tokens.textPrimary,
+            modifier = Modifier.fillMaxWidth()
         )
-    }
-}
-
-@Composable
-fun ExhaustedLyricsPlaceholder(
-    onSearchWeb: () -> Unit,
-    onResetRejections: () -> Unit,
-    onRetryDefault: () -> Unit,
-    hasRejections: Boolean
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        val tokens = LirixThemeTokens.colors
-        Icon(
-            imageVector = Icons.Default.MusicNote,
-            contentDescription = null,
-            tint = tokens.textMuted,
-            modifier = Modifier.size(44.dp)
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        Text(
-            text = "Текст не найден",
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = tokens.textPrimary
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = if (hasRejections) {
-                "Все доступные источники были опрошены или отклонены"
-            } else {
-                "Текст отсутствует в стандартных базах"
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = tokens.textSecondary,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Кнопка перехода к режиму поиска / обучения
-        Button(
-            onClick = onSearchWeb,
-            colors = ButtonDefaults.buttonColors(containerColor = tokens.accentPrimary),
-            shape = RoundedCornerShape(10.dp)
-        ) {
-            Text("🌐 Найти в интернете", color = if (tokens.isDark) Color.Black else Color.White, fontWeight = FontWeight.Bold)
-        }
-
-        if (hasRejections) {
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onResetRejections,
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, tokens.accentSecondary)
-            ) {
-                Text("🔄 Сбросить отклонённые источники", color = tokens.accentSecondary)
-            }
-        } else {
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onRetryDefault,
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, tokens.accentPrimary.copy(alpha = 0.6f))
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = null,
-                    tint = tokens.accentPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Повторить поиск", color = tokens.textPrimary)
-            }
-        }
     }
 }

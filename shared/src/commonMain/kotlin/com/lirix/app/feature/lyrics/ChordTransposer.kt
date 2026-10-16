@@ -68,8 +68,21 @@ object ChordTransposer {
         return text.lines().joinToString("\n") { line ->
             if (isChordLine(line)) {
                 transposeChordLine(line, semitones)
+            } else if (line.contains("[") && line.contains("]")) {
+                transposeBracketedLine(line, semitones)
             } else {
                 line
+            }
+        }
+    }
+
+    private fun transposeBracketedLine(line: String, semitones: Int): String {
+        return line.replace(Regex("""\[([A-H][#b]?[^\]]*)\]""")) { match ->
+            val chord = match.groupValues[1].trim()
+            if (CHORD_REGEX.matches(chord)) {
+                "[${transposeChord(chord, semitones)}]"
+            } else {
+                match.value
             }
         }
     }

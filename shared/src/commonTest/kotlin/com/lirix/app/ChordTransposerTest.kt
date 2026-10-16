@@ -56,6 +56,14 @@ class ChordTransposerTest {
     }
 
     @Test
+    fun test_transpose_bracketed_inline_chords() {
+        val input = "[Am]Вчера я [C]видел [Dm]свет"
+        val expected = "[Bm]Вчера я [D]видел [Em]свет"
+        val result = ChordTransposer.transposeText(input, 2)
+        assertEquals(expected, result)
+    }
+
+    @Test
     fun test_transpose_zero_semitones_returns_original() {
         val input = "Am  C  Dm  E\nПесня без слов"
         assertEquals(input, ChordTransposer.transposeText(input, 0))

@@ -20,7 +20,12 @@ import com.lirix.app.feature.share.ShareCardGenerator
 import com.lirix.app.feature.share.ShareManager
 import androidx.core.content.FileProvider
 import com.lirix.app.storage.TrackEntity
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -47,12 +52,16 @@ class ShareCardGeneratorTest {
 
     @Before
     fun setup() {
+        Dispatchers.setMain(StandardTestDispatcher())
         context = ApplicationProvider.getApplicationContext()
         val sharesDir = File(context.cacheDir, "shares")
         if (sharesDir.exists()) {
             sharesDir.deleteRecursively()
         }
     }
+
+    @After
+    fun resetMainDispatcher() { Dispatchers.resetMain() }
 
     private fun createSampleWrappedStats(): WrappedStats {
         return WrappedStats(
@@ -179,7 +188,7 @@ class ShareCardGeneratorTest {
     }
 
     @Test
-    fun testShareManager_savesFileToCache_andDispatchesSendIntent() = runBlocking {
+    fun testShareManager_savesFileToCache_andDispatchesSendIntent() = runTest {
         val bitmap = Bitmap.createBitmap(500, 500, Bitmap.Config.ARGB_8888)
 
         ShareManager.shareBitmap(

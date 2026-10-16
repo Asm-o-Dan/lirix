@@ -138,14 +138,18 @@ class FloatingLyricsService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Error starting foreground service notification in FloatingLyricsService")
         }
     }
 
@@ -396,15 +400,23 @@ class FloatingLyricsService : Service() {
                 requestPermission(context)
                 return
             }
-            val intent = Intent(context, FloatingLyricsService::class.java)
-            ContextCompat.startForegroundService(context, intent)
+            try {
+                val intent = Intent(context, FloatingLyricsService::class.java)
+                ContextCompat.startForegroundService(context, intent)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to start FloatingLyricsService")
+            }
         }
 
         fun stop(context: Context) {
-            val intent = Intent(context, FloatingLyricsService::class.java).apply {
-                action = ACTION_STOP
+            try {
+                val intent = Intent(context, FloatingLyricsService::class.java).apply {
+                    action = ACTION_STOP
+                }
+                context.startService(intent)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to stop FloatingLyricsService")
             }
-            context.startService(intent)
         }
 
         fun toggle(context: Context) {

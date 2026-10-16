@@ -47,6 +47,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
@@ -58,7 +59,7 @@ import com.lirix.app.storage.blacklist.BlacklistMatchMode
 import com.lirix.app.storage.blacklist.BlacklistRuleType
 import com.lirix.app.ui.theme.LirixThemeTokens
 
-private val PACKAGE_FRIENDLY_NAMES = mapOf(
+internal val PACKAGE_FRIENDLY_NAMES = mapOf(
     "com.spotify.music" to "Spotify",
     "com.vkontakte.android" to "VK Музыка",
     "ru.yandex.music" to "Яндекс Музыка",
@@ -87,6 +88,7 @@ fun BlacklistRuleConstructorSheet(
     if (!isOpen) return
 
     val tokens = LirixThemeTokens.colors
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
 
     // 100% theme adaptive warning / danger colors
@@ -126,17 +128,16 @@ fun BlacklistRuleConstructorSheet(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "НОВОЕ ПРАВИЛО ЗАПРЕТА",
+                        text = "Новое правило игнорирования",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Black,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 0.5.sp
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
                         ),
                         color = tokens.textPrimary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Заблокированные треки не сохраняются и стираются из базы",
+                        text = "Игнорируемые треки не сохраняются и стираются из базы",
                         style = MaterialTheme.typography.bodySmall,
                         color = tokens.textSecondary
                     )
@@ -158,10 +159,9 @@ fun BlacklistRuleConstructorSheet(
 
             // 2. Criteria Selector (Title, Artist, Package)
             Text(
-                text = "1. ЧТО БЛОКИРУЕМ? (КРИТЕРИЙ)",
+                text = "1. Что игнорируем? (критерий)",
                 style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    fontWeight = FontWeight.Bold
                 ),
                 color = tokens.textSecondary
             )
@@ -277,7 +277,12 @@ fun BlacklistRuleConstructorSheet(
                         suggestions.forEach { item ->
                             val isSelected = draftPattern.trim() == item.trim()
                             val displayText = if (draftType == BlacklistRuleType.PACKAGE_NAME) {
-                                PACKAGE_FRIENDLY_NAMES[item] ?: item
+                                try {
+                                    val appInfo = context.packageManager.getApplicationInfo(item, 0)
+                                    context.packageManager.getApplicationLabel(appInfo).toString()
+                                } catch (_: Exception) {
+                                    PACKAGE_FRIENDLY_NAMES[item] ?: item
+                                }
                             } else {
                                 item
                             }
@@ -493,7 +498,7 @@ fun BlacklistRuleConstructorSheet(
                             fontSize = 18.sp
                         )
                         Text(
-                            text = "В текущей медиатеке совпадений нет. Правило будет защищать от будущих записей.",
+                            text = "В текущей медиатеке совпадений нет. Будущие записи будут игнорироваться.",
                             style = MaterialTheme.typography.bodySmall,
                             color = tokens.textSecondary
                         )
@@ -507,7 +512,7 @@ fun BlacklistRuleConstructorSheet(
             val isEnabled = draftPattern.isNotBlank()
             val confirmButtonText = when {
                 previewCount > 0 -> "Исключить и удалить $previewCount треков"
-                else -> "Создать правило защиты"
+                else -> "Создать правило игнорирования"
             }
 
             Button(

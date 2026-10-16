@@ -18,15 +18,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Forward5
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -52,6 +59,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -63,10 +71,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -75,19 +83,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lirix.app.feature.lyrics.LrcSyncEngine
 import com.lirix.app.feature.lyrics.SyncLineItem
 import com.lirix.app.ingestion.MediaSessionCollector
-import com.lirix.app.ui.theme.AppColors
+import com.lirix.app.ui.theme.LirixThemeTokens
+import com.lirix.app.ui.theme.LiterataFontFamily
+import com.lirix.app.ui.theme.GolosTextFontFamily
+import com.lirix.app.ui.theme.FontFeature
+import com.lirix.app.ui.theme.toSentenceCase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 /**
- * Fullscreen interactive AMOLED dialog for syncing plain song lyrics into standard LRC
+ * Fullscreen interactive dialog for syncing plain song lyrics into standard LRC
  * караоке timestamps in real-time ("Tap-to-Sync Studio").
  *
- * Spec: TASK-LRC-02 / .sdd/specs/media-ui/lrc_tap_sync_studio.md
+ * Spec: TASK-UI-MOB-FIX-04 / TASK-LRC-02
  *
  * @param trackTitle Name of song.
  * @param artist Artist of song.
@@ -103,14 +117,19 @@ fun LrcTapSyncStudioDialog(
     onDismissRequest: () -> Unit,
     onSaveLrc: (String) -> Unit
 ) {
+    val tokens = LirixThemeTokens.colors
+    val context = androidx.compose.ui.platform.LocalContext.current
     val haptic = LocalHapticFeedback.current
     val livePlayback by MediaSessionCollector.livePlaybackFlow.collectAsStateWithLifecycle()
+    val syncPrefs = remember { context.getSharedPreferences("lirix_sync_prefs", android.content.Context.MODE_PRIVATE) }
+    var reactionLagMs by remember { mutableLongStateOf(syncPrefs.getLong("reaction_lag_ms", 200L)) }
 
     var lines by remember(initialPlainText) {
         mutableStateOf(LrcSyncEngine.parsePlainToSyncLines(initialPlainText))
     }
     var currentIndex by remember { mutableIntStateOf(0) }
     var isPreviewOpen by remember { mutableStateOf(false) }
+    var isEditingLyrics by remember { mutableStateOf(false) }
 
     // Realtime playback position tracker (50ms ticker)
     var currentPlaybackPositionMs by remember { mutableLongStateOf(0L) }
@@ -128,7 +147,7 @@ fun LrcTapSyncStudioDialog(
     val infiniteTransition = rememberInfiniteTransition(label = "PromptPulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
-        targetValue = 1.03f,
+        targetValue = 1.025f,
         animationSpec = infiniteRepeatable(
             animation = tween(800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -143,16 +162,28 @@ fun LrcTapSyncStudioDialog(
             decorFitsSystemWindows = false
         )
     ) {
+        val dialogView = LocalView.current
+        DisposableEffect(dialogView) {
+            val window = (dialogView.parent as? DialogWindowProvider)?.window
+            if (window != null) {
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+            }
+            onDispose {}
+        }
+
+        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val safeBottomPadding = maxOf(navBarBottom + 16.dp, 56.dp)
+
         Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = AppColors.AmoledBlack
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+            color = tokens.appBackground
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp)
+                    .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = safeBottomPadding)
             ) {
                 // 1. Top Bar: Header, Song Info, Close & Save Shortcuts
                 Row(
@@ -170,7 +201,7 @@ fun LrcTapSyncStudioDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Закрыть студию",
-                            tint = AppColors.TextSecondary
+                            tint = tokens.textSecondary
                         )
                     }
 
@@ -183,40 +214,58 @@ fun LrcTapSyncStudioDialog(
                         Text(
                             text = trackTitle.ifBlank { "Студия караоке" },
                             style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.ExtraBold,
+                                fontFamily = GolosTextFontFamily,
+                                fontWeight = FontWeight.SemiBold,
                                 fontSize = 15.sp
                             ),
-                            color = AppColors.TextPrimary,
+                            color = tokens.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = artist.ifBlank { "Tap-to-Sync" },
                             style = MaterialTheme.typography.bodySmall.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 11.sp
+                                fontFamily = GolosTextFontFamily,
+                                fontWeight = FontWeight.Normal,
+                                fontSize = 12.sp
                             ),
-                            color = AppColors.HyperViolet,
+                            color = tokens.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    // Top Preview / Save button
-                    val hasAnyMarked = remember(lines) { LrcSyncEngine.markedCount(lines) > 0 }
-                    IconButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            isPreviewOpen = true
-                        },
-                        enabled = hasAnyMarked,
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Visibility,
-                            contentDescription = "Предпросмотр LRC",
-                            tint = if (hasAnyMarked) AppColors.CyberCyan else AppColors.TextDisabled
-                        )
+                    // Top Action buttons: Edit plain text & Preview LRC
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                isEditingLyrics = true
+                            },
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Редактировать текст",
+                                tint = tokens.textSecondary
+                            )
+                        }
+
+                        val hasAnyMarked = remember(lines) { LrcSyncEngine.markedCount(lines) > 0 }
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                isPreviewOpen = true
+                            },
+                            enabled = hasAnyMarked,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Visibility,
+                                contentDescription = "Предпросмотр LRC",
+                                tint = if (hasAnyMarked) tokens.accentPrimary else tokens.textMuted
+                            )
+                        }
                     }
                 }
 
@@ -233,39 +282,42 @@ fun LrcTapSyncStudioDialog(
                     Text(
                         text = "Строка ${minOf(currentIndex + 1, lines.size)} из ${lines.size}",
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
+                            fontFamily = GolosTextFontFamily,
+                            fontWeight = FontWeight.Medium,
                             fontSize = 12.sp
                         ),
-                        color = AppColors.CyberCyan
+                        color = tokens.accentPrimary
                     )
 
                     Surface(
-                        color = AppColors.SurfaceLevel2,
+                        color = tokens.surfaceElevated,
                         shape = RoundedCornerShape(10.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle)
+                        border = androidx.compose.foundation.BorderStroke(1.dp, tokens.borderSubtle)
                     ) {
                         Text(
                             text = "Размечено: $markedCount / ${lines.size}",
                             style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = GolosTextFontFamily,
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 11.sp
+                                fontSize = 11.sp,
+                                fontFeatureSettings = FontFeature.tabularFigures()
                             ),
-                            color = if (markedCount == lines.size && lines.isNotEmpty()) AppColors.ElectricMint else AppColors.TextSecondary,
+                            color = if (markedCount == lines.size && lines.isNotEmpty()) tokens.accentPrimary else tokens.textSecondary,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 LinearProgressIndicator(
                     progress = { progress },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(5.dp)
-                        .clip(RoundedCornerShape(3.dp)),
-                    color = AppColors.CyberCyan,
-                    trackColor = AppColors.SurfaceLevel2
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = tokens.accentPrimary,
+                    trackColor = tokens.surfaceElevated
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -275,9 +327,9 @@ fun LrcTapSyncStudioDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    color = AppColors.SurfaceLevel1,
+                    color = tokens.surfacePrimary,
                     shape = RoundedCornerShape(20.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, tokens.borderSubtle)
                 ) {
                     Column(
                         modifier = Modifier
@@ -299,20 +351,24 @@ fun LrcTapSyncStudioDialog(
                                     Text(
                                         text = LrcSyncEngine.formatTimestamp(prevTimestampMs),
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = FontFamily.Monospace,
+                                            fontFamily = GolosTextFontFamily,
+                                            fontFeatureSettings = FontFeature.tabularFigures(),
+                                            fontWeight = FontWeight.Medium,
                                             fontSize = 11.sp
                                         ),
-                                        color = AppColors.ElectricMint.copy(alpha = 0.7f),
+                                        color = tokens.accentPrimary.copy(alpha = 0.7f),
                                         modifier = Modifier.padding(end = 6.dp)
                                     )
                                 }
                                 Text(
-                                    text = prevItem.text,
+                                    text = prevItem.text.toSentenceCase(),
                                     style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Normal
+                                        fontFamily = LiterataFontFamily,
+                                        fontWeight = FontWeight.Normal,
+                                        fontSize = 14.sp,
+                                        lineHeight = 20.sp
                                     ),
-                                    color = AppColors.TextSecondary.copy(alpha = 0.55f),
+                                    color = tokens.textSecondary.copy(alpha = 0.65f),
                                     textAlign = TextAlign.Center,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
@@ -321,8 +377,11 @@ fun LrcTapSyncStudioDialog(
                         } else {
                             Text(
                                 text = "— Начало песни —",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = AppColors.TextTertiary.copy(alpha = 0.35f)
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = GolosTextFontFamily,
+                                    fontSize = 12.sp
+                                ),
+                                color = tokens.textMuted.copy(alpha = 0.5f)
                             )
                         }
 
@@ -336,37 +395,36 @@ fun LrcTapSyncStudioDialog(
                                     .fillMaxWidth()
                                     .scale(pulseScale)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(AppColors.SurfaceLevel2)
+                                    .background(tokens.surfaceCard)
                                     .border(
                                         width = 1.5.dp,
-                                        brush = Brush.horizontalGradient(
-                                            listOf(AppColors.HyperViolet, AppColors.CyberCyan)
-                                        ),
+                                        color = tokens.accentPrimary,
                                         shape = RoundedCornerShape(16.dp)
                                     )
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    .padding(horizontal = 14.dp, vertical = 14.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = currentItem.text,
+                                        text = currentItem.text.toSentenceCase(),
                                         style = MaterialTheme.typography.headlineSmall.copy(
-                                            fontSize = 19.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            lineHeight = 26.sp
+                                            fontFamily = LiterataFontFamily,
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 20.sp,
+                                            lineHeight = 28.sp
                                         ),
-                                        color = AppColors.CyberCyan,
+                                        color = tokens.textPrimary,
                                         textAlign = TextAlign.Center
                                     )
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
-                                        text = "ТАПАЙТЕ В НАЧАЛО ЭТОЙ СТРОКИ",
+                                        text = "Нажмите в начале этой строки",
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 10.sp,
-                                            letterSpacing = 1.sp
+                                            fontFamily = GolosTextFontFamily,
+                                            fontWeight = FontWeight.Normal,
+                                            fontSize = 12.sp
                                         ),
-                                        color = AppColors.HyperViolet
+                                        color = tokens.accentPrimary
                                     )
                                 }
                             }
@@ -376,10 +434,10 @@ fun LrcTapSyncStudioDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(AppColors.SurfaceLevel2)
+                                    .background(tokens.surfaceCard)
                                     .border(
                                         width = 1.5.dp,
-                                        color = AppColors.ElectricMint,
+                                        color = tokens.accentPrimary,
                                         shape = RoundedCornerShape(16.dp)
                                     )
                                     .padding(horizontal = 14.dp, vertical = 14.dp),
@@ -389,24 +447,28 @@ fun LrcTapSyncStudioDialog(
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = null,
-                                        tint = AppColors.ElectricMint,
+                                        tint = tokens.accentPrimary,
                                         modifier = Modifier.size(32.dp)
                                     )
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
                                         text = "Все строки синхронизированы!",
                                         style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = GolosTextFontFamily,
+                                            fontWeight = FontWeight.SemiBold,
                                             fontSize = 16.sp
                                         ),
-                                        color = AppColors.ElectricMint,
+                                        color = tokens.accentPrimary,
                                         textAlign = TextAlign.Center
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = "Нажмите «Сохранить караоке» ниже для записи в медиатеку",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = AppColors.TextSecondary,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontFamily = GolosTextFontFamily,
+                                            fontSize = 12.sp
+                                        ),
+                                        color = tokens.textSecondary,
                                         textAlign = TextAlign.Center
                                     )
                                 }
@@ -419,12 +481,14 @@ fun LrcTapSyncStudioDialog(
                         val nextItem = lines.getOrNull(currentIndex + 1)
                         if (nextItem != null) {
                             Text(
-                                text = nextItem.text,
+                                text = nextItem.text.toSentenceCase(),
                                 style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Normal
+                                    fontFamily = LiterataFontFamily,
+                                    fontWeight = FontWeight.Normal,
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp
                                 ),
-                                color = AppColors.TextSecondary.copy(alpha = 0.7f),
+                                color = tokens.textSecondary.copy(alpha = 0.65f),
                                 textAlign = TextAlign.Center,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
@@ -432,8 +496,11 @@ fun LrcTapSyncStudioDialog(
                         } else if (currentIndex < lines.size) {
                             Text(
                                 text = "— Конец текста —",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = AppColors.TextTertiary.copy(alpha = 0.35f)
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = GolosTextFontFamily,
+                                    fontSize = 12.sp
+                                ),
+                                color = tokens.textMuted.copy(alpha = 0.5f)
                             )
                         }
                     }
@@ -444,9 +511,9 @@ fun LrcTapSyncStudioDialog(
                 // 4. Compact Media Player Controller (Play/Pause & Seek)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = AppColors.SurfaceLevel2,
+                    color = tokens.surfaceElevated,
                     shape = RoundedCornerShape(14.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, tokens.borderSubtle)
                 ) {
                     Row(
                         modifier = Modifier
@@ -466,7 +533,7 @@ fun LrcTapSyncStudioDialog(
                             Icon(
                                 imageVector = Icons.Default.Replay5,
                                 contentDescription = "Назад 5с",
-                                tint = AppColors.TextPrimary,
+                                tint = tokens.textPrimary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -477,7 +544,7 @@ fun LrcTapSyncStudioDialog(
                             modifier = Modifier
                                 .size(42.dp)
                                 .clip(CircleShape)
-                                .background(AppColors.HyperViolet)
+                                .background(tokens.accentPrimary)
                                 .clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     MediaSessionCollector.togglePlayPause()
@@ -487,7 +554,7 @@ fun LrcTapSyncStudioDialog(
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = if (isPlaying) "Пауза" else "Воспроизведение",
-                                tint = Color.Black,
+                                tint = tokens.appBackground,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -503,7 +570,7 @@ fun LrcTapSyncStudioDialog(
                             Icon(
                                 imageVector = Icons.Default.Forward5,
                                 contentDescription = "Вперед 5с",
-                                tint = AppColors.TextPrimary,
+                                tint = tokens.textPrimary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -514,20 +581,23 @@ fun LrcTapSyncStudioDialog(
                             Text(
                                 text = LrcSyncEngine.formatTimeLabel(currentPlaybackPositionMs),
                                 style = MaterialTheme.typography.titleMedium.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = GolosTextFontFamily,
+                                    fontFeatureSettings = FontFeature.tabularFigures(),
+                                    fontWeight = FontWeight.SemiBold,
                                     fontSize = 14.sp
                                 ),
-                                color = AppColors.CyberCyan
+                                color = tokens.textPrimary
                             )
                             if (durationMs > 0L) {
                                 Text(
                                     text = "/ ${LrcSyncEngine.formatTimeLabel(durationMs)}",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 10.sp
+                                        fontFamily = GolosTextFontFamily,
+                                        fontFeatureSettings = FontFeature.tabularFigures(),
+                                        fontWeight = FontWeight.Normal,
+                                        fontSize = 11.sp
                                     ),
-                                    color = AppColors.TextTertiary
+                                    color = tokens.textSecondary
                                 )
                             }
                         }
@@ -536,25 +606,93 @@ fun LrcTapSyncStudioDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // 4b. Reaction Lag Controller (Motor latency compensation)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Задержка реакции: ${reactionLagMs} мс",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = GolosTextFontFamily,
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 12.sp
+                        ),
+                        color = tokens.textSecondary
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(tokens.surfaceElevated)
+                                .border(1.dp, tokens.borderSubtle, RoundedCornerShape(8.dp))
+                                .clickable {
+                                    val newLag = (reactionLagMs - 50L).coerceAtLeast(0L)
+                                    reactionLagMs = newLag
+                                    syncPrefs.edit().putLong("reaction_lag_ms", newLag).apply()
+                                }
+                                .defaultMinSize(minWidth = 52.dp, minHeight = 44.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "−50 мс",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = GolosTextFontFamily,
+                                    fontFeatureSettings = FontFeature.tabularFigures(),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = tokens.textPrimary
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(tokens.surfaceElevated)
+                                .border(1.dp, tokens.borderSubtle, RoundedCornerShape(8.dp))
+                                .clickable {
+                                    val newLag = (reactionLagMs + 50L).coerceAtMost(500L)
+                                    reactionLagMs = newLag
+                                    syncPrefs.edit().putLong("reaction_lag_ms", newLag).apply()
+                                }
+                                .defaultMinSize(minWidth = 52.dp, minHeight = 44.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "+50 мс",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = GolosTextFontFamily,
+                                    fontFeatureSettings = FontFeature.tabularFigures(),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = tokens.textPrimary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
                 // 5. Massive Ergonomic Action Button (TAP TO SYNC)
                 val isAllFinished = currentIndex >= lines.size && lines.isNotEmpty()
-                val buttonBrush = if (isAllFinished) {
-                    Brush.horizontalGradient(listOf(AppColors.ElectricMint, AppColors.CyberCyan))
-                } else {
-                    Brush.horizontalGradient(listOf(AppColors.HyperViolet, AppColors.CyberCyan))
-                }
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(buttonBrush)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(tokens.accentPrimary)
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             if (currentIndex < lines.size) {
                                 val currentMs = livePlayback?.currentPositionMs() ?: currentPlaybackPositionMs
-                                lines = LrcSyncEngine.recordTimestamp(lines, currentIndex, currentMs)
+                                lines = LrcSyncEngine.recordTimestamp(lines, currentIndex, currentMs, reactionLagMs)
                                 currentIndex++
                                 if (currentIndex >= lines.size) {
                                     // Finished all lines! Open preview for review
@@ -574,28 +712,30 @@ fun LrcTapSyncStudioDialog(
                         Icon(
                             imageVector = if (isAllFinished) Icons.Default.Check else Icons.Default.TouchApp,
                             contentDescription = null,
-                            tint = Color.Black,
-                            modifier = Modifier.size(24.dp)
+                            tint = tokens.appBackground,
+                            modifier = Modifier.size(22.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isAllFinished) "СОХРАНИТЬ КАРАОКЕ" else "ТАП • СЛЕДУЮЩАЯ СТРОКА",
+                            text = if (isAllFinished) "Сохранить караоке" else "Тап — следующая строка",
                             style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Black,
-                                fontSize = 15.sp,
-                                letterSpacing = 0.5.sp
+                                fontFamily = GolosTextFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp
                             ),
-                            color = Color.Black
+                            color = tokens.appBackground
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                // 6. Bottom Navigation Controls: [ ↺ Шаг назад ] | [ 🔄 Сбросить ]
+                // 6. Bottom Navigation Controls: [ ↶ Отменить шаг ] | [ 🔄 Сбросить всё ]
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Undo Button
@@ -613,28 +753,29 @@ fun LrcTapSyncStudioDialog(
                         enabled = canUndo,
                         modifier = Modifier
                             .weight(1f)
-                            .defaultMinSize(minHeight = 38.dp),
+                            .height(42.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = AppColors.TextPrimary,
-                            disabledContentColor = AppColors.TextDisabled
+                            contentColor = tokens.textPrimary,
+                            disabledContentColor = tokens.textMuted
                         ),
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            if (canUndo) AppColors.BorderFocused else AppColors.BorderSubtle
+                            if (canUndo) tokens.accentPrimary else tokens.borderSubtle
                         )
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Undo,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Шаг назад",
+                            text = "Отменить шаг",
                             style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
+                                fontFamily = GolosTextFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp
                             )
                         )
                     }
@@ -649,28 +790,29 @@ fun LrcTapSyncStudioDialog(
                         enabled = markedCount > 0,
                         modifier = Modifier
                             .weight(1f)
-                            .defaultMinSize(minHeight = 38.dp),
+                            .height(42.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = AppColors.ExpenseRed,
-                            disabledContentColor = AppColors.TextDisabled
+                            contentColor = tokens.textSecondary,
+                            disabledContentColor = tokens.textMuted
                         ),
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            if (markedCount > 0) AppColors.ExpenseRed.copy(alpha = 0.5f) else AppColors.BorderSubtle
+                            if (markedCount > 0) tokens.accentPrimary.copy(alpha = 0.5f) else tokens.borderSubtle
                         )
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Сбросить",
+                            text = "Сбросить всё",
                             style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
+                                fontFamily = GolosTextFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp
                             )
                         )
                     }
@@ -679,7 +821,23 @@ fun LrcTapSyncStudioDialog(
         }
     }
 
-    // 7. Preview & Final Save Modal Dialog
+    // 7. Manual Lyrics Editing Modal Dialog
+    if (isEditingLyrics) {
+        val currentPlainText = remember(lines) { lines.joinToString("\n") { it.text } }
+        EditLyricsDialog(
+            trackTitle = trackTitle,
+            artist = artist,
+            initialLyrics = currentPlainText.ifBlank { initialPlainText },
+            onDismissRequest = { isEditingLyrics = false },
+            onSaveLyrics = { updatedText ->
+                isEditingLyrics = false
+                lines = LrcSyncEngine.parsePlainToSyncLines(updatedText)
+                currentIndex = 0
+            }
+        )
+    }
+
+    // 8. Preview & Final Save Modal Dialog
     if (isPreviewOpen) {
         val lrcContent = remember(lines) {
             val sanitized = LrcSyncEngine.validateAndSanitize(lines)
@@ -693,8 +851,8 @@ fun LrcTapSyncStudioDialog(
                     .fillMaxWidth()
                     .padding(vertical = 24.dp),
                 shape = RoundedCornerShape(24.dp),
-                color = AppColors.SurfaceLevel2,
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle)
+                color = tokens.surfaceElevated,
+                border = androidx.compose.foundation.BorderStroke(1.dp, tokens.borderSubtle)
             ) {
                 Column(
                     modifier = Modifier
@@ -710,27 +868,35 @@ fun LrcTapSyncStudioDialog(
                             Text(
                                 text = "Предпросмотр LRC",
                                 style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.ExtraBold,
+                                    fontFamily = GolosTextFontFamily,
+                                    fontWeight = FontWeight.SemiBold,
                                     fontSize = 17.sp
                                 ),
-                                color = AppColors.TextPrimary
+                                color = tokens.textPrimary
                             )
                             Text(
                                 text = "Синхронизировано строк: ${LrcSyncEngine.markedCount(lines)} из ${lines.size}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = AppColors.HyperViolet
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontFamily = GolosTextFontFamily,
+                                    fontSize = 12.sp
+                                ),
+                                color = tokens.textSecondary
                             )
                         }
 
                         if (isMonotonic) {
                             Surface(
-                                color = AppColors.IncomeContainer,
+                                color = tokens.surfacePrimary,
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
                                     text = "✓ Хронология OK",
-                                    color = AppColors.IncomeGreen,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = tokens.accentPrimary,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = GolosTextFontFamily,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 11.sp
+                                    ),
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
@@ -739,28 +905,109 @@ fun LrcTapSyncStudioDialog(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Monospace text field with generated LRC content
+                    // Interactive fine-tuning list with [−0,1 с] and [+0,1 с] buttons
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(260.dp),
+                            .height(280.dp),
                         shape = RoundedCornerShape(14.dp),
-                        color = AppColors.SurfaceLevel1,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle)
+                        color = tokens.surfacePrimary,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, tokens.borderSubtle)
                     ) {
-                        Text(
-                            text = lrcContent.ifBlank { "(Нет размеченных строк)" },
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 12.sp,
-                                lineHeight = 18.sp
-                            ),
-                            color = AppColors.TextPrimary,
+                        LazyColumn(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(12.dp)
-                        )
+                                .padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            itemsIndexed(lines) { idx, item ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(tokens.surfaceCard)
+                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = item.timestampMs?.let { LrcSyncEngine.formatTimestamp(it) } ?: "[--:--.--]",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = GolosTextFontFamily,
+                                            fontFeatureSettings = FontFeature.tabularFigures(),
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 12.sp
+                                        ),
+                                        color = if (item.timestampMs != null) tokens.accentPrimary else tokens.textMuted,
+                                        modifier = Modifier.width(78.dp)
+                                    )
+                                    Text(
+                                        text = item.text.toSentenceCase(),
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontFamily = LiterataFontFamily,
+                                            fontWeight = FontWeight.Normal,
+                                            fontSize = 13.sp
+                                        ),
+                                        color = tokens.textPrimary,
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (item.timestampMs != null) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(tokens.surfaceElevated)
+                                                    .border(1.dp, tokens.borderSubtle, RoundedCornerShape(6.dp))
+                                                    .clickable {
+                                                        lines = LrcSyncEngine.adjustTimestamp(lines, idx, -100L)
+                                                    }
+                                                    .defaultMinSize(minWidth = 44.dp, minHeight = 32.dp)
+                                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = "−0,1 с",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontFamily = GolosTextFontFamily,
+                                                        fontFeatureSettings = FontFeature.tabularFigures(),
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Medium
+                                                    ),
+                                                    color = tokens.textPrimary
+                                                )
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(tokens.surfaceElevated)
+                                                    .border(1.dp, tokens.borderSubtle, RoundedCornerShape(6.dp))
+                                                    .clickable {
+                                                        lines = LrcSyncEngine.adjustTimestamp(lines, idx, +100L)
+                                                    }
+                                                    .defaultMinSize(minWidth = 44.dp, minHeight = 32.dp)
+                                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = "+0,1 с",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontFamily = GolosTextFontFamily,
+                                                        fontFeatureSettings = FontFeature.tabularFigures(),
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Medium
+                                                    ),
+                                                    color = tokens.textPrimary
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -774,10 +1021,18 @@ fun LrcTapSyncStudioDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .defaultMinSize(minHeight = 48.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle)
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, tokens.borderSubtle)
                         ) {
-                            Text(text = "Назад к записи", color = AppColors.TextSecondary)
+                            Text(
+                                text = "Назад к записи",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = GolosTextFontFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp
+                                ),
+                                color = tokens.textSecondary
+                            )
                         }
 
                         Button(
@@ -790,10 +1045,10 @@ fun LrcTapSyncStudioDialog(
                             modifier = Modifier
                                 .weight(1.2f)
                                 .defaultMinSize(minHeight = 48.dp),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = AppColors.ElectricMint,
-                                contentColor = Color.Black
+                                containerColor = tokens.accentPrimary,
+                                contentColor = tokens.appBackground
                             )
                         ) {
                             Icon(
@@ -804,7 +1059,11 @@ fun LrcTapSyncStudioDialog(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Сохранить",
-                                fontWeight = FontWeight.Bold
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = GolosTextFontFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp
+                                )
                             )
                         }
                     }

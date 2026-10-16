@@ -17,10 +17,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
@@ -149,10 +156,11 @@ class DesktopLyricsService(
                 }
 
                 // 2. Query Chords (AmDm.ru & MyChords.net)
+                val knownLyricsForVerification = foundLrc ?: foundPlain
                 for (pair in searchPairs) {
                     val (art, tit) = pair
                     if (art.isNotBlank() && tit.isNotBlank()) {
-                        val chordsHit = fetchChords(art, tit)
+                        val chordsHit = fetchChords(art, tit, knownLyricsForVerification)
                         if (chordsHit != null) {
                             foundChords = chordsHit
                             if (foundPlain == null && foundLrc == null) {
@@ -260,11 +268,17 @@ class DesktopLyricsService(
         return candidates.distinct()
     }
 
-    private fun cleanNoise(str: String): String {
+    internal fun cleanNoise(str: String): String {
         return str
             .replace(Regex("""(?i)\s*[\(\[](official\s*(music\s*)?video|video|audio|lyrics|hd|4k|remix|clip|live)[\)\]]"""), "")
             .replace(Regex("""(?i)\s*-\s*(youtube(\s*music)?|spotify|яндекс\s*музыка)\s*$"""), "")
             .trim()
+    }
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        coerceInputValues = true
     }
 
     private data class LrcLibDto(val syncedLyrics: String?, val plainLyrics: String?)
@@ -277,11 +291,14 @@ class DesktopLyricsService(
             val url = "https://lrclib.net/api/get?artist_name=$encArt&track_name=$encTit"
             val response = httpGet(url) ?: return@withContext null
 
-            val synced = extractJsonField(response, "syncedLyrics")
-            val plain = extractJsonField(response, "plainLyrics")
+            val root = json.parseToJsonElement(response)
+            if (root is JsonObject) {
+                val synced = root["syncedLyrics"]?.jsonPrimitive?.contentOrNull
+                val plain = root["plainLyrics"]?.jsonPrimitive?.contentOrNull
 
-            if (!synced.isNullOrBlank() || !plain.isNullOrBlank()) {
-                return@withContext LrcLibDto(synced, plain)
+                if (!synced.isNullOrBlank() || !plain.isNullOrBlank()) {
+                    return@withContext LrcLibDto(synced, plain)
+                }
             }
         } catch (e: Exception) {
             logDebug(TAG, "LrcLib direct fetch failed: ${e.message}")
@@ -296,13 +313,16 @@ class DesktopLyricsService(
             val url = "https://lrclib.net/api/search?q=$enc"
             val response = httpGet(url) ?: return@withContext null
 
-            // Search results are an array of JSON objects
-            val items = extractJsonArrayItems(response)
-            for (item in items) {
-                val synced = extractJsonField(item, "syncedLyrics")
-                val plain = extractJsonField(item, "plainLyrics")
-                if (!synced.isNullOrBlank() || !plain.isNullOrBlank()) {
-                    return@withContext LrcLibDto(synced, plain)
+            val root = json.parseToJsonElement(response)
+            if (root is JsonArray) {
+                for (item in root) {
+                    if (item is JsonObject) {
+                        val synced = item["syncedLyrics"]?.jsonPrimitive?.contentOrNull
+                        val plain = item["plainLyrics"]?.jsonPrimitive?.contentOrNull
+                        if (!synced.isNullOrBlank() || !plain.isNullOrBlank()) {
+                            return@withContext LrcLibDto(synced, plain)
+                        }
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -311,35 +331,65 @@ class DesktopLyricsService(
         null
     }
 
-    private suspend fun fetchChords(artist: String, title: String): String? = withContext(Dispatchers.IO) {
+    private suspend fun fetchChords(
+        artist: String,
+        title: String,
+        knownLyrics: String? = null
+    ): String? = withContext(Dispatchers.IO) {
         try {
-            val query = "$artist $title".trim()
-            val enc = URLEncoder.encode(query, "UTF-8")
+            val queries = buildList {
+                val combined = "$artist $title".trim()
+                if (combined.isNotBlank()) add(combined)
+                val cleanT = cleanNoise(title)
+                if (cleanT.isNotBlank() && cleanT != combined) add(cleanT)
+            }.distinct()
 
-            // 1. AmDm.ru
-            val amdmHtml = httpGet("https://amdm.ru/search/?q=$enc")
-            if (amdmHtml != null) {
-                val songUrl = Regex("""<a\s+[^>]*href=["']((?:https?://[^/]*amdm\.ru)?/akkordi/[^"']+)["']""").find(amdmHtml)?.groupValues?.get(1)
-                if (songUrl != null) {
-                    val fullUrl = if (songUrl.startsWith("http")) songUrl else "https://amdm.ru$songUrl"
-                    val pageHtml = httpGet(fullUrl)
-                    if (pageHtml != null) {
-                        val chords = AmDmChordParser.parseAmDmHtml(pageHtml)
-                        if (!chords.isNullOrBlank()) return@withContext chords
+            // 1. AmDm.ru (search with artist+title, fallback to title)
+            for (q in queries) {
+                val enc = URLEncoder.encode(q, "UTF-8")
+                val amdmHtml = httpGet("https://amdm.ru/search/?q=$enc")
+                if (!amdmHtml.isNullOrBlank()) {
+                    val songUrl = extractAmDmSongUrl(amdmHtml, expectedTitle = title, expectedArtist = artist)
+                    if (songUrl != null) {
+                        val pageHtml = httpGet(songUrl)
+                        if (pageHtml != null) {
+                            val chords = AmDmChordParser.parseAmDmHtml(pageHtml)
+                            if (!chords.isNullOrBlank()) {
+                                if (isChordsPlausible(chords, expectedArtist = artist, expectedTitle = title, knownLyrics = knownLyrics, candidateUrl = songUrl)) {
+                                    logInfo(TAG, "AmDm chords verified for '$artist' - '$title' via query '$q' ($songUrl)")
+                                    return@withContext chords
+                                } else {
+                                    logWarn(TAG, "AmDm chords rejected: content does not match song '$artist' - '$title' ($songUrl)")
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            // 2. MyChords.net
-            val myChordsJson = httpGetWithHeaders("https://mychords.net/ru/ajax/autocomplete?q=$enc", mapOf("X-Requested-With" to "XMLHttpRequest"))
-            if (myChordsJson != null) {
-                val targetUrl = Regex(""""url"\s*:\s*"([^"]+)"""").find(myChordsJson)?.groupValues?.get(1)
-                if (targetUrl != null) {
-                    val fullUrl = if (targetUrl.startsWith("http")) targetUrl else "https://mychords.net$targetUrl"
-                    val pageHtml = httpGet(fullUrl)
-                    if (pageHtml != null) {
-                        val parsed = MyChordsParser.parseMyChordsHtml(pageHtml)
-                        if (parsed?.chords?.isNotBlank() == true) return@withContext parsed.chords
+            // 2. MyChords.net (search with artist+title, fallback to title)
+            for (q in queries) {
+                val enc = URLEncoder.encode(q, "UTF-8")
+                val myChordsJson = httpGetWithHeaders(
+                    "https://mychords.net/ru/ajax/autocomplete?q=$enc",
+                    mapOf("X-Requested-With" to "XMLHttpRequest")
+                )
+                if (!myChordsJson.isNullOrBlank()) {
+                    val targetUrl = extractMyChordsSongUrl(myChordsJson, expectedTitle = title, expectedArtist = artist)
+                    if (targetUrl != null) {
+                        val pageHtml = httpGet(targetUrl)
+                        if (pageHtml != null) {
+                            val parsed = MyChordsParser.parseMyChordsHtml(pageHtml)
+                            val chords = parsed?.chords
+                            if (!chords.isNullOrBlank()) {
+                                if (isChordsPlausible(chords, expectedArtist = artist, expectedTitle = title, knownLyrics = knownLyrics, candidateUrl = targetUrl)) {
+                                    logInfo(TAG, "MyChords chords verified for '$artist' - '$title' via query '$q' ($targetUrl)")
+                                    return@withContext chords
+                                } else {
+                                    logWarn(TAG, "MyChords chords rejected: content does not match song '$artist' - '$title' ($targetUrl)")
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -347,6 +397,196 @@ class DesktopLyricsService(
             logDebug(TAG, "Chords search failed: ${e.message}")
         }
         null
+    }
+
+    internal fun isChordsPlausible(
+        chords: String,
+        expectedArtist: String,
+        expectedTitle: String,
+        knownLyrics: String?,
+        candidateUrl: String
+    ): Boolean {
+        // If known lyrics are available, verify that chord sheet lyrics actually match known lyrics!
+        if (!knownLyrics.isNullOrBlank()) {
+            return verifyChordsAgainstLyrics(chords, knownLyrics)
+        }
+
+        // If known lyrics are not available, candidate must correlate with expected artist or title
+        val normExpectedArtist = cleanNoise(expectedArtist).lowercase()
+        val expArtistTokens = significantTokens(normExpectedArtist)
+        val normCandidate = candidateUrl.lowercase() + " " + chords.take(400).lowercase()
+        val candTokens = significantTokens(normCandidate)
+
+        if (expArtistTokens.isNotEmpty() && expArtistTokens.any { it in candTokens }) {
+            return true
+        }
+
+        val normExpectedTitle = cleanNoise(expectedTitle).lowercase()
+        val expTitleTokens = significantTokens(normExpectedTitle)
+        return expTitleTokens.isNotEmpty() && expTitleTokens.all { it in candTokens }
+    }
+
+    internal fun verifyChordsAgainstLyrics(chordsText: String, knownLyrics: String): Boolean {
+        val normChords = chordsText.lowercase().replace(Regex("""[^\p{L}\p{Nd}\s]+"""), " ")
+        val lines = knownLyrics.lines()
+            .map { it.replace(Regex("""\[\d+:\d+(?:\.\d+)?\]"""), "").trim() }
+            .filter { it.length >= 8 }
+
+        if (lines.isEmpty()) return true
+
+        var matchCount = 0
+        for (line in lines) {
+            val tokens = line.lowercase()
+                .replace(Regex("""[^\p{L}\p{Nd}\s]+"""), " ")
+                .split(Regex("""\s+"""))
+                .filter { it.length >= 3 && it !in STOP_WORDS }
+
+            if (tokens.size >= 2) {
+                val phrase = tokens.take(2).joinToString(" ")
+                if (normChords.contains(phrase)) {
+                    matchCount++
+                    if (matchCount >= 2) return true
+                }
+            }
+        }
+        return matchCount >= 1
+    }
+
+    internal fun extractAmDmSongUrl(searchHtml: String, expectedTitle: String, expectedArtist: String): String? {
+        // 1. Strictly isolate search results table (never look outside table.items!)
+        val itemsTable = Regex("""(?s)<table[^>]*class=["'][^"']*items[^"']*["'][^>]*>(.*?)</table>""")
+            .find(searchHtml)?.groupValues?.get(1) ?: return null
+
+        val rowMatches = Regex("""(?s)<td[^>]*>(.*?)</td>""")
+            .findAll(itemsTable)
+
+        var bestFallbackUrl: String? = null
+
+        for (match in rowMatches) {
+            val tdContent = match.groupValues[1]
+            val links = Regex("""<a\s+[^>]*href=["']((?:https?://[^/]*amdm\.ru)?/akkordi/[^"']+)["'][^>]*>(.*?)</a>""")
+                .findAll(tdContent)
+                .toList()
+            if (links.isEmpty()) continue
+
+            // Song link is usually the one with song ID or the second link in the pair (artist link - song link)
+            val songLink = links.find {
+                it.groupValues[1].contains(Regex("""/akkordi/[^/]+/\d+/|/akkordi/[^/]+/[^/]+/?$""")) && it != links.firstOrNull()
+            } ?: if (links.size > 1) links.last() else links.first()
+
+            val candidateUrl = songLink.groupValues[1]
+            val candidateTitle = cleanHtml(songLink.groupValues[2])
+            val candidateArtist = if (links.size > 1 && songLink != links.first()) cleanHtml(links.first().groupValues[2]) else ""
+
+            val fullUrl = if (candidateUrl.startsWith("http")) candidateUrl else "https://amdm.ru$candidateUrl"
+
+            val titleMatch = matchesTitle(candidateTitle, expectedTitle)
+            val artistMatch = matchesArtist(candidateArtist, expectedArtist)
+
+            if (titleMatch && artistMatch) {
+                // High confidence match (both artist and title)
+                return fullUrl
+            } else if (titleMatch && bestFallbackUrl == null) {
+                // Title matches, store as potential fallback
+                bestFallbackUrl = fullUrl
+            }
+        }
+        return bestFallbackUrl
+    }
+
+    internal fun extractMyChordsSongUrl(jsonStr: String, expectedTitle: String, expectedArtist: String): String? {
+        try {
+            val root = json.parseToJsonElement(jsonStr)
+            val items: List<JsonObject> = when (root) {
+                is JsonArray -> root.filterIsInstance<JsonObject>()
+                is JsonObject -> {
+                    (root["suggestions"] as? JsonArray)?.filterIsInstance<JsonObject>()
+                        ?: listOf(root)
+                }
+                else -> emptyList()
+            }
+
+            var bestFallbackUrl: String? = null
+
+            for (item in items) {
+                val candidateValue = item["value"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val url = item["url"]?.jsonPrimitive?.contentOrNull
+                    ?: (item["data"] as? JsonObject)?.get("url")?.jsonPrimitive?.contentOrNull
+                    ?: continue
+
+                if (!url.contains("/ru/") || !url.endsWith(".html")) continue
+
+                val fullUrl = if (url.startsWith("http")) url else "https://mychords.net$url"
+                val dashIdx = candidateValue.indexOf(" - ")
+                val (candArtist, candTitle) = if (dashIdx > 0) {
+                    candidateValue.substring(0, dashIdx).trim() to candidateValue.substring(dashIdx + 3).trim()
+                } else {
+                    "" to candidateValue
+                }
+
+                val matchesT = matchesTitle(candTitle, expectedTitle)
+                val matchesA = if (candArtist.isNotBlank()) matchesArtist(candArtist, expectedArtist) else matchesArtist(candidateValue, expectedArtist)
+
+                if (matchesT && matchesA) {
+                    return fullUrl
+                } else if (matchesT && bestFallbackUrl == null) {
+                    bestFallbackUrl = fullUrl
+                }
+            }
+            return bestFallbackUrl
+        } catch (_: Exception) {
+            return null
+        }
+    }
+
+    internal fun significantTokens(str: String): Set<String> {
+        return str.lowercase()
+            .replace(Regex("""[^\p{L}\p{Nd}]+"""), " ")
+            .split(" ")
+            .map { it.trim() }
+            .filter { it.length >= 2 && it !in STOP_WORDS }
+            .toSet()
+    }
+
+    internal fun matchesTitle(candidateTitle: String, expectedTitle: String): Boolean {
+        val cleanCand = cleanNoise(candidateTitle).trim().lowercase()
+        val cleanExp = cleanNoise(expectedTitle).trim().lowercase()
+        if (cleanCand == cleanExp) return true
+        if (cleanCand.contains(cleanExp) || cleanExp.contains(cleanCand)) return true
+
+        val expTokens = significantTokens(cleanExp)
+        val candTokens = significantTokens(cleanCand)
+
+        if (expTokens.isEmpty() || candTokens.isEmpty()) {
+            return cleanCand.contains(cleanExp) || cleanExp.contains(cleanCand)
+        }
+
+        val common = expTokens.intersect(candTokens)
+        val minSize = minOf(expTokens.size, candTokens.size)
+        return if (minSize == 1) {
+            common.size >= 1
+        } else {
+            (common.size.toDouble() / minSize) >= 0.7
+        }
+    }
+
+    internal fun matchesArtist(candidateArtist: String, expectedArtist: String): Boolean {
+        val cleanCand = cleanNoise(candidateArtist).trim().lowercase()
+        val cleanExp = cleanNoise(expectedArtist).trim().lowercase()
+        if (cleanCand.isBlank() || cleanExp.isBlank()) return false
+        if (cleanCand == cleanExp || cleanCand.contains(cleanExp) || cleanExp.contains(cleanCand)) return true
+
+        val expTokens = significantTokens(cleanExp)
+        val candTokens = significantTokens(cleanCand)
+        if (expTokens.isEmpty() || candTokens.isEmpty()) return false
+
+        val common = expTokens.intersect(candTokens)
+        val minSize = minOf(expTokens.size, candTokens.size)
+        return if (minSize == 1) {
+            common.size >= 1
+        } else {
+            (common.size.toDouble() / minSize) >= 0.5
+        }
     }
 
     private suspend fun fetchFallbackLyrics(artist: String, title: String): String? = withContext(Dispatchers.IO) {
@@ -445,7 +685,7 @@ class DesktopLyricsService(
     private fun httpGetWithHeaders(urlStr: String, headers: Map<String, String>): String? {
         var conn: HttpURLConnection? = null
         try {
-            val url = URL(urlStr)
+            val url = URI.create(urlStr).toURL()
             conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 7000
@@ -469,62 +709,23 @@ class DesktopLyricsService(
         return null
     }
 
-    private fun extractJsonField(json: String, fieldName: String): String? {
-        val pattern = Regex(""""$fieldName"\s*:\s*("(?:\\.|[^"\\])*"|null)""")
-        val match = pattern.find(json) ?: return null
-        val rawValue = match.groupValues[1]
-        if (rawValue == "null") return null
-
-        val unquoted = rawValue.substring(1, rawValue.length - 1)
-        return unquoted
-            .replace("\\n", "\n")
-            .replace("\\r", "\r")
-            .replace("\\t", "\t")
-            .replace("\\\"", "\"")
-            .replace("\\\\", "\\")
-            .replace(Regex("""\\u([0-9a-fA-F]{4})""")) { m ->
-                m.groupValues[1].toInt(16).toChar().toString()
-            }
-    }
-
-    private fun extractJsonArrayItems(json: String): List<String> {
-        val items = mutableListOf<String>()
-        var depth = 0
-        var inQuotes = false
-        var isEscaped = false
-        var startIdx = -1
-
-        for (i in json.indices) {
-            val c = json[i]
-            if (isEscaped) {
-                isEscaped = false
-                continue
-            }
-            if (c == '\\') {
-                isEscaped = true
-                continue
-            }
-            if (c == '"') {
-                inQuotes = !inQuotes
-                continue
-            }
-            if (!inQuotes) {
-                if (c == '{') {
-                    if (depth == 0) startIdx = i
-                    depth++
-                } else if (c == '}') {
-                    depth--
-                    if (depth == 0 && startIdx != -1) {
-                        items.add(json.substring(startIdx, i + 1))
-                        startIdx = -1
-                    }
-                }
-            }
-        }
-        return items
-    }
-
     companion object {
         private const val TAG = "DesktopLyricsService"
+
+        internal val STOP_WORDS = setOf(
+            // EN
+            "the", "a", "an", "and", "or", "in", "on", "at", "to", "for", "of", "with", "by", "from",
+            "is", "are", "was", "were", "it", "its", "as", "be", "this", "that", "my", "your", "his", "her",
+            "me", "you", "them", "we", "us", "our", "so", "but", "not", "too",
+            // RU
+            "и", "в", "во", "не", "что", "он", "на", "я", "с", "со", "как", "а", "то", "все", "она",
+            "так", "его", "но", "да", "ты", "к", "ко", "у", "же", "вы", "за", "бы", "по", "только",
+            "ее", "мне", "было", "вот", "от", "меня", "еще", "о", "об", "обо", "из", "ему", "теперь",
+            "когда", "даже", "ну", "вдруг", "ли", "если", "уже", "или", "ни", "быть", "был", "него",
+            "до", "вас", "там", "потом", "себя", "ничего", "ей", "может", "они", "тут", "где", "есть",
+            "надо", "ней", "для", "мы", "тебя", "их", "чем", "была", "сам", "чтоб", "без", "раз",
+            "тоже", "себе", "под", "будет", "ж", "тогда", "кто", "этот", "того", "этого", "какой",
+            "здесь", "этом", "один", "почти", "мой", "про", "всего"
+        )
     }
 }

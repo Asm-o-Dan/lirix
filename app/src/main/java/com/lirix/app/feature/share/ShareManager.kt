@@ -72,7 +72,7 @@ object ShareManager {
             val chooser = Intent.createChooser(intent, chooserTitle).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(chooser)
+            withContext(Dispatchers.Main) { context.startActivity(chooser) }
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to dispatch share chooser activity", e)

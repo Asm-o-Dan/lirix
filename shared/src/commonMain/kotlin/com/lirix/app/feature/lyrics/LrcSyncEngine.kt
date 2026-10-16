@@ -38,33 +38,102 @@ data class KaraokeLine(
  */
 object LrcSyncEngine {
 
+    private val GLUED_WORD_CHORD_REGEX = Regex("""([а-яёa-zА-ЯЁA-Z0-9,\.\!\?])([A-H][#b]?(?:m|maj|min|dim|aug|sus|add|\d)+\b)""")
+    private val GLUED_CHORD_WORD_REGEX = Regex("""\b([A-H](?:[#b](?:m|maj|min|dim|aug|sus|add|\d)*|(?:m|maj|min|dim|aug|sus|add|\d)+))([А-ЯЁа-яёA-Za-z])""")
+    private val BARE_CHORD_CAP_REGEX = Regex("""\b([A-H])([А-ЯЁ])""")
+    private val CHORD_INTERNAL_SPACE_REGEX = Regex("""\b([A-H][#b]?)\s+([m\d])\b""")
+    private val SECTION_HEADER_SPLIT_REGEX = Regex("""(?<=\S)\s*(\|[^|\n]+\|:?|\[[^\]\n]+\])""", RegexOption.IGNORE_CASE)
+    private val SECTION_HEADER_AFTER_REGEX = Regex("""(\|[^|\n]+\|:?|\[[^\]\n]+\])\s*(?=\S)""", RegexOption.IGNORE_CASE)
+    private val PUNCTUATION_SPLIT_REGEX = Regex("""([.!?»”])\s+(?=[А-ЯЁA-Z]|(?:[A-H][#b]?))""")
+
+    private const val CHORD_TOKEN = """(?:[A-H][#b]?(?:m|maj|min|dim|aug|sus|add|\d)*)"""
+    private const val CHORD_CLUSTER = """(?:$CHORD_TOKEN(?:\s+$CHORD_TOKEN)*)"""
+    private const val CAP_START = """(?:[А-ЯЁA-Z](?:\s+[а-яёa-z]+|[а-яёa-z]+))"""
+
+    private val CHORD_BEFORE_CAP_REGEX = Regex("""($CHORD_CLUSTER)\s+($CAP_START)""")
+    private val WORD_BEFORE_CHORD_REGEX = Regex("""([а-яёa-z,\.\!\?])\s+($CHORD_CLUSTER)""")
+
+    private val CHORD_ONLY_LINE_REGEX = Regex("""^(?:[A-H][#b]?(?:m|maj|min|dim|aug|sus|add|\d)*(?:\s+|$))+$""")
+    private val SECTION_HEADER_LINE_REGEX = Regex("""^(\|[^|\n]+\|:?|\[[^\]\n]+\])$""")
+
     /**
-     * Splits and sanitizes plain lyric text into [SyncLineItem] entries.
-     * Empty and blank lines are omitted, remaining lines are trimmed.
+     * Sanitizes plain lyric text:
+     * 1. Unsticks glued chords in both directions (e.g. "войC7" -> "вой C7", "A#A ну" -> "A# А ну").
+     * 2. Intelligently splits collapsed single-line or multi-line text at section headers, punctuation,
+     *    and chord-preceded poetic lines so that every sung lyric line is on its own row.
      */
-    fun parsePlainToSyncLines(plainText: String): List<SyncLineItem> {
-        if (plainText.isBlank()) return emptyList()
-        return plainText.lines()
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .mapIndexed { idx, line ->
-                SyncLineItem(index = idx, text = line)
-            }
+    fun sanitizePlainText(rawText: String): String {
+        if (rawText.isBlank()) return rawText
+        return rawText
+            .replace(GLUED_WORD_CHORD_REGEX, "$1 $2")
+            .replace(GLUED_CHORD_WORD_REGEX, "$1 $2")
+            .replace(BARE_CHORD_CAP_REGEX, "$1 $2")
+            .replace(CHORD_INTERNAL_SPACE_REGEX, "$1$2")
+            .replace(SECTION_HEADER_SPLIT_REGEX, "\n\n$1\n")
+            .replace(SECTION_HEADER_AFTER_REGEX, "$1\n")
+            .replace(PUNCTUATION_SPLIT_REGEX, "$1\n")
+            .replace(CHORD_BEFORE_CAP_REGEX, "$1\n$2")
+            .replace(WORD_BEFORE_CHORD_REGEX, "$1\n$2")
+            .replace(Regex("""\r\n"""), "\n")
+            .replace(Regex("""\n\s*\n\s*\n+"""), "\n\n")
+            .trim()
     }
 
     /**
-     * Records the given [timestampMs] for the item at [index].
+     * Splits and sanitizes plain lyric text into [SyncLineItem] entries.
+     * Empty lines, chord-only lines, and section markers are omitted so the user
+     * only syncs actual vocal lyric lines. Falls back to all lines if no lyrics remain.
+     */
+    fun parsePlainToSyncLines(plainText: String): List<SyncLineItem> {
+        if (plainText.isBlank()) return emptyList()
+        val cleaned = sanitizePlainText(plainText)
+        val filtered = cleaned.lines()
+            .map { it.trim() }
+            .filter { line ->
+                line.isNotBlank() &&
+                    !CHORD_ONLY_LINE_REGEX.matches(line) &&
+                    !SECTION_HEADER_LINE_REGEX.matches(line)
+            }
+        val targetLines = if (filtered.isNotEmpty()) filtered else cleaned.lines().map { it.trim() }.filter { it.isNotBlank() }
+        return targetLines.mapIndexed { idx, line ->
+            SyncLineItem(index = idx, text = line)
+        }
+    }
+
+    /**
+     * Records the given [timestampMs] for the item at [index], subtracting [reactionLagMs]
+     * to compensate for physiological tap latency.
      * Clamps negative timestamps to 0L. Returns an immutable copy of the list.
      */
     fun recordTimestamp(
         lines: List<SyncLineItem>,
         index: Int,
-        timestampMs: Long
+        timestampMs: Long,
+        reactionLagMs: Long = 0L
     ): List<SyncLineItem> {
         if (index !in lines.indices) return lines
-        val safeMs = maxOf(0L, timestampMs)
+        val safeMs = maxOf(0L, timestampMs - reactionLagMs)
         return lines.mapIndexed { i, item ->
             if (i == index) item.copy(timestampMs = safeMs) else item
+        }
+    }
+
+    /**
+     * Adjusts the timestamp for the line at [index] by [deltaMs] (e.g. +100ms or -100ms).
+     * If the line has no timestamp, it remains unchanged. Clamps to >= 0L.
+     */
+    fun adjustTimestamp(
+        lines: List<SyncLineItem>,
+        index: Int,
+        deltaMs: Long
+    ): List<SyncLineItem> {
+        if (index !in lines.indices) return lines
+        return lines.mapIndexed { i, item ->
+            if (i == index && item.timestampMs != null) {
+                item.copy(timestampMs = maxOf(0L, item.timestampMs + deltaMs))
+            } else {
+                item
+            }
         }
     }
 

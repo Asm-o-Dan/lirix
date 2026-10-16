@@ -20,6 +20,12 @@ internal static class Program
         using var watcher = new GsmtcWatcher();
         await watcher.StartAsync();
 
+        using var meter = new WasapiLoopbackMeter(msg =>
+        {
+            BridgeOutput.SendJson(msg, BridgeJsonContext.Relaxed.MeterMessage);
+        });
+        meter.Start();
+
         // Stdin command read loop
         try
         {

@@ -361,5 +361,61 @@ class WrappedStatsEngineTest {
             stats.totalListeningTimeMs <= maxTodayMs
         )
     }
+
+    @Test
+    fun test_calculateStats_excludesUnknownArtistVariantsFromTopArtistsAndUniqueCount() {
+        val refTime = createTimestampAt(2026, Calendar.OCTOBER, 2, 14, 0)
+        val validTrack = TrackEntity(trackKey = "t_valid", title = "Comfortably Numb", artist = "Pink Floyd", sourcePackage = "com.spotify.music")
+        val unknownTrack1 = TrackEntity(trackKey = "t_u1", title = "Track 1", artist = "Unknown Artist", sourcePackage = "com.spotify.music")
+        val unknownTrack2 = TrackEntity(trackKey = "t_u2", title = "Track 2", artist = "unknown", sourcePackage = "com.spotify.music")
+        val unknownTrack3 = TrackEntity(trackKey = "t_u3", title = "Track 3", artist = "<unknown>", sourcePackage = "com.spotify.music")
+        val unknownTrack4 = TrackEntity(trackKey = "t_u4", title = "Track 4", artist = "Неизвестный исполнитель", sourcePackage = "com.spotify.music")
+        val blankTrack = TrackEntity(trackKey = "t_u5", title = "Track 5", artist = "   ", sourcePackage = "com.spotify.music")
+
+        val allTracks = listOf(validTrack, unknownTrack1, unknownTrack2, unknownTrack3, unknownTrack4, blankTrack)
+        val sessions = allTracks.mapIndexed { idx, tr ->
+            ListeningSessionEntity(
+                id = idx.toLong() + 1,
+                trackKey = tr.trackKey,
+                sourcePackage = "com.spotify.music",
+                startTimeMs = refTime - (idx + 1) * 300_000L,
+                endTimeMs = refTime - idx * 300_000L,
+                durationMs = 300_000L,
+                isCompleted = true
+            )
+        }
+
+        val stats = WrappedStatsEngine.calculateStats(allTracks, sessions, AnalyticsTimeframe.ALL_TIME, refTime)
+
+        // Only "Pink Floyd" must be counted as a unique artist and in topArtists
+        assertEquals(1, stats.uniqueArtistsCount)
+        assertEquals(1, stats.topArtists.size)
+        assertEquals("Pink Floyd", stats.topArtists.first().artist)
+    }
+
+    @Test
+    fun test_calculateStats_timeOfDayDistribution_calculatesHonestPercentage() {
+        // 4 sessions: 3 in the evening (20:00, 21:00, 22:00) and 1 in the morning (09:00)
+        val eveningTime1 = createTimestampAt(2026, Calendar.OCTOBER, 2, 20, 0)
+        val eveningTime2 = createTimestampAt(2026, Calendar.OCTOBER, 2, 21, 0)
+        val eveningTime3 = createTimestampAt(2026, Calendar.OCTOBER, 2, 22, 0)
+        val morningTime = createTimestampAt(2026, Calendar.OCTOBER, 2, 9, 0)
+
+        val track = TrackEntity(trackKey = "t1", title = "Song", artist = "Artist", sourcePackage = "com.spotify.music")
+        val sessions = listOf(
+            ListeningSessionEntity(id = 1, trackKey = "t1", sourcePackage = "com.spotify.music", startTimeMs = eveningTime1, endTimeMs = eveningTime1 + 60_000L, durationMs = 60_000L),
+            ListeningSessionEntity(id = 2, trackKey = "t1", sourcePackage = "com.spotify.music", startTimeMs = eveningTime2, endTimeMs = eveningTime2 + 60_000L, durationMs = 60_000L),
+            ListeningSessionEntity(id = 3, trackKey = "t1", sourcePackage = "com.spotify.music", startTimeMs = eveningTime3, endTimeMs = eveningTime3 + 60_000L, durationMs = 60_000L),
+            ListeningSessionEntity(id = 4, trackKey = "t1", sourcePackage = "com.spotify.music", startTimeMs = morningTime, endTimeMs = morningTime + 60_000L, durationMs = 60_000L)
+        )
+
+        val stats = WrappedStatsEngine.calculateStats(listOf(track), sessions, AnalyticsTimeframe.ALL_TIME)
+        val eveningRatio = stats.timeOfDayDistribution[TimeOfDaySlot.EVENING] ?: 0f
+        val morningRatio = stats.timeOfDayDistribution[TimeOfDaySlot.MORNING] ?: 0f
+
+        // 3 out of 4 sessions = 75% evening, 25% morning
+        assertEquals(0.75f, eveningRatio, 0.01f)
+        assertEquals(0.25f, morningRatio, 0.01f)
+    }
 }
 

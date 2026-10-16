@@ -3,10 +3,6 @@ package com.lirix.app.desktop.ui.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,55 +28,49 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lirix.app.desktop.ingress.AudioLevels
 import com.lirix.app.ui.theme.LirixThemeTokens
-import kotlin.random.Random
 
 /**
- * Analog-style stereo LED VU Meter inspired by classic AIMP and studio mixing consoles.
- * Displays Left and Right channels with dynamic peak falloff and decibel tick marks.
+ * Authentic Analog-style stereo LED VU Meter connected to Windows WASAPI Loopback (IAudioMeterInformation).
+ * Translates true peak amplitude into decibel full scale (-60..0 dBFS) with realistic ballistic damping
+ * and honest clipping detection (dBFS > -1.0 dBFS). Zero fake sinusoids or simulated data.
  */
 @Composable
 fun AnalogVuMeter(
-    isPlaying: Boolean,
+    audioLevels: AudioLevels? = null,
+    isPlaying: Boolean = false,
     modifier: Modifier = Modifier,
     totalSegments: Int = 18
 ) {
     val colors = LirixThemeTokens.colors
 
-    // Oscillating animated pulse when music is actively playing
-    val infiniteTransition = rememberInfiniteTransition(label = "VuPulse")
-    val waveA by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 0.88f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(420, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "WaveA"
-    )
-    val waveB by infiniteTransition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.95f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(310, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "WaveB"
-    )
+    val isLive = isPlaying && audioLevels != null && audioLevels.isActive
+    val targetLeft = if (isLive) audioLevels!!.leftNormalized else 0f
+    val targetRight = if (isLive) audioLevels!!.rightNormalized else 0f
+    val isClipping = isLive && audioLevels!!.isClipping
 
     // Smooth physics damping animatables for Left and Right channels
     val animLeft = remember { Animatable(0f) }
     val animRight = remember { Animatable(0f) }
 
-    LaunchedEffect(isPlaying, waveA, waveB) {
-        if (isPlaying) {
-            val targetL = (waveA * 0.7f + Random.nextFloat() * 0.28f).coerceIn(0.15f, 0.98f)
-            val targetR = (waveB * 0.7f + Random.nextFloat() * 0.28f).coerceIn(0.15f, 0.98f)
-            animLeft.animateTo(targetL, tween(60, easing = LinearEasing))
-            animRight.animateTo(targetR, tween(70, easing = LinearEasing))
+    LaunchedEffect(targetLeft, targetRight, isLive) {
+        if (isLive) {
+            // Ballistic dynamics: fast attack, natural decay
+            val attackL = targetLeft > animLeft.value
+            val attackR = targetRight > animRight.value
+            animLeft.animateTo(
+                targetLeft,
+                tween(if (attackL) 30 else 160, easing = if (attackL) LinearEasing else FastOutSlowInEasing)
+            )
+            animRight.animateTo(
+                targetRight,
+                tween(if (attackR) 30 else 160, easing = if (attackR) LinearEasing else FastOutSlowInEasing)
+            )
         } else {
-            animLeft.animateTo(0f, tween(400, easing = FastOutSlowInEasing))
-            animRight.animateTo(0f, tween(400, easing = FastOutSlowInEasing))
+            // Silence / Pause: smoothly drop to zero
+            animLeft.animateTo(0f, tween(240, easing = FastOutSlowInEasing))
+            animRight.animateTo(0f, tween(240, easing = FastOutSlowInEasing))
         }
     }
 
@@ -101,6 +90,7 @@ fun AnalogVuMeter(
             VuChannelRow(
                 channelLabel = "L",
                 level = animLeft.value,
+                dbfs = if (isLive) audioLevels?.leftDbfs else -60f,
                 totalSegments = totalSegments,
                 accentColor = colors.accentPrimary
             )
@@ -109,23 +99,32 @@ fun AnalogVuMeter(
             VuChannelRow(
                 channelLabel = "R",
                 level = animRight.value,
+                dbfs = if (isLive) audioLevels?.rightDbfs else -60f,
                 totalSegments = totalSegments,
                 accentColor = colors.accentPrimary
             )
 
-            // Decibel scale markers (-24, -12, -6, -3, 0 dB, PEAK)
+            // Decibel scale markers (-60, -24, -12, -6, -3, 0 dBFS, CLIP)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 18.dp, end = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Text(text = "-60", fontSize = 8.sp, fontFamily = FontFamily.Monospace, color = colors.textMuted)
                 Text(text = "-24", fontSize = 8.sp, fontFamily = FontFamily.Monospace, color = colors.textMuted)
                 Text(text = "-12", fontSize = 8.sp, fontFamily = FontFamily.Monospace, color = colors.textMuted)
                 Text(text = "-6", fontSize = 8.sp, fontFamily = FontFamily.Monospace, color = colors.textMuted)
                 Text(text = "-3", fontSize = 8.sp, fontFamily = FontFamily.Monospace, color = colors.textMuted)
-                Text(text = "0", fontSize = 8.sp, fontFamily = FontFamily.Monospace, color = colors.accentSecondary, fontWeight = FontWeight.Bold)
-                Text(text = "PK", fontSize = 8.sp, fontFamily = FontFamily.Monospace, color = Color(0xFFFF5252), fontWeight = FontWeight.Bold)
+                Text(text = "0 dB", fontSize = 8.sp, fontFamily = FontFamily.Monospace, color = colors.accentSecondary, fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (isClipping) "CLIP!" else "CLIP",
+                    fontSize = 8.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = if (isClipping) Color(0xFFE5484D) else colors.textMuted.copy(alpha = 0.6f),
+                    fontWeight = if (isClipping) FontWeight.ExtraBold else FontWeight.Normal
+                )
             }
         }
     }
@@ -135,6 +134,7 @@ fun AnalogVuMeter(
 private fun VuChannelRow(
     channelLabel: String,
     level: Float,
+    dbfs: Float?,
     totalSegments: Int,
     accentColor: Color
 ) {
@@ -162,8 +162,8 @@ private fun VuChannelRow(
             for (i in 0 until totalSegments) {
                 val isActive = i < activeCount
                 val segmentColor = when {
-                    i >= totalSegments - 2 -> Color(0xFFFF5252) // Red peak warning (0 to +3 dB)
-                    i >= totalSegments - 5 -> Color(0xFFFFB300) // Amber warm zone (-3 to 0 dB)
+                    i >= totalSegments - 2 -> Color(0xFFE5484D) // Red peak warning (> -1.0 dBFS)
+                    i >= totalSegments - 5 -> Color(0xFFFFB300) // Amber warm zone (-3 to -1 dBFS)
                     else -> accentColor // Normal green/cyan/theme active color
                 }
 

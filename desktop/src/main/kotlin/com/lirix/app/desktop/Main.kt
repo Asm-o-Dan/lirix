@@ -7,37 +7,43 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import androidx.compose.runtime.rememberCoroutineScope
 import com.lirix.app.desktop.hud.DesktopHudWindow
+import com.lirix.app.desktop.ingress.DesktopAudioMeterService
 import com.lirix.app.desktop.ingress.DesktopGsmtcIngressProvider
 import com.lirix.app.desktop.lyrics.DesktopLyricsService
 import com.lirix.app.desktop.system.DiscordRpcManager
 import com.lirix.app.desktop.system.GlobalHotkeysManager
 import com.lirix.app.desktop.system.LirixTray
+import com.lirix.app.desktop.system.WindowsTitleBarDarkTheme
 import com.lirix.app.desktop.ui.DesktopDeckScreen
-import com.lirix.app.ui.player.LrcLine
+import com.lirix.app.desktop.ui.components.DesktopCompactWidget
+import com.lirix.app.desktop.ui.theme.DesktopFonts
 import com.lirix.app.ui.theme.AppThemeType
 import com.lirix.app.ui.theme.ColorPalettes
 import com.lirix.app.ui.theme.LocalLirixColors
+import com.lirix.app.ui.theme.LocalLirixTypography
 
 fun main() = application {
     val coroutineScope = rememberCoroutineScope()
     val ingressProvider = remember { DesktopGsmtcIngressProvider() }
+    val audioMeterService = remember { DesktopAudioMeterService(ingressProvider.bridgeProcessManager, coroutineScope) }
     val discordRpc = remember { DiscordRpcManager() }
     val lyricsService = remember { DesktopLyricsService(coroutineScope) }
 
     var isMainWindowVisible by remember { mutableStateOf(true) }
     var isHudVisible by remember { mutableStateOf(false) }
-    var selectedTheme by remember { mutableStateOf(AppThemeType.SPOTIFY_MOOD) }
+    var selectedTheme by remember { mutableStateOf(AppThemeType.GRAPHITE_CHALK) }
 
     val windowState = rememberWindowState(size = DpSize(1100.dp, 720.dp))
     val playback by ingressProvider.currentPlayback.collectAsState()
+    val audioLevels by audioMeterService.audioLevels.collectAsState()
     val lyricsState by lyricsService.lyricsState.collectAsState()
 
     // Trigger reactive lyrics and chords fetching whenever active track changes
@@ -45,24 +51,10 @@ fun main() = application {
         lyricsService.onTrackChanged(playback?.title, playback?.artist, playback?.album)
     }
 
-    val demoLrcLines = remember {
-        listOf(
-            LrcLine(0L, "♪ Lirix Studio Desktop Hub ♪"),
-            LrcLine(4000L, "Звёзды падают с небес на асфальт"),
-            LrcLine(10000L, "Ночью город зажигает огни"),
-            LrcLine(17000L, "Если веришь ты в свою мечту"),
-            LrcLine(24000L, "Значит, мы в этом мире не одни"),
-            LrcLine(32000L, "И звучит винил сквозь тишину"),
-            LrcLine(40000L, "Lirix держит ритм в унисон"),
-            LrcLine(48000L, "Проплывают стрелки на часах"),
-            LrcLine(56000L, "Это наш с тобой любимый сон"),
-            LrcLine(64000L, "♪ Музыкальный проигрыш ♪")
-        )
-    }
-
-    // Initialize Background Services (Discord RPC and Global Hotkeys)
+    // Initialize Background Services (Discord RPC, Global Hotkeys and Connect Server)
     DisposableEffect(Unit) {
         discordRpc.start()
+        val connectServer = com.lirix.app.desktop.cast.DesktopConnectServer.getInstance().apply { start() }
 
         val hotkeysManager = GlobalHotkeysManager(
             onToggleHud = { isHudVisible = !isHudVisible },
@@ -72,8 +64,10 @@ fun main() = application {
         ).apply { start() }
 
         onDispose {
+            connectServer.stop()
             hotkeysManager.stop()
             discordRpc.stop()
+            audioMeterService.stop()
             ingressProvider.stop()
         }
     }
@@ -105,6 +99,8 @@ fun main() = application {
         }
     }
 
+    val desktopTypography = remember { DesktopFonts.createPrompterTypography() }
+
     // Main Window (Studio Deck or Compact Player Widget)
     if (isMainWindowVisible) {
         Window(
@@ -113,11 +109,19 @@ fun main() = application {
             title = if (isCompactMode) "Lirix Mini Player" else "Lirix Music Hub — Studio Deck",
             resizable = !isCompactMode
         ) {
+            // Apply native Win32 dark title bar based on current theme
+            LaunchedEffect(selectedTheme) {
+                WindowsTitleBarDarkTheme.apply(window, selectedTheme.isDark)
+            }
+
             val currentTokens = ColorPalettes.getTokens(selectedTheme)
 
-            CompositionLocalProvider(LocalLirixColors provides currentTokens) {
+            CompositionLocalProvider(
+                LocalLirixColors provides currentTokens,
+                LocalLirixTypography provides desktopTypography
+            ) {
                 if (isCompactMode) {
-                    com.lirix.app.desktop.ui.components.DesktopCompactWidget(
+                    DesktopCompactWidget(
                         playback = playback,
                         ingressProvider = ingressProvider,
                         lyricsState = lyricsState,
@@ -135,7 +139,8 @@ fun main() = application {
                         isHudVisible = isHudVisible,
                         onToggleHud = { isHudVisible = !isHudVisible },
                         isCompactMode = false,
-                        onToggleCompactMode = { isCompactMode = true }
+                        onToggleCompactMode = { isCompactMode = true },
+                        audioLevels = audioLevels
                     )
                 }
             }
@@ -144,7 +149,10 @@ fun main() = application {
 
     // Floating Click-Through Karaoke HUD Window
     val hudTokens = ColorPalettes.getTokens(selectedTheme)
-    CompositionLocalProvider(LocalLirixColors provides hudTokens) {
+    CompositionLocalProvider(
+        LocalLirixColors provides hudTokens,
+        LocalLirixTypography provides desktopTypography
+    ) {
         DesktopHudWindow(
             visible = isHudVisible,
             onCloseRequest = { isHudVisible = false },

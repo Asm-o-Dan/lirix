@@ -10,6 +10,12 @@ import com.lirix.app.ingestion.LivePlaybackSnapshot
 import com.lirix.app.ingestion.MediaSessionCollector
 import com.lirix.app.ingestion.NotificationListener
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -41,6 +47,7 @@ class CoreSecurityAndStabilityTest {
 
     @Before
     fun setup() {
+        Dispatchers.setMain(StandardTestDispatcher())
         context = ApplicationProvider.getApplicationContext()
         val providerInfo = android.content.pm.ProviderInfo().apply {
             authority = "${context.packageName}.fileprovider"
@@ -105,7 +112,7 @@ class CoreSecurityAndStabilityTest {
     }
 
     @Test
-    fun test_shareManager_doesNotThrowFileUriExposedException() = runBlocking {
+    fun test_shareManager_doesNotThrowFileUriExposedException() = runTest {
         val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
         val success = ShareManager.shareBitmap(
             context = context,
@@ -116,6 +123,9 @@ class CoreSecurityAndStabilityTest {
         val sharesDir = File(context.cacheDir, "shares")
         assertTrue("Shares directory must exist", sharesDir.exists())
     }
+
+    @After
+    fun resetMainDispatcher() { Dispatchers.resetMain() }
 
     @Test
     fun test_buildGradle_doesNotContainPlaintextPasswords() {

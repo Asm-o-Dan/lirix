@@ -66,7 +66,9 @@ enum class PosterStyle(
     ACID("Acid Lime", 0xFF030500.toInt(), 0xFFC6FF00.toInt(), 0xFFB388FF.toInt(), 0xFFFFEA00.toInt(), 0xFF76FF03.toInt(), CollageMode.TILTED, -18f, 0.30f, 140, TitleFace.MONO, false),
     CRIMSON("Crimson Stage", 0xFF060000.toInt(), 0xFFFF1744.toInt(), 0xFFFF9100.toInt(), 0xFFFFD740.toInt(), 0xFFFF5252.toInt(), CollageMode.BLUR, 0f, 0.3f, 110, TitleFace.SANS, true),
     OCEAN("Deep Ocean", 0xFF00050A.toInt(), 0xFF1DE9B6.toInt(), 0xFF448AFF.toInt(), 0xFF84FFFF.toInt(), 0xFF18FFFF.toInt(), CollageMode.BLUR, 0f, 0.3f, 100, TitleFace.SERIF, false),
-    MONO("Mono Editorial", 0xFF000000.toInt(), 0xFFFFFFFF.toInt(), 0xFFBDBDBD.toInt(), 0xFFFFFFFF.toInt(), 0xFF9E9E9E.toInt(), CollageMode.NONE, 0f, 0.3f, 0, TitleFace.SERIF, false);
+    MONO("Mono Editorial", 0xFF000000.toInt(), 0xFFFFFFFF.toInt(), 0xFFBDBDBD.toInt(), 0xFFFFFFFF.toInt(), 0xFF9E9E9E.toInt(), CollageMode.NONE, 0f, 0.3f, 0, TitleFace.SERIF, false),
+    GRAPHITE_CHALK("Graphite & Chalk", 0xFF1B1E24.toInt(), 0xFF7FA6F0.toInt(), 0xFF9ABCF5.toInt(), 0xFFF2EFE9.toInt(), 0xFF8B93A1.toInt(), CollageMode.TILTED, -4f, 0.32f, 90, TitleFace.SERIF, false),
+    PAPER_INK("Paper & Ink", 0xFFF5F2EB.toInt(), 0xFF29549E.toInt(), 0xFF5A84D0.toInt(), 0xFF181B20.toInt(), 0xFF5C6370.toInt(), CollageMode.NONE, 0f, 0.3f, 30, TitleFace.SERIF, false);
 
     fun titleTypeface(): android.graphics.Typeface = when (face) {
         TitleFace.SANS -> android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
@@ -76,6 +78,7 @@ enum class PosterStyle(
 
     companion object {
         fun random(): PosterStyle = values().random()
+        fun forTheme(isDark: Boolean): PosterStyle = if (isDark) GRAPHITE_CHALK else PAPER_INK
     }
 }
 
@@ -128,13 +131,24 @@ object ShareCardGenerator {
         obsessionBitmap: Bitmap? = null,
         topCoverBitmaps: List<Bitmap> = emptyList(),
         section: WrappedShareSection = WrappedShareSection.FULL,
-        posterStyle: PosterStyle = PosterStyle.OBSIDIAN
+        posterStyle: PosterStyle = PosterStyle.OBSIDIAN,
+        theme: PosterThemeSnapshot? = null,
+        artworkByTrackKey: Map<String, Bitmap?> = emptyMap()
     ): Bitmap {
+        if (theme != null) return EditorialPosterRenderer.wrapped(stats, timeframe, format, theme, artworkByTrackKey, section)
         // Local palette shadows the default constants so the whole layout re-colors per style
         val COLOR_HYPER_VIOLET = posterStyle.c1
         val COLOR_CYBER_CYAN = posterStyle.c2
         val COLOR_AMBER_GOLD = posterStyle.c3
         val COLOR_ELECTRIC_MINT = posterStyle.c4
+        val isDark = posterStyle != PosterStyle.PAPER_INK
+        val COLOR_TEXT_PRIMARY = if (isDark) 0xFFF4F4F8.toInt() else 0xFF181B20.toInt()
+        val COLOR_TEXT_SECONDARY = if (isDark) 0xFFA2A5B8.toInt() else 0xFF5C6370.toInt()
+        val COLOR_TEXT_MUTED = if (isDark) 0xFF66697D.toInt() else 0xFF8E95A5.toInt()
+        val COLOR_SURFACE_1 = if (isDark) 0xFF0D0E14.toInt() else 0xFFEAE6DC.toInt()
+        val COLOR_SURFACE_2 = if (isDark) 0xFF141622.toInt() else 0xFFF5F2EB.toInt()
+        val COLOR_SURFACE_3 = if (isDark) 0xFF1C1E2E.toInt() else 0xFFDFD9CC.toInt()
+        val COLOR_BORDER_SUBTLE = if (isDark) 0xFF242738.toInt() else 0xFFD6D0C2.toInt()
         val showArchetype = section == WrappedShareSection.FULL || section == WrappedShareSection.ARCHETYPE
         val showArtists = section == WrappedShareSection.FULL || section == WrappedShareSection.ARTISTS
         val showObsession = section == WrappedShareSection.FULL || section == WrappedShareSection.OBSESSION
@@ -974,8 +988,11 @@ object ShareCardGenerator {
         track: TrackEntity,
         currentLyricLine: String?,
         format: ShareCardFormat,
-        albumArtBitmap: Bitmap? = null
+        albumArtBitmap: Bitmap? = null,
+        isDark: Boolean = true,
+        theme: PosterThemeSnapshot? = null
     ): Bitmap {
+        if (theme != null) return EditorialPosterRenderer.nowPlaying(track, currentLyricLine, format, theme, albumArtBitmap)
         val width = format.width
         val height = format.height
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -983,16 +1000,21 @@ object ShareCardGenerator {
 
         val isStories = format == ShareCardFormat.STORIES_9_16
 
-        // 1. Pure AMOLED Black Base
-        canvas.drawColor(COLOR_AMOLED_BLACK)
+        val bgColor = if (isDark) 0xFF1B1E24.toInt() else 0xFFF5F2EB.toInt()
+        val textPrimaryColor = if (isDark) 0xFFF2EFE9.toInt() else 0xFF181B20.toInt()
+        val textSecondaryColor = if (isDark) 0xFF8B93A1.toInt() else 0xFF5C6370.toInt()
+        val accentColor = if (isDark) 0xFF7FA6F0.toInt() else 0xFF29549E.toInt()
 
-        // 2. Center-radial vinyl lighting glow
+        // 1. Canvas base
+        canvas.drawColor(bgColor)
+
+        // 2. Center-radial lighting glow
         val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
                 width / 2f,
                 height * 0.38f,
                 width * 0.75f,
-                intArrayOf(0x457C4DFF.toInt(), 0x18120826.toInt(), COLOR_AMOLED_BLACK),
+                intArrayOf(if (isDark) 0x457FA6F0.toInt() else 0x3029549E.toInt(), if (isDark) 0x181B1E24.toInt() else 0x10F5F2EB.toInt(), bgColor),
                 floatArrayOf(0f, 0.55f, 1f),
                 Shader.TileMode.CLAMP
             )
@@ -1004,16 +1026,16 @@ object ShareCardGenerator {
 
         // 3. Header: "СЕЙЧАС ИГРАЕТ"
         val headerPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = COLOR_CYBER_CYAN
+            color = accentColor
             textSize = width * 0.032f
             typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
             letterSpacing = 0.12f
         }
-        canvas.drawText("● СЕЙЧАС ИГРАЕТ", padding, curY, headerPaint)
+        canvas.drawText("● Сейчас играет", padding, curY, headerPaint)
 
-        val playerTag = track.sourcePackage.substringAfterLast('.').uppercase()
+        val playerTag = track.sourcePackage.substringAfterLast('.').lowercase()
         val tagPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = COLOR_TEXT_MUTED
+            color = textSecondaryColor
             textSize = width * 0.024f
             typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
             textAlign = Paint.Align.RIGHT
@@ -1033,7 +1055,7 @@ object ShareCardGenerator {
 
         // 5. Track Title & Artist (Clean & High Contrast)
         val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = COLOR_TEXT_PRIMARY
+            color = textPrimaryColor
             textSize = if (isStories) width * 0.062f else width * 0.048f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             textAlign = Paint.Align.CENTER
@@ -1209,14 +1231,15 @@ object ShareCardGenerator {
             canvas.restore()
         }
 
-        // Cinematic Dark Vignette & Gradient Overlay
-        // Softened so background collage art and specular glow remain visible throughout
+        // Cinematic Vignette & Gradient Overlay
+        val isDark = posterStyle != PosterStyle.PAPER_INK
         val vignette = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
                 width * 0.5f,
                 height * 0.40f,
                 width * 0.88f,
-                intArrayOf(0x20000000.toInt(), 0x88000000.toInt(), 0xCC000000.toInt()),
+                if (isDark) intArrayOf(0x20000000.toInt(), 0x88000000.toInt(), 0xCC000000.toInt())
+                else intArrayOf(0x05F5F2EB.toInt(), 0x33F5F2EB.toInt(), 0x88F5F2EB.toInt()),
                 floatArrayOf(0f, 0.60f, 1f),
                 Shader.TileMode.CLAMP
             )
@@ -1227,7 +1250,8 @@ object ShareCardGenerator {
             shader = LinearGradient(
                 0f, height * 0.20f,
                 0f, height.toFloat(),
-                intArrayOf(0x10000000.toInt(), 0x77000000.toInt(), 0xCC000000.toInt()),
+                if (isDark) intArrayOf(0x10000000.toInt(), 0x77000000.toInt(), 0xCC000000.toInt())
+                else intArrayOf(0x05F5F2EB.toInt(), 0x44F5F2EB.toInt(), 0xAAF5F2EB.toInt()),
                 floatArrayOf(0f, 0.50f, 1f),
                 Shader.TileMode.CLAMP
             )

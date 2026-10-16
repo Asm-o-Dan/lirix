@@ -8,14 +8,26 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import com.lirix.app.ui.theme.AppThemeType
 import com.lirix.app.ui.theme.ColorPalettes
+import com.lirix.app.ui.theme.ContrastClampHelper
 import com.lirix.app.ui.theme.LocalLirixColors
+import com.lirix.app.ui.theme.LocalLirixTypography
+import com.lirix.app.ui.theme.LirixTypography
 
 @Composable
 fun LirixTheme(
     themeType: AppThemeType = AppThemeType.DEFAULT,
+    dynamicAccent: Color? = null,
     content: @Composable () -> Unit
 ) {
-    val lirixColors = ColorPalettes.getTokens(themeType)
+    var lirixColors = ColorPalettes.getTokens(themeType)
+    if (dynamicAccent != null) {
+        val clamped = ContrastClampHelper.clampAccentContrast(dynamicAccent, themeType.isDark)
+        lirixColors = lirixColors.copy(
+            accentPrimary = clamped,
+            accentSecondary = clamped,
+            karaokeActive = clamped
+        )
+    }
 
     val colorScheme = if (themeType.isDark) {
         darkColorScheme(
@@ -51,7 +63,10 @@ fun LirixTheme(
         )
     }
 
-    CompositionLocalProvider(LocalLirixColors provides lirixColors) {
+    CompositionLocalProvider(
+        LocalLirixColors provides lirixColors,
+        LocalLirixTypography provides LirixTypography()
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             content = content

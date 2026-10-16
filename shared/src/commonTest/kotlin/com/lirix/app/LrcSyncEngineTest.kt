@@ -40,6 +40,33 @@ class LrcSyncEngineTest {
     }
 
     @Test
+    fun `sanitizePlainText unsticks chords and splits collapsed lyric lines`() {
+        val raw = "| Куплет |: Gm A#А ну давай ломися и дави на педаль C7 D7А то не попадешь на супермодный фестиваль Gm A#Где рвут гитары и в гардеробы сдают шубы C7 D7Фест под названием «вытаращи зубы»."
+        val sanitized = LrcSyncEngine.sanitizePlainText(raw)
+        val lines = sanitized.lines().map { it.trim() }.filter { it.isNotBlank() }
+
+        assertTrue(lines.any { it.contains("А ну давай ломися и дави на педаль") })
+        assertTrue(lines.any { it.contains("А то не попадешь на супермодный фестиваль") })
+        assertTrue(lines.any { it.contains("Где рвут гитары и в гардеробы сдают шубы") })
+        assertTrue(lines.any { it.contains("Фест под названием «вытаращи зубы».") })
+    }
+
+    @Test
+    fun `parsePlainToSyncLines filters out chord-only lines and section headers`() {
+        val raw = """
+            | Куплет |:
+            Gm A#
+            А ну давай ломися и дави на педаль
+            C7 D7
+            А то не попадешь на супермодный фестиваль
+        """.trimIndent()
+        val parsed = LrcSyncEngine.parsePlainToSyncLines(raw)
+        assertEquals(2, parsed.size)
+        assertEquals("А ну давай ломися и дави на педаль", parsed[0].text)
+        assertEquals("А то не попадешь на супермодный фестиваль", parsed[1].text)
+    }
+
+    @Test
     fun `recordTimestamp updates target line and clamps negative values`() {
         val lines = listOf(
             SyncLineItem(0, "Line 0", null),

@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DevicesOther
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PictureInPictureAlt
@@ -49,14 +51,14 @@ import com.lirix.app.ui.theme.LirixThemeTokens
 fun NowPlayingOverflowMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
-    isOverlayActive: Boolean,
-    onToggleOverlay: () -> Unit,
-    onShareClick: () -> Unit,
-    onRejectSourceClick: () -> Unit,
-    onCalibrateClick: () -> Unit,
-    onTeachModeClick: () -> Unit,
-    isVinylCollapsed: Boolean,
-    onToggleVinyl: () -> Unit,
+    isOverlayActive: Boolean = false,
+    onToggleOverlay: () -> Unit = {},
+    onConnectClick: () -> Unit = {},
+    onEditLyricsClick: (() -> Unit)? = null,
+    onShareClick: () -> Unit = {},
+    onRejectSourceClick: () -> Unit = {},
+    onCalibrateClick: () -> Unit = {},
+    onTeachModeClick: () -> Unit = {},
     onThemeSelectClick: () -> Unit = {},
     onOpenBlacklistSettings: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -119,6 +121,27 @@ fun NowPlayingOverflowMenu(
             onClick = {
                 onDismissRequest()
                 onShareClick()
+            }
+        )
+
+        DropdownMenuItem(
+            text = {
+                Text(
+                    text = "Редактировать текст песни",
+                    color = tokens.textPrimary,
+                    fontSize = 14.sp
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = tokens.accentPrimary
+                )
+            },
+            onClick = {
+                onDismissRequest()
+                onEditLyricsClick?.invoke()
             }
         )
 
@@ -188,21 +211,21 @@ fun NowPlayingOverflowMenu(
         DropdownMenuItem(
             text = {
                 Text(
-                    text = if (isVinylCollapsed) "Показать винил" else "Скрыть винил",
+                    text = "Подключить ПК (Lirix Connect)",
                     color = tokens.textPrimary,
                     fontSize = 14.sp
                 )
             },
             leadingIcon = {
                 Icon(
-                    imageVector = if (isVinylCollapsed) Icons.Default.Album else Icons.Default.MusicNote,
+                    imageVector = Icons.Default.DevicesOther,
                     contentDescription = null,
-                    tint = tokens.accentSecondary
+                    tint = tokens.accentPrimary
                 )
             },
             onClick = {
                 onDismissRequest()
-                onToggleVinyl()
+                onConnectClick()
             }
         )
 

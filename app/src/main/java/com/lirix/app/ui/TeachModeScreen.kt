@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.view.ViewConfiguration
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -24,15 +25,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -69,13 +77,15 @@ import com.lirix.app.storage.LyricsCacheEntity
 import com.lirix.app.storage.TrackEntity
 import com.lirix.app.ui.components.ExportRuleDialog
 import com.lirix.app.ui.components.ImportRuleDialog
-import com.lirix.app.ui.theme.AppColors
+import com.lirix.app.ui.theme.LirixMobileTypography
+import com.lirix.app.ui.theme.LirixThemeTokens
+import java.net.URLEncoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
-import java.net.URLEncoder
 
 /**
  * JS bridge to receive element inspection events from teach_inspector.js.
@@ -116,7 +126,12 @@ enum class TargetContentType {
  * Interactive WebView Teach Mode Screen for inspecting websites,
  * selecting lyrics containers, excluding unwanted sub-elements, and synthesizing custom parser rules.
  *
- * Spec: SPEC-TEACH-05 / TASK-TEACH-05 / ADR-014
+ * SPEC-UI-MOBILE-2.0 / ADR-023 / TASK-UI-MOB-06:
+ * - Header has exactly 3 elements: [✕ Закрыть], [Обучение: Название — Артист], [⋮ Меню].
+ * - DOM element expansion labeled [ Расширить выделение ].
+ * - Color-blind accessible outlines (solid accent for selection, dashed hatched for exclusion).
+ * - False touches filtered via scaledTouchSlop.
+ * - Outdated rule banner when site layout changes.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -127,11 +142,12 @@ fun TeachModeScreen(
     onRuleSaved: (CustomLyricsRuleEntity) -> Unit = {},
     onLyricsAttached: (String) -> Unit = {}
 ) {
+    val tokens = LirixThemeTokens.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val db = remember { AppDatabase.getInstance(context) }
 
-    var isInspectorMode by rememberSaveable { mutableStateOf(false) } // false = Серфинг, true = Инспектор
+    var isInspectorMode by rememberSaveable { mutableStateOf(true) } // Default: Inspector enabled
     var canGoBack by remember { mutableStateOf(false) }
     var selectedBlocksCount by remember { mutableIntStateOf(0) }
     var strippedBlocksCount by remember { mutableIntStateOf(0) }
@@ -145,7 +161,9 @@ fun TeachModeScreen(
     var currentUrl by remember { mutableStateOf(initialUrl.orEmpty()) }
 
     var contentType by rememberSaveable { mutableStateOf(TargetContentType.LYRICS) }
+    var isDockExpanded by rememberSaveable { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var isRuleOutdated by remember { mutableStateOf(false) }
 
     var showExportDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
@@ -154,128 +172,111 @@ fun TeachModeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.AmoledBlack)
+            .background(tokens.appBackground)
     ) {
-        // Разгруженная шапка экрана
+        // 1. Uncluttered Header: EXACTLY 3 elements (Close, Title, Menu)
         Surface(
-            color = AppColors.SurfaceLevel1,
-            border = BorderStroke(1.dp, AppColors.BorderSubtle),
+            color = tokens.surfaceCard,
+            border = BorderStroke(1.dp, tokens.borderSubtle),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 6.dp),
+                    .height(48.dp)
+                    .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Слева: Назад (если история WebView) и Закрыть
-                if (canGoBack) {
-                    IconButton(
-                        onClick = { webViewRef?.goBack() }
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
-                            tint = AppColors.CyberCyan
-                        )
-                    }
-                }
-
+                // Element 1: Close button
                 IconButton(onClick = onClose) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Закрыть",
-                        tint = AppColors.TextSecondary
+                        tint = tokens.textPrimary
                     )
                 }
 
-                // По центру: Название трека и текущий хост
-                Column(
+                // Element 2: Context Title (Weight 1f)
+                val trackTitle = if (targetTrack != null) "${targetTrack.title} — ${targetTrack.artist}" else "Режим обучения"
+                Text(
+                    text = "Обучение: $trackTitle",
+                    style = LirixMobileTypography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = tokens.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Text(
-                        text = if (targetTrack != null) "${targetTrack.title} — ${targetTrack.artist}" else "Режим обучения",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = AppColors.TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = detectedDomain.ifBlank { "Веб-инспектор" },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (isInspectorMode) AppColors.HyperViolet else AppColors.TextTertiary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                        .padding(horizontal = 8.dp)
+                )
 
-                // Справа: Капсула [🌐 Сёрфинг | 🎯 Инспектор]
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(AppColors.SurfaceLevel2)
-                        .padding(2.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (!isInspectorMode) AppColors.SurfaceLevel3 else Color.Transparent)
-                            .clickable {
-                                isInspectorMode = false
-                                webViewRef?.evaluateJavascript("window.setTeachMode(false);", null)
-                            }
-                            .padding(horizontal = 8.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            "🌐 Сёрфинг",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = if (!isInspectorMode) FontWeight.Bold else FontWeight.Normal
-                            ),
-                            color = if (!isInspectorMode) AppColors.CyberCyan else AppColors.TextSecondary
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (isInspectorMode) AppColors.HyperViolet else Color.Transparent)
-                            .clickable {
-                                isInspectorMode = true
-                                webViewRef?.evaluateJavascript("window.setTeachMode(true);", null)
-                            }
-                            .padding(horizontal = 8.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            "🎯 Инспектор",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = if (isInspectorMode) FontWeight.Bold else FontWeight.Normal
-                            ),
-                            color = if (isInspectorMode) AppColors.AmoledBlack else AppColors.TextSecondary
-                        )
-                    }
-                }
-
-                // Меню ⋮ (Overflow Menu)
+                // Element 3: Overflow Menu ⋮
                 Box {
                     IconButton(onClick = { showMenu = true }) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = "Меню",
-                            tint = AppColors.TextPrimary
+                            tint = tokens.textPrimary
                         )
                     }
 
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
-                        modifier = Modifier.background(AppColors.SurfaceLevel2)
+                        modifier = Modifier.background(tokens.surfaceElevated)
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Импорт правила", color = AppColors.TextPrimary) },
+                            text = {
+                                Text(
+                                    if (isInspectorMode) "Режим сёрфинга" else "Режим инспектора",
+                                    color = tokens.textPrimary
+                                )
+                            },
                             leadingIcon = {
-                                Icon(Icons.Default.FileDownload, contentDescription = null, tint = AppColors.CyberCyan)
+                                Icon(
+                                    imageVector = Icons.Default.TouchApp,
+                                    contentDescription = null,
+                                    tint = tokens.accentPrimary
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                isInspectorMode = !isInspectorMode
+                                webViewRef?.evaluateJavascript("window.setTeachMode($isInspectorMode);", null)
+                            }
+                        )
+
+                        if (canGoBack) {
+                            DropdownMenuItem(
+                                text = { Text("Назад в браузере", color = tokens.textPrimary) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = null,
+                                        tint = tokens.accentPrimary
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    webViewRef?.goBack()
+                                }
+                            )
+                        }
+
+                        DropdownMenuItem(
+                            text = { Text("Сбросить выделения", color = tokens.textPrimary) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Refresh, contentDescription = null, tint = tokens.textSecondary)
+                            },
+                            onClick = {
+                                showMenu = false
+                                webViewRef?.evaluateJavascript("window.clearTeachSelection();", null)
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = { Text("Импорт правила", color = tokens.textPrimary) },
+                            leadingIcon = {
+                                Icon(Icons.Default.FileDownload, contentDescription = null, tint = tokens.accentPrimary)
                             },
                             onClick = {
                                 showMenu = false
@@ -284,9 +285,9 @@ fun TeachModeScreen(
                         )
 
                         DropdownMenuItem(
-                            text = { Text("Экспорт правила", color = AppColors.TextPrimary) },
+                            text = { Text("Экспорт правила", color = tokens.textPrimary) },
                             leadingIcon = {
-                                Icon(Icons.Default.Share, contentDescription = null, tint = AppColors.HyperViolet)
+                                Icon(Icons.Default.Share, contentDescription = null, tint = tokens.accentPrimary)
                             },
                             onClick = {
                                 showMenu = false
@@ -324,20 +325,9 @@ fun TeachModeScreen(
                         )
 
                         DropdownMenuItem(
-                            text = { Text("Сбросить выделения", color = AppColors.TextPrimary) },
+                            text = { Text("Открыть в браузере", color = tokens.textPrimary) },
                             leadingIcon = {
-                                Icon(Icons.Default.Refresh, contentDescription = null, tint = AppColors.AmberGold)
-                            },
-                            onClick = {
-                                showMenu = false
-                                webViewRef?.evaluateJavascript("window.clearTeachSelection();", null)
-                            }
-                        )
-
-                        DropdownMenuItem(
-                            text = { Text("Открыть в браузере", color = AppColors.TextPrimary) },
-                            leadingIcon = {
-                                Icon(Icons.Default.OpenInBrowser, contentDescription = null, tint = AppColors.TextSecondary)
+                                Icon(Icons.Default.OpenInBrowser, contentDescription = null, tint = tokens.textSecondary)
                             },
                             onClick = {
                                 showMenu = false
@@ -355,7 +345,53 @@ fun TeachModeScreen(
             }
         }
 
-        // Встроенный WebView
+        // Outdated Rule Banner: Shown when site layout changed and selector returns empty
+        if (isRuleOutdated) {
+            Surface(
+                color = tokens.surfaceElevated,
+                border = BorderStroke(1.dp, tokens.accentPrimary.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = tokens.accentPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Вёрстка страницы изменилась. Выделите текст заново",
+                            style = LirixMobileTypography.bodySmall,
+                            color = tokens.textPrimary
+                        )
+                    }
+                    IconButton(
+                        onClick = { isRuleOutdated = false },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Скрыть подсказку",
+                            tint = tokens.textSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2. Embedded WebView
         AndroidView(
             factory = { ctx ->
                 WebView(ctx).apply {
@@ -398,8 +434,37 @@ fun TeachModeScreen(
                             }
                             try {
                                 val script = context.assets.open("teach_inspector.js").bufferedReader().use { it.readText() }
+                                val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
                                 view?.evaluateJavascript(script) {
                                     view.evaluateJavascript("window.setTeachMode($isInspectorMode);", null)
+                                    view.evaluateJavascript("if (window.setTouchSlop) window.setTouchSlop($touchSlop);", null)
+                                }
+
+                                // Check for existing rule for this domain to detect outdated markup
+                                val cleanDomain = Uri.parse(url).host.orEmpty()
+                                if (cleanDomain.isNotBlank()) {
+                                    scope.launch(Dispatchers.IO) {
+                                        val existingRules = db.lyricsDao().getRulesForDomain(cleanDomain)
+                                        val rule = existingRules.firstOrNull { it.isEnabled }
+                                        if (rule != null) {
+                                            val ruleJson = runCatching { JSONObject(rule.ruleJson) }.getOrNull()
+                                            val contentObj = ruleJson?.optJSONObject("content")
+                                            val sel = contentObj?.optString("selector")?.ifBlank { null }
+                                                ?: contentObj?.optString("chordsSelector")?.ifBlank { null }
+                                            if (!sel.isNullOrBlank()) {
+                                                withContext(Dispatchers.Main) {
+                                                    view?.evaluateJavascript(
+                                                        "(function() { var el = document.querySelector('$sel'); return el ? el.innerText.trim().length : 0; })();"
+                                                    ) { lenStr ->
+                                                        val textLen = lenStr?.toIntOrNull() ?: 0
+                                                        if (textLen == 0) {
+                                                            isRuleOutdated = true
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             } catch (e: Exception) {
                                 Timber.e(e, "Failed to inject teach_inspector.js")
@@ -418,11 +483,11 @@ fun TeachModeScreen(
                 .weight(1f)
         )
 
-        // Нижняя панель действий (Inspector Dock)
+        // 3. Lower Action Dock (Inspector Dock)
         if (selectedSelector.isNotBlank() || selectedBlocksCount > 0) {
             Surface(
-                color = AppColors.SurfaceLevel2,
-                border = BorderStroke(1.dp, AppColors.HyperViolet.copy(alpha = 0.6f)),
+                color = tokens.surfaceCard,
+                border = BorderStroke(1.dp, tokens.accentPrimary.copy(alpha = 0.5f)),
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -431,7 +496,7 @@ fun TeachModeScreen(
                         .fillMaxWidth()
                         .padding(14.dp)
                 ) {
-                    // Строка 1: Чип селектора, бейдж исключений, кнопка Родитель, сброс
+                    // Row 1: Selector Chip, Stripped Count, Expand Selection Button, Clear
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -443,13 +508,13 @@ fun TeachModeScreen(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = AppColors.SurfaceLevel3,
-                                border = BorderStroke(1.dp, AppColors.HyperViolet.copy(alpha = 0.5f))
+                                color = tokens.surfaceElevated,
+                                border = BorderStroke(1.dp, tokens.accentPrimary.copy(alpha = 0.5f))
                             ) {
                                 Text(
-                                    text = "🟣 $selectedSelector",
-                                    color = AppColors.HyperViolet,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                                    text = "● $selectedSelector",
+                                    color = tokens.accentPrimary,
+                                    style = LirixMobileTypography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -460,13 +525,13 @@ fun TeachModeScreen(
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Surface(
                                     shape = RoundedCornerShape(6.dp),
-                                    color = Color(0xFF3F1414),
+                                    color = Color(0x33EF4444),
                                     border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.6f))
                                 ) {
                                     Text(
-                                        text = "🔴 $strippedBlocksCount вырезано",
+                                        text = "$strippedBlocksCount вырезано",
                                         color = Color(0xFFFF8A8A),
-                                        style = MaterialTheme.typography.labelSmall,
+                                        style = LirixMobileTypography.labelSmall,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
                                     )
                                 }
@@ -476,15 +541,16 @@ fun TeachModeScreen(
                         Spacer(modifier = Modifier.width(8.dp))
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            // DOM Expansion button: strictly [ Расширить выделение ]
                             TextButton(
                                 onClick = {
                                     webViewRef?.evaluateJavascript("window.expandTeachSelectionToParent();", null)
                                 }
                             ) {
                                 Text(
-                                    text = "▲ Родитель",
-                                    color = AppColors.CyberCyan,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                                    text = "[ Расширить ]",
+                                    color = tokens.accentPrimary,
+                                    style = LirixMobileTypography.labelMedium.copy(fontWeight = FontWeight.Bold)
                                 )
                             }
 
@@ -495,89 +561,128 @@ fun TeachModeScreen(
                             ) {
                                 Text(
                                     text = "✕ Сброс",
-                                    color = AppColors.TextTertiary,
-                                    style = MaterialTheme.typography.labelSmall
+                                    color = tokens.textSecondary,
+                                    style = LirixMobileTypography.labelSmall
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { isDockExpanded = !isDockExpanded },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isDockExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                    contentDescription = if (isDockExpanded) "Свернуть панель" else "Развернуть панель",
+                                    tint = tokens.textSecondary
                                 )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    AnimatedVisibility(visible = isDockExpanded) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                    // Строка 2: Переключатель целевого типа [📝 Текст песни] / [🎸 Аккорды]
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(AppColors.SurfaceLevel3)
-                            .padding(2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(if (contentType == TargetContentType.LYRICS) AppColors.CyberCyan.copy(alpha = 0.2f) else Color.Transparent)
-                                .border(
-                                    1.dp,
-                                    if (contentType == TargetContentType.LYRICS) AppColors.CyberCyan else Color.Transparent,
-                                    RoundedCornerShape(6.dp)
-                                )
-                                .clickable { contentType = TargetContentType.LYRICS }
-                                .padding(vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "📝 Текст песни",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = if (contentType == TargetContentType.LYRICS) FontWeight.Bold else FontWeight.Normal
-                                ),
-                                color = if (contentType == TargetContentType.LYRICS) AppColors.CyberCyan else AppColors.TextSecondary
-                            )
-                        }
+                            // Row 2: Target Type Switcher [Текст песни] / [Аккорды] with vector icons
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(tokens.surfaceElevated)
+                                    .padding(2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (contentType == TargetContentType.LYRICS) tokens.accentPrimary.copy(alpha = 0.2f) else Color.Transparent)
+                                        .border(
+                                            1.dp,
+                                            if (contentType == TargetContentType.LYRICS) tokens.accentPrimary else Color.Transparent,
+                                            RoundedCornerShape(6.dp)
+                                        )
+                                        .clickable { contentType = TargetContentType.LYRICS }
+                                        .padding(vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Description,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = if (contentType == TargetContentType.LYRICS) tokens.accentPrimary else tokens.textSecondary
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Текст песни",
+                                            style = LirixMobileTypography.labelSmall.copy(
+                                                fontWeight = if (contentType == TargetContentType.LYRICS) FontWeight.Bold else FontWeight.Normal
+                                            ),
+                                            color = if (contentType == TargetContentType.LYRICS) tokens.accentPrimary else tokens.textSecondary
+                                        )
+                                    }
+                                }
 
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(if (contentType == TargetContentType.CHORDS) AppColors.AmberGold.copy(alpha = 0.2f) else Color.Transparent)
-                                .border(
-                                    1.dp,
-                                    if (contentType == TargetContentType.CHORDS) AppColors.AmberGold else Color.Transparent,
-                                    RoundedCornerShape(6.dp)
-                                )
-                                .clickable { contentType = TargetContentType.CHORDS }
-                                .padding(vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (contentType == TargetContentType.CHORDS) tokens.accentSecondary.copy(alpha = 0.2f) else Color.Transparent)
+                                        .border(
+                                            1.dp,
+                                            if (contentType == TargetContentType.CHORDS) tokens.accentSecondary else Color.Transparent,
+                                            RoundedCornerShape(6.dp)
+                                        )
+                                        .clickable { contentType = TargetContentType.CHORDS }
+                                        .padding(vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.MusicNote,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = if (contentType == TargetContentType.CHORDS) tokens.accentSecondary else tokens.textSecondary
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Аккорды",
+                                            style = LirixMobileTypography.labelSmall.copy(
+                                                fontWeight = if (contentType == TargetContentType.CHORDS) FontWeight.Bold else FontWeight.Normal
+                                            ),
+                                            color = if (contentType == TargetContentType.CHORDS) tokens.accentSecondary else tokens.textSecondary
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Row 3: Preview Cleaned Text
                             Text(
-                                "🎸 Аккорды",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = if (contentType == TargetContentType.CHORDS) FontWeight.Bold else FontWeight.Normal
+                                text = selectedText.lines().filter { it.isNotBlank() }.take(3).joinToString("\n").ifBlank { "..." },
+                                style = LirixMobileTypography.bodySmall.copy(
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp,
+                                    fontFamily = FontFamily.Monospace
                                 ),
-                                color = if (contentType == TargetContentType.CHORDS) AppColors.AmberGold else AppColors.TextSecondary
+                                color = tokens.textSecondary,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Строка 3: Превью очищенного текста
-                    Text(
-                        text = selectedText.lines().filter { it.isNotBlank() }.take(3).joinToString("\n").ifBlank { "..." },
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 11.sp,
-                            lineHeight = 15.sp,
-                            fontFamily = FontFamily.Monospace
-                        ),
-                        color = AppColors.TextTertiary,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Строка 4: Единая акцентная кнопка действия
+                    // Row 4: Single Action Button
                     Button(
                         onClick = {
                             val cleanDomain = detectedDomain.ifBlank { "custom" }
@@ -640,13 +745,13 @@ fun TeachModeScreen(
                                 Toast.makeText(context, "Правило для $cleanDomain сохранено!", Toast.LENGTH_SHORT).show()
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.HyperViolet),
+                        colors = ButtonDefaults.buttonColors(containerColor = tokens.accentPrimary),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "⚡ Сохранить правило и привязать к треку",
-                            color = AppColors.AmoledBlack,
+                            text = "Сохранить правило и привязать к треку",
+                            color = if (tokens.isDark) Color(0xFF181B20) else Color(0xFFF2EFE9),
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )

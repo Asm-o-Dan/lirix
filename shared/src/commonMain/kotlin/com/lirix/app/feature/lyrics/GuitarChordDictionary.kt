@@ -149,20 +149,74 @@ object GuitarChordDictionary {
         return null
     }
 
+    private val CHORD_TOKEN_REGEX = Regex(
+        """^([A-H][#b]?)(m|maj|min|dim|aug|sus2|sus4|add9|5|6|7|maj7|m7|mM7)?(?:/([A-H][#b]?))?$""",
+        RegexOption.IGNORE_CASE
+    )
+
+    fun isChordToken(token: String): Boolean {
+        val clean = token.trim()
+            .removePrefix("[").removeSuffix("]")
+            .removePrefix("(").removeSuffix(")")
+            .trim(',', '.', '!', '?', ';', ':')
+        return CHORD_TOKEN_REGEX.matches(clean) || getChord(clean) != null
+    }
+
     /**
      * Extracts unique guitar chords found in a song text in sequential order.
+     * Preserves sharp (#) notation (e.g. C#, F#, A#m) and ignores isolated
+     * English words/articles (such as 'A') from lyric lines.
      */
     fun extractChordsFromText(text: String): List<String> {
         if (text.isBlank()) return emptyList()
-        val regex = Regex("""\b([A-H][b#]?(?:m|maj7|maj|min|7|sus2|sus4|dim|aug|add9|5)?(?:/[A-H][b#]?)?)\b""")
         val found = LinkedHashSet<String>()
-        for (match in regex.findAll(text)) {
-            val chord = match.value
-            // Only add if it's a known guitar chord or can be resolved
-            if (getChord(chord) != null) {
-                found.add(chord)
+
+        // 1. Extract bracketed chords: [C#], [F#m], (A#)
+        val bracketRegex = Regex("""[\[\(]([A-H][#b]?[^\]\)]*)[\]\)]""")
+        for (match in bracketRegex.findAll(text)) {
+            val candidate = match.groupValues[1].trim()
+            val clean = candidate.substringBefore("/")
+            if (getChord(candidate) != null) {
+                found.add(candidate)
+            } else if (getChord(clean) != null) {
+                found.add(clean)
             }
         }
+
+        // 2. Extract from dedicated chord lines (e.g. "A#m  F  F#  C#")
+        for (rawLine in text.lines()) {
+            val line = rawLine.trim()
+            if (line.isEmpty()) continue
+
+            // Split into tokens by whitespace
+            val words = line.split(Regex("""\s+""")).map {
+                it.trim().removePrefix("[").removeSuffix("]").removePrefix("(").removeSuffix(")")
+                    .trim(',', '.', '!', '?', ';', ':')
+            }.filter { it.isNotEmpty() }
+
+            if (words.isEmpty()) continue
+
+            val chordCandidates = words.filter { isChordToken(it) }
+
+            // A line is considered a chord line if at least half of the tokens are chords,
+            // or if it consists of 1-2 pure chord tokens
+            val isChordLine = (chordCandidates.size.toFloat() / words.size >= 0.5f) ||
+                    (words.size <= 2 && chordCandidates.size == words.size)
+
+            if (isChordLine) {
+                for (token in chordCandidates) {
+                    if (getChord(token) != null) {
+                        found.add(token)
+                    } else if (token.contains("/")) {
+                        val base = token.substringBefore("/")
+                        if (getChord(base) != null) {
+                            found.add(base)
+                        }
+                    }
+                }
+            }
+        }
+
         return found.toList()
     }
 }

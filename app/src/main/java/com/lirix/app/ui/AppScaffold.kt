@@ -140,7 +140,7 @@ fun AppScaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
             AnimatedVisibility(
-                visible = isCapsuleVisible,
+                visible = currentTab != AppTab.NOW_PLAYING && isCapsuleVisible,
                 enter = slideInVertically(
                     initialOffsetY = { it },
                     animationSpec = tween(280)
@@ -251,6 +251,9 @@ fun AppScaffold(
                         },
                         onOpenBlacklistSettings = {
                             isBlacklistSettingsOpen = true
+                        },
+                        onBack = {
+                            currentTab = AppTab.LIBRARY
                         }
                     )
                     AppTab.LIBRARY -> LibraryScreen(

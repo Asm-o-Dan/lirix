@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.lirix.app.feature.share.ShareCardFormat
-import com.lirix.app.ui.theme.AppColors
+import com.lirix.app.ui.theme.LirixThemeTokens
 import kotlinx.coroutines.launch
 
 /**
@@ -47,14 +47,16 @@ fun ShareFormatDialog(
     onDismissRequest: () -> Unit,
     onFormatSelected: suspend (ShareCardFormat) -> Unit
 ) {
+    val colors = LirixThemeTokens.colors
     val coroutineScope = rememberCoroutineScope()
     var isGenerating by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Dialog(onDismissRequest = { if (!isGenerating) onDismissRequest() }) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = AppColors.SurfaceLevel2,
-            border = androidx.compose.foundation.BorderStroke(1.dp, AppColors.BorderSubtle),
+            color = colors.surfaceElevated,
+            border = androidx.compose.foundation.BorderStroke(1.dp, colors.borderSubtle),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -67,7 +69,7 @@ fun ShareFormatDialog(
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold
                     ),
-                    color = AppColors.TextPrimary
+                    color = colors.textPrimary
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -75,7 +77,7 @@ fun ShareFormatDialog(
                 Text(
                     text = "Выберите формат для экспорта инфографики",
                     style = MaterialTheme.typography.bodySmall,
-                    color = AppColors.TextSecondary
+                    color = colors.textSecondary
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -89,7 +91,7 @@ fun ShareFormatDialog(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(
-                                color = AppColors.CyberCyan,
+                                color = colors.accentPrimary,
                                 strokeWidth = 3.dp,
                                 modifier = Modifier.size(36.dp)
                             )
@@ -97,21 +99,25 @@ fun ShareFormatDialog(
                             Text(
                                 text = "Генерация карточки...",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = AppColors.TextSecondary
+                                color = colors.textSecondary
                             )
                         }
                     }
                 } else {
                     FormatOptionCard(
-                        title = "📱 Истории (9:16)",
+                        title = "Истории (9:16)",
                         subtitle = "Идеально для Telegram Stories, Instagram, VK",
-                        accentColor = AppColors.CyberCyan,
+                        accentColor = colors.accentPrimary,
                         onClick = {
+                            errorMessage = null
                             isGenerating = true
                             coroutineScope.launch {
                                 try {
                                     onFormatSelected(ShareCardFormat.STORIES_9_16)
                                     onDismissRequest()
+                                } catch (error: Exception) {
+                                    if (error is kotlinx.coroutines.CancellationException) throw error
+                                    errorMessage = error.message ?: "Не удалось создать карточку"
                                 } finally {
                                     isGenerating = false
                                 }
@@ -122,15 +128,19 @@ fun ShareFormatDialog(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     FormatOptionCard(
-                        title = "🖼 Квадрат (1:1)",
+                        title = "Квадрат (1:1)",
                         subtitle = "Для постов, чатов и Telegram-каналов",
-                        accentColor = AppColors.HyperViolet,
+                        accentColor = colors.accentPrimary,
                         onClick = {
+                            errorMessage = null
                             isGenerating = true
                             coroutineScope.launch {
                                 try {
                                     onFormatSelected(ShareCardFormat.SQUARE_1_1)
                                     onDismissRequest()
+                                } catch (error: Exception) {
+                                    if (error is kotlinx.coroutines.CancellationException) throw error
+                                    errorMessage = error.message ?: "Не удалось создать карточку"
                                 } finally {
                                     isGenerating = false
                                 }
@@ -139,6 +149,9 @@ fun ShareFormatDialog(
                     )
                 }
 
+                errorMessage?.let { message ->
+                    Text(message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
+                }
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
@@ -151,7 +164,7 @@ fun ShareFormatDialog(
                     ) {
                         Text(
                             text = "Отмена",
-                            color = AppColors.TextSecondary,
+                            color = colors.textSecondary,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -168,12 +181,13 @@ private fun FormatOptionCard(
     accentColor: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit
 ) {
+    val colors = LirixThemeTokens.colors
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(AppColors.SurfaceLevel1)
-            .border(1.dp, AppColors.BorderSubtle, RoundedCornerShape(14.dp))
+            .background(colors.surfaceCard)
+            .border(1.dp, colors.borderSubtle, RoundedCornerShape(14.dp))
             .clickable { onClick() }
             .padding(14.dp)
     ) {
@@ -194,7 +208,7 @@ private fun FormatOptionCard(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                    color = AppColors.TextSecondary
+                    color = colors.textSecondary
                 )
             }
         }

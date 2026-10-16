@@ -9,10 +9,13 @@ dependencies {
     implementation(project(":shared"))
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
+    implementation(compose.materialIconsExtended)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.jna)
     implementation(libs.jna.platform)
     implementation(libs.kotlinx.serialization.json)
+    implementation("com.google.zxing:core:3.5.3")
+    testImplementation(libs.junit)
 }
 
 compose.desktop {
@@ -29,7 +32,7 @@ compose.desktop {
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe
             )
             packageName = "Lirix"
-            packageVersion = "1.2.1"
+            packageVersion = "1.4.0"
             description = "Lirix Music & Lyrics Studio Hub for Windows"
             vendor = "Lirix Team"
             copyright = "© 2026 Lirix Team"

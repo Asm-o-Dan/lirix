@@ -18,6 +18,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -137,24 +142,43 @@ fun DesktopHudWindow(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "⠿ Перетащите HUD за эту панель",
-                                color = colors.textMuted,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.DragHandle,
+                                    contentDescription = null,
+                                    tint = colors.textMuted,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "Перетащите HUD за эту панель",
+                                    color = colors.textMuted,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 // Lock button
-                                Box(
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
                                         .background(colors.accentPrimary)
                                         .clickable { isLocked = true }
                                         .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Lock,
+                                        contentDescription = null,
+                                        tint = colors.appBackground,
+                                        modifier = Modifier.size(12.dp)
+                                    )
                                     Text(
-                                        text = "🔒 Зафиксировать (Сквозной клик)",
+                                        text = "Зафиксировать (Сквозной клик)",
                                         color = colors.appBackground,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
@@ -172,10 +196,11 @@ fun DesktopHudWindow(
                                         .clickable { onCloseRequest() },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = "✕",
-                                        color = colors.textSecondary,
-                                        fontSize = 10.sp
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "Закрыть HUD",
+                                        tint = colors.textSecondary,
+                                        modifier = Modifier.size(12.dp)
                                     )
                                 }
                             }

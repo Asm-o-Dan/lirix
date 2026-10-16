@@ -58,6 +58,36 @@ public sealed class CommandMessage
     public long? PositionMs { get; set; }
 }
 
+public sealed class MeterMessage
+{
+    [JsonPropertyName("type")]
+    public string Type => "meter";
+
+    [JsonPropertyName("leftDbfs")]
+    public float LeftDbfs { get; set; }
+
+    [JsonPropertyName("rightDbfs")]
+    public float RightDbfs { get; set; }
+
+    [JsonPropertyName("leftPeak")]
+    public float LeftPeak { get; set; }
+
+    [JsonPropertyName("rightPeak")]
+    public float RightPeak { get; set; }
+
+    [JsonPropertyName("masterPeak")]
+    public float MasterPeak { get; set; }
+
+    [JsonPropertyName("masterDbfs")]
+    public float MasterDbfs { get; set; }
+
+    [JsonPropertyName("isClipping")]
+    public bool IsClipping { get; set; }
+
+    [JsonPropertyName("isActive")]
+    public bool IsActive { get; set; }
+}
+
 [JsonSourceGenerationOptions(
     WriteIndented = false,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -67,6 +97,7 @@ public sealed class CommandMessage
 [JsonSerializable(typeof(TimelineMessage))]
 [JsonSerializable(typeof(ClosedMessage))]
 [JsonSerializable(typeof(CommandMessage))]
+[JsonSerializable(typeof(MeterMessage))]
 public partial class BridgeJsonContext : JsonSerializerContext
 {
     public static readonly BridgeJsonContext Relaxed = new(new JsonSerializerOptions

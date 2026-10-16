@@ -1,5 +1,8 @@
 package com.lirix.app.desktop.ui.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.TooltipArea
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,20 +15,45 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.DevicesOther
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.PictureInPicture
+import androidx.compose.material.icons.filled.ViewCompact
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lirix.app.ui.theme.AppThemeType
 import com.lirix.app.ui.theme.LirixThemeTokens
+import com.lirix.app.ui.theme.LocalLirixTypography
 
+/**
+ * DesktopTopBar: Upper control bar for Lirix Desktop 2.0.
+ *
+ * Spec: TASK-UI-PROMPTER-FIX-01 §2 & §6, TASK-CON-UI-08 §1
+ *
+ * Features:
+ * 1. Clean brand title: "Lirix Studio" (no caps, no emoji).
+ * 2. Human-readable source status: "Нет активного плеера" / "Играет в Яндекс Музыке / Spotify".
+ * 3. Vector Material Icons (no emojis).
+ * 4. TopBar Theme Toggle: Graphite & Chalk (Dark) <-> Paper & Ink (Light).
+ * 5. Lirix Connect (DevicesOther) button with active badge & tooltip.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DesktopTopBar(
     sourceApp: String?,
@@ -35,9 +63,15 @@ fun DesktopTopBar(
     onToggleHud: () -> Unit,
     isCompactMode: Boolean,
     onToggleCompactMode: () -> Unit,
+    selectedTheme: AppThemeType = AppThemeType.GRAPHITE_CHALK,
+    onToggleTheme: () -> Unit = {},
+    hasActiveConnectDevice: Boolean = false,
+    activeConnectDeviceName: String? = null,
+    onOpenConnect: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val colors = LirixThemeTokens.colors
+    val typography = LocalLirixTypography.current
 
     Row(
         modifier = modifier
@@ -56,10 +90,8 @@ fun DesktopTopBar(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "⚡ LIRIX STUDIO",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 1.2.sp,
+                text = "Lirix Studio",
+                style = typography.trackTitle,
                 color = colors.accentPrimary
             )
 
@@ -70,7 +102,10 @@ fun DesktopTopBar(
                     .background(colors.borderSubtle)
             )
 
-            // Dynamic Source Badge
+            // Dynamic Source Badge with human-readable text
+            val isIdle = sourceApp.isNullOrBlank()
+            val sourceText = formatHumanSourceName(sourceApp)
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -80,26 +115,25 @@ fun DesktopTopBar(
                     .border(1.dp, colors.borderSubtle, RoundedCornerShape(6.dp))
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
-                // Pulsing status LED
+                // Status LED
                 Box(
                     modifier = Modifier
                         .size(6.dp)
                         .clip(CircleShape)
-                        .background(if (isPlaying) Color(0xFF00E676) else Color(0xFFFFB300))
+                        .background(
+                            when {
+                                isIdle -> colors.textMuted
+                                isPlaying -> Color(0xFF00E676)
+                                else -> Color(0xFFFFB300)
+                            }
+                        )
                 )
 
                 Text(
-                    text = sourceApp ?: "idle.session",
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = colors.textPrimary,
+                    text = sourceText,
+                    style = typography.trackArtistAlbum.copy(fontSize = 11.sp),
+                    color = if (isIdle) colors.textMuted else colors.textPrimary,
                     fontWeight = FontWeight.Medium
-                )
-
-                Text(
-                    text = "• GSMTC",
-                    fontSize = 10.sp,
-                    color = colors.textMuted
                 )
             }
 
@@ -111,8 +145,8 @@ fun DesktopTopBar(
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "✓ $lyricsSource",
-                        fontSize = 10.sp,
+                        text = lyricsSource,
+                        style = typography.timecodeAndBadges.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.SemiBold,
                         color = colors.accentSecondary
                     )
@@ -120,21 +154,47 @@ fun DesktopTopBar(
             }
         }
 
-        // Right: Mode Toggles (Compact Player, Floating HUD)
+        // Right: Mode Toggles and Theme Switcher
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Lirix Connect (DevicesOther) with Tooltip & Active Badge (§5.1, TASK-CON-UI-08)
+            TopBarConnectButton(
+                hasActiveDevice = hasActiveConnectDevice,
+                activeDeviceName = activeConnectDeviceName,
+                onClick = onOpenConnect
+            )
+
+            // Theme Switcher (Moon / Sun)
+            IconButton(
+                onClick = onToggleTheme,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(colors.surfaceCard)
+                    .border(1.dp, colors.borderSubtle, CircleShape)
+            ) {
+                Icon(
+                    imageVector = if (selectedTheme.isDark) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                    contentDescription = if (selectedTheme.isDark) "Светлая тема (Paper & Ink)" else "Тёмная тема (Graphite & Chalk)",
+                    tint = if (selectedTheme.isDark) LirixThemeTokens.Chalk else LirixThemeTokens.Ink,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
             // HUD Toggle Button
             TopBarActionButton(
-                label = if (isHudVisible) "🪟 Скрыть HUD" else "🪟 Караоке HUD",
+                icon = Icons.Filled.PictureInPicture,
+                label = if (isHudVisible) "Скрыть HUD" else "Караоке HUD",
                 isActive = isHudVisible,
                 onClick = onToggleHud
             )
 
             // Compact Mode Toggle Button
             TopBarActionButton(
-                label = if (isCompactMode) "🎛 Студия" else "🗗 Мини-пульт",
+                icon = Icons.Filled.ViewCompact,
+                label = if (isCompactMode) "Студия" else "Мини-пульт",
                 isActive = isCompactMode,
                 onClick = onToggleCompactMode
             )
@@ -144,11 +204,13 @@ fun DesktopTopBar(
 
 @Composable
 private fun TopBarActionButton(
+    icon: ImageVector,
     label: String,
     isActive: Boolean,
     onClick: () -> Unit
 ) {
     val colors = LirixThemeTokens.colors
+    val contentColor = if (isActive) colors.appBackground else colors.textPrimary
 
     Box(
         modifier = Modifier
@@ -159,15 +221,114 @@ private fun TopBarActionButton(
                 color = if (isActive) colors.accentPrimary else colors.borderSubtle,
                 shape = RoundedCornerShape(8.dp)
             )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        contentAlignment = Alignment.Center
+            .clickable { onClick() }
+            .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-            color = if (isActive) colors.appBackground else colors.textPrimary
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(14.dp)
+            )
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = contentColor
+            )
+        }
+    }
+}
+
+/**
+ * Converts a raw process name (e.g. chrome.exe, yandexmusic.exe) to human-readable string.
+ */
+internal fun formatHumanSourceName(rawPackage: String?): String {
+    if (rawPackage.isNullOrBlank()) return "Нет активного плеера"
+    val lower = rawPackage.lowercase()
+    return when {
+        lower.contains("yandex") -> "Играет в Яндекс Музыке"
+        lower.contains("spotify") -> "Играет в Spotify"
+        lower.contains("chrome") || lower.contains("firefox") || lower.contains("msedge") || lower.contains("opera") || lower.contains("browser") -> "Играет в Браузере"
+        lower.contains("aimp") -> "Играет в AIMP"
+        lower.contains("vlc") -> "Играет в VLC"
+        lower.contains("telegram") || lower.contains("ayugram") -> "Играет в Telegram"
+        lower.contains("foobar") -> "Играет в foobar2000"
+        else -> "Играет в " + rawPackage.removeSuffix(".exe").replaceFirstChar { it.uppercase() }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun TopBarConnectButton(
+    hasActiveDevice: Boolean,
+    activeDeviceName: String?,
+    onClick: () -> Unit
+) {
+    val colors = LirixThemeTokens.colors
+    val typography = LocalLirixTypography.current
+
+    TooltipArea(
+        tooltip = {
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = colors.surfaceElevated,
+                border = BorderStroke(1.dp, colors.borderSubtle),
+                shadowElevation = 4.dp
+            ) {
+                Text(
+                    text = if (hasActiveDevice && !activeDeviceName.isNullOrBlank()) {
+                        "Воспроизведение: $activeDeviceName"
+                    } else {
+                        "Воспроизвести на устройстве"
+                    },
+                    style = typography.timecodeAndBadges.copy(fontSize = 11.sp),
+                    color = colors.textPrimary,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        },
+        delayMillis = 300
+    ) {
+        Box(
+            modifier = Modifier
+                .height(32.dp)
+                .widthIn(min = 48.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (hasActiveDevice) colors.accentPrimary.copy(alpha = 0.18f) else colors.surfaceCard)
+                .border(
+                    width = 1.dp,
+                    color = if (hasActiveDevice) colors.accentPrimary else colors.borderSubtle,
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .clickable { onClick() }
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DevicesOther,
+                    contentDescription = "Воспроизвести на устройстве",
+                    tint = if (hasActiveDevice) colors.accentPrimary else colors.textPrimary,
+                    modifier = Modifier.size(15.dp)
+                )
+
+                if (hasActiveDevice) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF00E676))
+                    )
+                }
+            }
+        }
     }
 }

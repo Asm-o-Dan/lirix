@@ -73,4 +73,46 @@ class BlacklistPurgeEngine(private val db: AppDatabase) {
             deletedSessionsCount = deletedSessions
         )
     }
+
+    /**
+     * Выполняет каскадную очистку с сохранением копии удалённых треков для отмены (Undo).
+     */
+    suspend fun purgeMatchingTracksWithBackup(rule: BlacklistRuleEntity): Pair<PurgeReport, List<TrackEntity>> = withContext(Dispatchers.IO) {
+        val allTracks = db.musicDao().getAllTracks()
+        val matching = allTracks.filter { track ->
+            BlacklistMatcher.matches(
+                title = track.title,
+                artist = track.artist,
+                packageName = track.sourcePackage,
+                rule = rule
+            )
+        }
+        val matchingKeys = matching.map { it.trackKey }
+        if (matchingKeys.isEmpty()) {
+            return@withContext Pair(PurgeReport(0, 0), emptyList())
+        }
+
+        var deletedTracks = 0
+        var deletedSessions = 0
+
+        matchingKeys.chunked(500).forEach { chunk ->
+            deletedSessions += db.musicDao().deleteSessionsByTrackKeys(chunk)
+            deletedTracks += db.musicDao().deleteTracksByKeys(chunk)
+        }
+
+        Pair(
+            PurgeReport(
+                deletedTracksCount = deletedTracks,
+                deletedSessionsCount = deletedSessions
+            ),
+            matching
+        )
+    }
+
+    /**
+     * Восстанавливает треки в медиатеку при отмене удаления.
+     */
+    suspend fun restoreTracks(tracks: List<TrackEntity>) = withContext(Dispatchers.IO) {
+        tracks.forEach { db.musicDao().insertOrUpdateTrack(it) }
+    }
 }

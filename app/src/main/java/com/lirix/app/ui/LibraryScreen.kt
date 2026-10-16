@@ -1,20 +1,29 @@
 package com.lirix.app.ui
 
+import android.content.Context
+import android.view.ViewConfiguration
+import android.view.accessibility.AccessibilityManager
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,27 +33,33 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,50 +68,65 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lirix.app.storage.AppDatabase
-import com.lirix.app.storage.ThemePreferencesRepository
 import com.lirix.app.storage.TrackEntity
-import com.lirix.app.ui.components.AlbumArtThumbnail
-import com.lirix.app.ui.components.ImportRuleDialog
-import com.lirix.app.ui.components.ThemeSelectionDialog
-import com.lirix.app.ui.theme.AppColors
+import com.lirix.app.ui.components.AlbumArtImage
+import com.lirix.app.ui.components.TrackActionBottomSheet
+import com.lirix.app.ui.theme.FontFeature
+import com.lirix.app.ui.theme.GolosTextFontFamily
 import com.lirix.app.ui.theme.LirixThemeTokens
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 /**
- * Sub-tabs for unified Library screen: [ Избранное ] | [ История ]
+ * Filter chips for Media Library.
  */
-enum class LibrarySubTab(
-    val title: String,
-    val icon: ImageVector
-) {
-    FAVORITES("Избранное", Icons.Default.Favorite),
-    HISTORY("История", Icons.Default.History)
-}
-
-enum class LibraryTabFilter(val title: String) {
+enum class LibraryFilterChip(val title: String) {
     ALL("Все"),
-    FAVORITES("Любимые"),
-    WITH_LYRICS("С текстом"),
-    WITH_NOTES("С заметками")
+    FAVORITES("Избранное"),
+    KARAOKE("Караоке"),
+    CHORDS("Аккорды"),
+    OFFLINE("Офлайн")
 }
 
+/**
+ * Segment modes: Tracks vs Artists.
+ */
+enum class LibrarySegmentMode(val title: String) {
+    TRACKS("Треки"),
+    ARTISTS("Артисты")
+}
+
+/**
+ * Redesigned LibraryScreen conforming to SPEC-UI-MOBILE-2.0 / TASK-UI-MOB-04:
+ *
+ * Requirements:
+ * 1. Stable AccentFallback (#7FA6F0 dark / #29549E light).
+ * 2. Gesture separation: 0..28dp passed freely to system Back (prohibition of systemGestureExclusion on list!).
+ *    Swipe right (>28dp, scaledTouchSlop) marks favorite.
+ *    Swipe left ("Игнорировать") hides track with Snackbar + 'Отменить'.
+ * 3. Accessible alternatives: Long-press opens TrackActionBottomSheet; TalkBack customActions.
+ * 4. Unified adaptive Snackbar timeout (6-8s via AccessibilityManager).
+ * 5. Track row (64dp) with 44x44 cover, title (15sp SemiBold), artist/album (13sp Mist), playcount, badges.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
@@ -108,23 +138,32 @@ fun LibraryScreen(
     val scope = rememberCoroutineScope()
     val db = remember { AppDatabase.getInstance(context) }
     val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
+
+    // Stable AccentFallback
+    val stableAccent = if (lirixColors.isDark) LirixThemeTokens.AccentFallbackDark else LirixThemeTokens.AccentFallbackLight
 
     val recentTracks by db.musicDao().observeRecentTracks().collectAsStateWithLifecycle(initialValue = emptyList())
-    var activeSubTab by rememberSaveable { mutableStateOf(LibrarySubTab.FAVORITES) }
-    var selectedFilter by rememberSaveable { mutableStateOf(LibraryTabFilter.ALL) }
-    var searchQuery by remember { mutableStateOf("") }
-    var showImportDialog by remember { mutableStateOf(false) }
-    var showThemeDialog by remember { mutableStateOf(false) }
-    val themeRepo = remember { ThemePreferencesRepository.getInstance(context) }
-    val currentTheme by themeRepo.selectedTheme.collectAsStateWithLifecycle()
+    val hiddenTrackKeys = remember { mutableStateListOf<String>() }
 
-    // Filtered tracks for Favorites/Collection view
-    val filteredLibraryTracks = remember(recentTracks, selectedFilter, searchQuery) {
+    var selectedFilter by rememberSaveable { mutableStateOf(LibraryFilterChip.ALL) }
+    var selectedSegment by rememberSaveable { mutableStateOf(LibrarySegmentMode.TRACKS) }
+    var searchQuery by remember { mutableStateOf("") }
+    var activeBottomSheetTrack by remember { mutableStateOf<TrackEntity?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Filtered track list
+    val visibleTracks = remember(recentTracks, hiddenTrackKeys) {
+        recentTracks.filter { it.trackKey !in hiddenTrackKeys }
+    }
+
+    val filteredTracks = remember(visibleTracks, selectedFilter, searchQuery) {
         var list = when (selectedFilter) {
-            LibraryTabFilter.ALL -> recentTracks
-            LibraryTabFilter.FAVORITES -> recentTracks.filter { it.isFavorite }
-            LibraryTabFilter.WITH_LYRICS -> recentTracks.filter { !it.plainLyrics.isNullOrBlank() || !it.syncedLyrics.isNullOrBlank() }
-            LibraryTabFilter.WITH_NOTES -> recentTracks.filter { it.userNotes.isNotBlank() }
+            LibraryFilterChip.ALL -> visibleTracks
+            LibraryFilterChip.FAVORITES -> visibleTracks.filter { it.isFavorite }
+            LibraryFilterChip.KARAOKE -> visibleTracks.filter { !it.syncedLyrics.isNullOrBlank() }
+            LibraryFilterChip.CHORDS -> visibleTracks.filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
+            LibraryFilterChip.OFFLINE -> visibleTracks
         }
 
         if (searchQuery.isNotBlank()) {
@@ -134,793 +173,517 @@ fun LibraryScreen(
                     it.artist.lowercase().contains(q) ||
                     it.album.lowercase().contains(q) ||
                     it.plainLyrics?.lowercase()?.contains(q) == true ||
-                    it.syncedLyrics?.lowercase()?.contains(q) == true ||
-                    it.userNotes.lowercase().contains(q)
+                    it.syncedLyrics?.lowercase()?.contains(q) == true
             }
         }
         list
     }
 
-    // Filtered tracks for History/Timeline view
-    val filteredHistoryTracks = remember(recentTracks, searchQuery) {
-        if (searchQuery.isBlank()) {
-            recentTracks
-        } else {
-            val q = searchQuery.trim().lowercase()
-            recentTracks.filter {
-                it.title.lowercase().contains(q) ||
-                    it.artist.lowercase().contains(q) ||
-                    it.album.lowercase().contains(q) ||
-                    it.plainLyrics?.lowercase()?.contains(q) == true ||
-                    it.syncedLyrics?.lowercase()?.contains(q) == true ||
-                    it.userNotes.lowercase().contains(q)
+    // Unique artists count
+    val uniqueArtists = remember(visibleTracks) {
+        visibleTracks.map { it.artist.ifBlank { "Неизвестный исполнитель" } }.distinct()
+    }
+
+    // Adaptive Snackbar timeout (6-8s) via AccessibilityManager
+    val accessibilityManager = remember {
+        context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+    }
+    val recommendedTimeoutMs = remember(accessibilityManager) {
+        accessibilityManager?.getRecommendedTimeoutMillis(7000, AccessibilityManager.FLAG_CONTENT_CONTROLS) ?: 7000
+    }
+
+    // Function to hide track with undoable snackbar
+    val hideTrack: (TrackEntity) -> Unit = { track ->
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        hiddenTrackKeys.add(track.trackKey)
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "Трек «${track.title}» скрыт из медиатеки",
+                actionLabel = "Отменить",
+                duration = SnackbarDuration.Indefinite
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                hiddenTrackKeys.remove(track.trackKey)
             }
+        }
+        // Auto-dismiss indefinite snackbar after recommendedTimeoutMs
+        scope.launch {
+            delay(recommendedTimeoutMs.toLong())
+            snackbarHostState.currentSnackbarData?.dismiss()
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(lirixColors.appBackground)
-            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        // Screen Header: Bold Editorial Style
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 8.dp)
         ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(if (activeSubTab == LibrarySubTab.FAVORITES) lirixColors.accentPrimary else lirixColors.accentSecondary)
-                    )
-                    Text(
-                        text = if (activeSubTab == LibrarySubTab.FAVORITES) "ФОНОТЕКА // АРХИВ" else "ХРОНИКА // ТАЙМЛАЙН",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp
-                        ),
-                        color = if (activeSubTab == LibrarySubTab.FAVORITES) lirixColors.accentPrimary else lirixColors.accentSecondary
-                    )
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Медиатека",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-0.5).sp
-                    ),
-                    color = lirixColors.textPrimary
-                )
-            }
-
+            // 1. Поисковая строка (48dp) с кнопкой перехода в Чёрный список [ 🚫 ]
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = { showThemeDialog = true },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Palette,
-                        contentDescription = "Тема оформления",
-                        tint = lirixColors.accentPrimary,
-                        modifier = Modifier.size(18.dp)
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    placeholder = {
+                        Text(
+                            text = "Поиск по названию, артисту или словам...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = lirixColors.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = stableAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(36.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Очистить", tint = lirixColors.textSecondary)
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(lirixColors.cardCornerRadius),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = lirixColors.surfacePrimary,
+                        unfocusedContainerColor = lirixColors.surfacePrimary,
+                        focusedBorderColor = stableAccent,
+                        unfocusedBorderColor = lirixColors.borderSubtle,
+                        focusedTextColor = lirixColors.textPrimary,
+                        unfocusedTextColor = lirixColors.textPrimary
                     )
-                }
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(
                     onClick = onOpenBlacklistSettings,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+                        .background(lirixColors.surfacePrimary)
+                        .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Shield,
-                        contentDescription = "Фильтры медиатеки",
+                        imageVector = Icons.Default.Block,
+                        contentDescription = "Чёрный список",
                         tint = lirixColors.textSecondary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
-
-                IconButton(
-                    onClick = { showImportDialog = true },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FileDownload,
-                        contentDescription = "Импорт правила парсера",
-                        tint = lirixColors.accentSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                Surface(
-                    color = lirixColors.surfacePrimary,
-                    shape = RoundedCornerShape(8.dp),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        if (activeSubTab == LibrarySubTab.FAVORITES) lirixColors.accentPrimary.copy(alpha = 0.4f) else lirixColors.accentSecondary.copy(alpha = 0.4f)
-                    )
-                ) {
-                    Text(
-                        text = if (activeSubTab == LibrarySubTab.FAVORITES) "[ ${filteredLibraryTracks.size} ТРЕКОВ ]" else "[ ${recentTracks.size} В КЭШЕ ]",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp
-                        ),
-                        color = if (activeSubTab == LibrarySubTab.FAVORITES) lirixColors.accentPrimary else lirixColors.accentSecondary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-        // Sub-Tabs Segmented Control ([ Избранное ] | [ История ])
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(lirixColors.pillCornerRadius))
-                .background(lirixColors.surfacePrimary)
-                .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.pillCornerRadius))
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            LibrarySubTab.entries.forEach { subTab ->
-                val isSelected = activeSubTab == subTab
-                val tabActiveTextColor = if (lirixColors.isDark) Color.Black else Color.White
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .defaultMinSize(minHeight = 44.dp)
-                        .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
-                        .background(
-                            if (isSelected) {
-                                Brush.horizontalGradient(
-                                    if (subTab == LibrarySubTab.FAVORITES) {
-                                        listOf(lirixColors.accentPrimary, lirixColors.accentPrimary.copy(alpha = 0.8f))
-                                    } else {
-                                        listOf(lirixColors.accentSecondary, lirixColors.accentSecondary.copy(alpha = 0.8f))
-                                    }
-                                )
-                            } else {
-                                androidx.compose.ui.graphics.SolidColor(Color.Transparent)
-                            }
-                        )
-                        .clickable {
-                            if (activeSubTab != subTab) {
+            // 2. Горизонтальные фильтры (высота плашки 36dp, зона клика 48dp)
+            androidx.compose.foundation.lazy.LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items(LibraryFilterChip.entries) { chip ->
+                    val isSelected = selectedFilter == chip
+                    Box(
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(lirixColors.pillCornerRadius))
+                            .background(if (isSelected) stableAccent else lirixColors.surfaceCard)
+                            .border(
+                                1.dp,
+                                if (isSelected) stableAccent else lirixColors.borderSubtle,
+                                RoundedCornerShape(lirixColors.pillCornerRadius)
+                            )
+                            .clickable {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                activeSubTab = subTab
+                                selectedFilter = chip
                             }
-                        }
-                        .padding(vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = subTab.icon,
-                            contentDescription = null,
-                            tint = if (isSelected) tabActiveTextColor else lirixColors.textSecondary,
-                            modifier = Modifier.size(16.dp)
-                        )
                         Text(
-                            text = subTab.title,
+                            text = chip.title,
                             style = MaterialTheme.typography.labelMedium.copy(
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             ),
-                            color = if (isSelected) tabActiveTextColor else lirixColors.textSecondary
+                            color = if (isSelected) lirixColors.appBackground else lirixColors.textPrimary
                         )
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // Search Input
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = {
-                Text(
-                    text = if (activeSubTab == LibrarySubTab.FAVORITES) "Поиск по медиатеке..." else "Поиск по архиву истории...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = lirixColors.textMuted
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = if (activeSubTab == LibrarySubTab.FAVORITES) lirixColors.accentPrimary else lirixColors.accentSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(
-                        onClick = { searchQuery = "" },
-                        modifier = Modifier.size(48.dp)
+            // 3. Сегмент списка: [ Треки (N) ] [ Артисты (M) ]
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+                    .background(lirixColors.surfacePrimary)
+                    .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                LibrarySegmentMode.entries.forEach { mode ->
+                    val isSelected = selectedSegment == mode
+                    val count = if (mode == LibrarySegmentMode.TRACKS) filteredTracks.size else uniqueArtists.size
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(lirixColors.cardCornerRadius - 2.dp))
+                            .background(if (isSelected) lirixColors.surfaceCard else Color.Transparent)
+                            .clickable { selectedSegment = mode },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Clear",
-                            tint = lirixColors.textSecondary,
-                            modifier = Modifier.size(20.dp)
+                        Text(
+                            text = "${mode.title} ($count)",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            ),
+                            color = if (isSelected) lirixColors.textPrimary else lirixColors.textSecondary
                         )
                     }
                 }
-            },
-            singleLine = true,
-            shape = RoundedCornerShape(lirixColors.cardCornerRadius),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = lirixColors.surfacePrimary,
-                unfocusedContainerColor = lirixColors.surfacePrimary,
-                focusedBorderColor = if (activeSubTab == LibrarySubTab.FAVORITES) lirixColors.accentPrimary else lirixColors.accentSecondary,
-                unfocusedBorderColor = lirixColors.borderSubtle,
-                focusedTextColor = lirixColors.textPrimary,
-                unfocusedTextColor = lirixColors.textPrimary
-            )
-        )
+            }
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // Crossfade between Sub-tabs ([ Избранное ] vs [ История ])
-        Crossfade(targetState = activeSubTab, animationSpec = tween(180), label = "SubTabSwitch") { subTab ->
-            when (subTab) {
-                LibrarySubTab.FAVORITES -> {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        // Fluid Filter Chips Row with Dynamic Counters
-                        Row(
+            // 4. Список треков / артистов
+            Crossfade(targetState = selectedSegment, label = "LibrarySegmentCrossfade") { segment ->
+                when (segment) {
+                    LibrarySegmentMode.TRACKS -> {
+                        if (filteredTracks.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .padding(horizontal = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (searchQuery.isBlank()) "Медиатека пуста" else "Ничего не найдено",
+                                    color = lirixColors.textSecondary,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(filteredTracks, key = { it.trackKey }) { track ->
+                                    LibraryTrackItemRow(
+                                        track = track,
+                                        stableAccent = stableAccent,
+                                        onClick = { onTrackSelected(track) },
+                                        onLongClick = { activeBottomSheetTrack = track },
+                                        onToggleFavorite = {
+                                            scope.launch(Dispatchers.IO) {
+                                                db.musicDao().setFavorite(track.trackKey, !track.isFavorite)
+                                            }
+                                        },
+                                        onHideTrack = { hideTrack(track) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    LibrarySegmentMode.ARTISTS -> {
+                        LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                .weight(1f),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            LibraryTabFilter.entries.forEach { filter ->
-                                val isSelected = selectedFilter == filter
-                                val count = when (filter) {
-                                    LibraryTabFilter.ALL -> recentTracks.size
-                                    LibraryTabFilter.FAVORITES -> recentTracks.count { it.isFavorite }
-                                    LibraryTabFilter.WITH_LYRICS -> recentTracks.count { !it.plainLyrics.isNullOrBlank() || !it.syncedLyrics.isNullOrBlank() }
-                                    LibraryTabFilter.WITH_NOTES -> recentTracks.count { it.userNotes.isNotBlank() }
-                                }
-                                val chipActiveTextColor = if (lirixColors.isDark) Color.Black else Color.White
-
-                                Box(
+                            items(uniqueArtists, key = { it }) { artistName ->
+                                val artistTracks = visibleTracks.filter { it.artist == artistName }
+                                Surface(
+                                    color = lirixColors.surfaceCard,
+                                    shape = RoundedCornerShape(lirixColors.cardCornerRadius),
+                                    border = BorderStroke(1.dp, lirixColors.borderSubtle),
                                     modifier = Modifier
-                                        .defaultMinSize(minHeight = 44.dp)
-                                        .clip(RoundedCornerShape(lirixColors.pillCornerRadius))
-                                        .background(
-                                            if (isSelected) {
-                                                Brush.horizontalGradient(
-                                                    listOf(lirixColors.accentPrimary, lirixColors.accentPrimary.copy(alpha = 0.8f))
-                                                )
-                                            } else {
-                                                androidx.compose.ui.graphics.SolidColor(lirixColors.surfacePrimary)
-                                            }
-                                        )
-                                        .border(
-                                            1.dp,
-                                            if (isSelected) lirixColors.accentPrimary else lirixColors.borderSubtle,
-                                            RoundedCornerShape(lirixColors.pillCornerRadius)
-                                        )
+                                        .fillMaxWidth()
+                                        .heightIn(min = 52.dp)
                                         .clickable {
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            selectedFilter = filter
+                                            searchQuery = artistName
+                                            selectedSegment = LibrarySegmentMode.TRACKS
                                         }
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
                                         Text(
-                                            text = filter.title,
-                                            style = MaterialTheme.typography.labelMedium.copy(
-                                                fontSize = 12.sp,
-                                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
-                                            ),
-                                            color = if (isSelected) chipActiveTextColor else lirixColors.textSecondary
+                                            text = artistName,
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                            color = lirixColors.textPrimary
                                         )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = if (isSelected) chipActiveTextColor.copy(alpha = 0.25f) else lirixColors.surfaceCard
-                                        ) {
-                                            Text(
-                                                text = "$count",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontFamily = FontFamily.Monospace
-                                                ),
-                                                color = if (isSelected) chipActiveTextColor else lirixColors.accentSecondary,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-                                            )
-                                        }
+                                        Text(
+                                            text = "${artistTracks.size} треков",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = lirixColors.textSecondary
+                                        )
                                     }
                                 }
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        if (filteredLibraryTracks.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        imageVector = Icons.Default.LibraryMusic,
-                                        contentDescription = null,
-                                        tint = lirixColors.textMuted,
-                                        modifier = Modifier.size(48.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text(
-                                        text = "Нет треков в данной категории",
-                                        color = lirixColors.textSecondary,
-                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
-                                    )
-                                }
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                items(filteredLibraryTracks, key = { it.trackKey }) { track ->
-                                    LibraryTrackCard(
-                                        track = track,
-                                        searchQuery = searchQuery,
-                                        onFavoriteToggle = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            scope.launch(Dispatchers.IO) {
-                                                db.musicDao().setFavorite(track.trackKey, !track.isFavorite)
-                                            }
-                                        },
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            onTrackSelected(track)
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                LibrarySubTab.HISTORY -> {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        // High-Contrast Audio DNA Strip
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
-                                .background(lirixColors.surfacePrimary)
-                                .border(
-                                    1.dp,
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            lirixColors.accentPrimary.copy(alpha = 0.35f),
-                                            lirixColors.accentSecondary.copy(alpha = 0.35f)
-                                        )
-                                    ),
-                                    RoundedCornerShape(lirixColors.cardCornerRadius)
-                                )
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.MusicNote,
-                                    contentDescription = null,
-                                    tint = lirixColors.accentPrimary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "${recentTracks.size} ТРЕКОВ В КЭШЕ",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp
-                                    ),
-                                    color = lirixColors.textPrimary
-                                )
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "⚡",
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "${recentTracks.sumOf { it.playCount }} ПЛЕЕВ",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 11.sp
-                                    ),
-                                    color = lirixColors.accentSecondary
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        if (filteredHistoryTracks.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        imageVector = Icons.Default.History,
-                                        contentDescription = null,
-                                        tint = lirixColors.textMuted,
-                                        modifier = Modifier.size(48.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text(
-                                        text = if (searchQuery.isBlank()) "История прослушиваний пуста" else "Ничего не найдено по запросу",
-                                        color = lirixColors.textSecondary,
-                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
-                                    )
-                                }
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                items(filteredHistoryTracks, key = { it.trackKey }) { track ->
-                                    UnifiedHistoryTrackCard(
-                                        track = track,
-                                        searchQuery = searchQuery,
-                                        onFavoriteClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            scope.launch(Dispatchers.IO) {
-                                                db.musicDao().setFavorite(track.trackKey, !track.isFavorite)
-                                            }
-                                        },
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            onTrackSelected(track)
-                                        }
-                                    )
-                                }
-                            }
-                        }
                     }
                 }
             }
         }
-    }
 
-    if (showImportDialog) {
-        ImportRuleDialog(
-            onDismiss = { showImportDialog = false }
-        )
-    }
-
-    if (showThemeDialog) {
-        ThemeSelectionDialog(
-            currentTheme = currentTheme,
-            onThemeSelected = { newTheme ->
-                themeRepo.setTheme(newTheme)
-            },
-            onDismissRequest = { showThemeDialog = false }
-        )
-    }
-}
-
-@Composable
-private fun LibraryTrackCard(
-    track: TrackEntity,
-    searchQuery: String = "",
-    onFavoriteToggle: () -> Unit,
-    onClick: () -> Unit
-) {
-    val lirixColors = LirixThemeTokens.colors
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
-            .background(lirixColors.surfaceCard)
-            .border(
-                1.dp,
-                if (track.isFavorite) AppColors.AmberGold.copy(alpha = 0.5f) else lirixColors.borderSubtle,
-                RoundedCornerShape(lirixColors.cardCornerRadius)
-            )
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // High-Fidelity Album Art Thumbnail
-        AlbumArtThumbnail(
-            artUri = track.albumArtUri,
-            size = 50.dp,
-            shape = RoundedCornerShape(12.dp),
-            borderColor = if (track.isFavorite) AppColors.AmberGold.copy(alpha = 0.6f) else lirixColors.borderSubtle,
-            contentDescription = "${track.title} library artwork"
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 76.dp)
         )
 
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = track.title,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                ),
-                color = lirixColors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = track.artist.ifBlank { "Неизвестный исполнитель" },
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                ),
-                color = lirixColors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (!track.syncedLyrics.isNullOrBlank()) {
-                    BadgeChip(text = "LRC", color = lirixColors.accentPrimary)
+        // Track Action Bottom Sheet for Long-Press alternative
+        activeBottomSheetTrack?.let { track ->
+            TrackActionBottomSheet(
+                track = track,
+                onDismissRequest = { activeBottomSheetTrack = null },
+                onToggleFavorite = { t ->
+                    scope.launch(Dispatchers.IO) {
+                        db.musicDao().setFavorite(t.trackKey, !t.isFavorite)
+                    }
+                },
+                onHideTrack = { t ->
+                    hideTrack(t)
                 }
-                if (!track.plainLyrics.isNullOrBlank()) {
-                    BadgeChip(text = "Текст", color = lirixColors.accentSecondary)
-                }
-                if (track.userNotes.isNotBlank()) {
-                    BadgeChip(text = "Заметка", color = AppColors.ElectricMint)
-                }
-                if (track.isFavorite) {
-                    BadgeChip(text = "★ Любимое", color = AppColors.AmberGold)
-                }
-            }
-
-            if (searchQuery.isNotBlank()) {
-                val lyricsSnippet = extractSearchSnippet(track.plainLyrics ?: track.syncedLyrics, searchQuery)
-                val notesSnippet = extractSearchSnippet(track.userNotes, searchQuery)
-                if (lyricsSnippet != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "🎵 $lyricsSnippet",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 11.sp,
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                        ),
-                        color = lirixColors.accentSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                } else if (notesSnippet != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "📝 $notesSnippet",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 11.sp,
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                        ),
-                        color = AppColors.ElectricMint,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-
-        // Quick favorite toggle (>=48dp touch target)
-        IconButton(
-            onClick = onFavoriteToggle,
-            modifier = Modifier.size(48.dp)
-        ) {
-            Icon(
-                imageVector = if (track.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = "Избранное",
-                tint = if (track.isFavorite) AppColors.ExpenseRed else lirixColors.textSecondary,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun UnifiedHistoryTrackCard(
-    track: TrackEntity,
-    searchQuery: String = "",
-    onFavoriteClick: () -> Unit,
-    onClick: () -> Unit
-) {
-    val lirixColors = LirixThemeTokens.colors
-    val dateFormat = remember { SimpleDateFormat("HH:mm • dd MMM", Locale.getDefault()) }
-    val formattedTime = remember(track.lastPlayedAt) { dateFormat.format(Date(track.lastPlayedAt)) }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
-            .background(lirixColors.surfaceCard)
-            .border(
-                1.dp,
-                if (track.isFavorite) AppColors.AmberGold.copy(alpha = 0.5f) else lirixColors.borderSubtle,
-                RoundedCornerShape(lirixColors.cardCornerRadius)
-            )
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // High-Fidelity Album Art Thumbnail
-        AlbumArtThumbnail(
-            artUri = track.albumArtUri,
-            size = 50.dp,
-            shape = RoundedCornerShape(12.dp),
-            borderColor = if (track.isFavorite) AppColors.AmberGold.copy(alpha = 0.6f) else lirixColors.borderSubtle,
-            contentDescription = "${track.title} artwork"
-        )
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = track.title,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                ),
-                color = lirixColors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = track.artist.ifBlank { "Неизвестный исполнитель" },
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                ),
-                color = lirixColors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Play count pill
-                Surface(
-                    color = lirixColors.accentSecondary.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(5.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, lirixColors.accentSecondary.copy(alpha = 0.35f))
-                ) {
-                    Text(
-                        text = "⚡ x${track.playCount}",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 10.sp
-                        ),
-                        color = lirixColors.accentSecondary,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Text(
-                    text = "[ $formattedTime ]",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 10.sp,
-                        color = lirixColors.textSecondary
-                    )
-                )
-            }
-
-            if (searchQuery.isNotBlank()) {
-                val lyricsSnippet = extractSearchSnippet(track.plainLyrics ?: track.syncedLyrics, searchQuery)
-                val notesSnippet = extractSearchSnippet(track.userNotes, searchQuery)
-                if (lyricsSnippet != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "🎵 $lyricsSnippet",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 11.sp,
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                        ),
-                        color = lirixColors.accentSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                } else if (notesSnippet != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "📝 $notesSnippet",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 11.sp,
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                        ),
-                        color = AppColors.ElectricMint,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-
-        // Favorite Button (>=48dp touch target)
-        IconButton(
-            onClick = onFavoriteClick,
-            modifier = Modifier.size(48.dp)
-        ) {
-            Icon(
-                imageVector = if (track.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = "Favorite",
-                tint = if (track.isFavorite) AppColors.ExpenseRed else lirixColors.textSecondary,
-                modifier = Modifier.size(22.dp)
             )
         }
     }
 }
 
 /**
- * Extracts a compact surrounding text snippet around the search query for contextual preview.
+ * 64dp track item row conforming to SPEC-UI-MOBILE-2.0 / TASK-UI-MOB-04.
+ *
+ * Safe gesture separation:
+ * - 0..28dp passed freely to system Back (prohibition of systemGestureExclusion on list!).
+ * - Swipe right (> 28dp, scaledTouchSlop) toggles Favorite.
+ * - Swipe left ("Игнорировать") hides track from library.
+ * - Long press opens TrackActionBottomSheet.
+ * - TalkBack customActions implemented.
  */
-private fun extractSearchSnippet(text: String?, query: String): String? {
-    if (text.isNullOrBlank() || query.isBlank()) return null
-    val idx = text.indexOf(query, ignoreCase = true)
-    if (idx < 0) return null
-    val start = (idx - 16).coerceAtLeast(0)
-    val end = (idx + query.length + 24).coerceAtMost(text.length)
-    val prefix = if (start > 0) "…" else ""
-    val suffix = if (end < text.length) "…" else ""
-    return prefix + text.substring(start, end).replace('\n', ' ').trim() + suffix
+@Composable
+private fun LibraryTrackItemRow(
+    track: TrackEntity,
+    stableAccent: Color,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onHideTrack: () -> Unit
+) {
+    val tokens = LirixThemeTokens.colors
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+
+    val systemBackThresholdPx = with(density) { 28.dp.toPx() }
+    val touchSlopPx = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+
+    var touchStartX by remember { mutableFloatStateOf(0f) }
+    var dragDeltaX by remember { mutableFloatStateOf(0f) }
+    var isEligibleForSwipe by remember { mutableStateOf(false) }
+
+    Surface(
+        color = tokens.surfaceCard,
+        shape = RoundedCornerShape(tokens.cardCornerRadius),
+        border = BorderStroke(1.dp, tokens.borderSubtle),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .semantics {
+                customActions = listOf(
+                    CustomAccessibilityAction(if (track.isFavorite) "Убрать из избранного" else "В избранное") {
+                        onToggleFavorite()
+                        true
+                    },
+                    CustomAccessibilityAction("Скрыть трек из медиатеки") {
+                        onHideTrack()
+                        true
+                    }
+                )
+            }
+            .pointerInput(track.trackKey) {
+                detectTapGestures(
+                    onTap = { onClick() },
+                    onLongPress = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongClick()
+                    }
+                )
+            }
+            .pointerInput(track.trackKey) {
+                detectHorizontalDragGestures(
+                    onDragStart = { offset ->
+                        touchStartX = offset.x
+                        dragDeltaX = 0f
+                        // Touch starting inside 0..28dp belongs to system Back!
+                        isEligibleForSwipe = touchStartX > systemBackThresholdPx
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        if (isEligibleForSwipe) {
+                            change.consume()
+                            dragDeltaX += dragAmount
+                        }
+                    },
+                    onDragEnd = {
+                        if (isEligibleForSwipe) {
+                            if (dragDeltaX > touchSlopPx * 4f) {
+                                // Swipe right: Toggle favorite
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onToggleFavorite()
+                            } else if (dragDeltaX < -touchSlopPx * 4f) {
+                                // Swipe left: Hide track ("Игнорировать")
+                                onHideTrack()
+                            }
+                        }
+                        dragDeltaX = 0f
+                        isEligibleForSwipe = false
+                    },
+                    onDragCancel = {
+                        dragDeltaX = 0f
+                        isEligibleForSwipe = false
+                    }
+                )
+            }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Мини-обложка 44x44 (R=6dp)
+            AlbumArtImage(
+                artUri = track.albumArtUri,
+                size = 44.dp,
+                shape = RoundedCornerShape(6.dp),
+                contentDescription = track.title
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Название (15sp, SemiBold) и Артист/Альбом (13sp, Mist)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = track.title,
+                    fontFamily = GolosTextFontFamily,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = tokens.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "${track.artist}${if (track.album.isNotBlank()) " • ${track.album}" else ""}",
+                    fontFamily = GolosTextFontFamily,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                    color = tokens.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Правый блок метаданных: дата, счетчик ×18, бейджи
+            Column(horizontalAlignment = Alignment.End) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (track.playCount > 1) {
+                        Text(
+                            text = "×${track.playCount}",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = GolosTextFontFamily,
+                                fontFeatureSettings = FontFeature.tabularFigures()
+                            ),
+                            color = stableAccent
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+
+                    if (track.isFavorite) {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = "В избранном",
+                            tint = stableAccent,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (!track.syncedLyrics.isNullOrBlank()) {
+                        BorderBadge(text = "Синхронно", borderColor = stableAccent)
+                    } else if (!track.plainLyrics.isNullOrBlank()) {
+                        BorderBadge(
+                            text = "Текст",
+                            borderColor = tokens.borderSubtle,
+                            backgroundColor = tokens.surfaceElevated,
+                            textColor = tokens.textSecondary
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun BadgeChip(text: String, color: Color) {
+private fun BorderBadge(
+    text: String,
+    borderColor: Color,
+    backgroundColor: Color = Color.Transparent,
+    textColor: Color = borderColor
+) {
     Surface(
-        color = color.copy(alpha = 0.15f),
-        shape = RoundedCornerShape(5.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.4f))
+        color = backgroundColor,
+        shape = RoundedCornerShape(4.dp),
+        border = BorderStroke(1.dp, borderColor)
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 10.sp,
-                fontWeight = FontWeight.ExtraBold,
-                fontFamily = FontFamily.Monospace
-            ),
-            color = color,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Medium),
+            color = textColor,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
         )
     }
 }

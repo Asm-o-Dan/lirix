@@ -16,6 +16,7 @@
     <UseSystemResourceKeys>true</UseSystemResourceKeys>
     <DebuggerSupport>false</DebuggerSupport>
     <MetadataUpdateSupport>false</MetadataUpdateSupport>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
 </Project>

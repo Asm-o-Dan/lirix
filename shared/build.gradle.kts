@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.androidx.room)
     alias(libs.plugins.ksp)
 }
@@ -28,6 +29,7 @@ kotlin {
                 implementation(compose.material3)
                 implementation(compose.materialIconsExtended)
                 implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.serialization.json)
                 implementation(libs.room.runtime)
                 implementation(libs.sqlite.bundled)
             }
@@ -53,6 +55,7 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.junit)
+                implementation(libs.kotlinx.coroutines.test)
             }
         }
     }

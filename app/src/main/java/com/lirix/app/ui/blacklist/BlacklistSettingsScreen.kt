@@ -30,6 +30,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Shield
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.Context
+import android.view.accessibility.AccessibilityManager
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -40,8 +43,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -67,6 +72,8 @@ import com.lirix.app.storage.blacklist.BlacklistMatchMode
 import com.lirix.app.storage.blacklist.BlacklistRuleEntity
 import com.lirix.app.storage.blacklist.BlacklistRuleType
 import com.lirix.app.ui.theme.LirixThemeTokens
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,14 +84,41 @@ fun BlacklistSettingsScreen(
 ) {
     val tokens = LirixThemeTokens.colors
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Handle snackbar messages
+    val accessibilityManager = remember {
+        context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+    }
+    val snackbarTimeoutMs = remember(accessibilityManager) {
+        val isA11yActive = accessibilityManager?.isEnabled == true &&
+            (accessibilityManager.isTouchExplorationEnabled || accessibilityManager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_SPOKEN).isNotEmpty())
+        if (isA11yActive) 8000L else 6000L
+    }
+
+    // Handle snackbar messages with optional Undo
     LaunchedEffect(uiState.snackbarMessage) {
-        uiState.snackbarMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            viewModel.clearSnackbar()
+        val message = uiState.snackbarMessage
+        if (message != null) {
+            if (uiState.showUndoForPurge) {
+                val job = launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = message,
+                        actionLabel = "Отменить",
+                        duration = SnackbarDuration.Indefinite
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoLastPurge()
+                    }
+                }
+                delay(snackbarTimeoutMs)
+                job.cancel()
+                viewModel.clearSnackbar()
+            } else {
+                snackbarHostState.showSnackbar(message)
+                viewModel.clearSnackbar()
+            }
         }
     }
 
@@ -126,17 +160,16 @@ fun BlacklistSettingsScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "ФИЛЬТРЫ МЕДИАТЕКИ // ЧЕРНЫЙ СПИСОК",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.5.sp
+                            text = "Чёрный список",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp
                             ),
-                            color = tokens.accentPrimary
+                            color = tokens.textPrimary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Контроль чистоты фонотеки и авто-очистка",
+                            text = "Правила игнорирования и авто-очистка",
                             style = MaterialTheme.typography.bodySmall,
                             color = tokens.textSecondary
                         )
@@ -174,11 +207,10 @@ fun BlacklistSettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "СОЗДАТЬ ПРАВИЛО БЛОКИРОВКИ",
+                            text = "Создать правило игнорирования",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                letterSpacing = 0.5.sp
+                                fontSize = 14.sp
                             )
                         )
                     }
@@ -303,10 +335,9 @@ private fun DashboardBanner(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "ПРАВИЛА АКТИВНЫ: $activeRulesCount",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontFamily = FontFamily.Monospace
+                        text = "Активные правила: $activeRulesCount",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold
                         ),
                         color = tokens.accentPrimary
                     )
@@ -318,14 +349,13 @@ private fun DashboardBanner(
                     border = androidx.compose.foundation.BorderStroke(1.dp, tokens.borderSubtle)
                 ) {
                     Text(
-                        text = "[ ВСЕГО: $totalRulesCount ]",
+                        text = "Всего правил: $totalRulesCount",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 11.sp
                         ),
                         color = tokens.textSecondary,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }
             }
@@ -333,7 +363,7 @@ private fun DashboardBanner(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "Входящий поток сканируется на лету при воспроизведении. Блокированные треки не сохраняются в фонотеку.",
+                text = "Блокировка сохранения треков из выбранных приложений и по ключевым словам в медиасессиях.",
                 style = MaterialTheme.typography.bodySmall,
                 color = tokens.textSecondary,
                 lineHeight = 16.sp
@@ -353,34 +383,40 @@ private fun FilterTabsRow(
     val artistsCount = remember(rules) { rules.count { it.ruleType == BlacklistRuleType.ARTIST } }
     val packagesCount = remember(rules) { rules.count { it.ruleType == BlacklistRuleType.PACKAGE_NAME } }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .horizontalScroll(rememberScrollState()),
+    androidx.compose.foundation.lazy.LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        TabChip(
-            label = "ВСЕ (${rules.size})",
-            selected = activeTab == BlacklistTab.ALL,
-            onClick = { onTabSelected(BlacklistTab.ALL) }
-        )
-        TabChip(
-            label = "ТРЕКИ ($titlesCount)",
-            selected = activeTab == BlacklistTab.TITLES,
-            onClick = { onTabSelected(BlacklistTab.TITLES) }
-        )
-        TabChip(
-            label = "АРТИСТЫ ($artistsCount)",
-            selected = activeTab == BlacklistTab.ARTISTS,
-            onClick = { onTabSelected(BlacklistTab.ARTISTS) }
-        )
-        TabChip(
-            label = "ПРИЛОЖЕНИЯ ($packagesCount)",
-            selected = activeTab == BlacklistTab.PACKAGES,
-            onClick = { onTabSelected(BlacklistTab.PACKAGES) }
-        )
+        item {
+            TabChip(
+                label = "Все (${rules.size})",
+                selected = activeTab == BlacklistTab.ALL,
+                onClick = { onTabSelected(BlacklistTab.ALL) }
+            )
+        }
+        item {
+            TabChip(
+                label = "Треки ($titlesCount)",
+                selected = activeTab == BlacklistTab.TITLES,
+                onClick = { onTabSelected(BlacklistTab.TITLES) }
+            )
+        }
+        item {
+            TabChip(
+                label = "Артисты ($artistsCount)",
+                selected = activeTab == BlacklistTab.ARTISTS,
+                onClick = { onTabSelected(BlacklistTab.ARTISTS) }
+            )
+        }
+        item {
+            TabChip(
+                label = "Приложения ($packagesCount)",
+                selected = activeTab == BlacklistTab.PACKAGES,
+                onClick = { onTabSelected(BlacklistTab.PACKAGES) }
+            )
+        }
     }
 }
 
@@ -407,8 +443,7 @@ private fun TabChip(
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontFamily = FontFamily.Monospace,
+                style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                 ),
                 color = if (selected) tokens.accentPrimary else tokens.textSecondary
@@ -424,18 +459,61 @@ private fun BlacklistRuleCard(
     onDelete: () -> Unit
 ) {
     val tokens = LirixThemeTokens.colors
+    val context = LocalContext.current
+
+    // Resolve human app name using PackageManager
+    val (displayPattern, subPattern) = remember(rule.pattern, rule.ruleType) {
+        if (rule.ruleType == BlacklistRuleType.PACKAGE_NAME) {
+            val trimmed = rule.pattern.trim()
+            try {
+                val pm = context.packageManager
+                val appInfo = try {
+                    pm.getApplicationInfo(trimmed, 0)
+                } catch (_: Exception) {
+                    val allApps = pm.getInstalledApplications(0)
+                    allApps.firstOrNull {
+                        it.packageName.equals(trimmed, ignoreCase = true) ||
+                        pm.getApplicationLabel(it).toString().equals(trimmed, ignoreCase = true) ||
+                        it.packageName.contains(trimmed, ignoreCase = true)
+                    }
+                }
+                if (appInfo != null) {
+                    val label = pm.getApplicationLabel(appInfo).toString()
+                    Pair(label, if (appInfo.packageName != label) appInfo.packageName else null)
+                } else {
+                    val friendly = PACKAGE_FRIENDLY_NAMES[trimmed]
+                        ?: PACKAGE_FRIENDLY_NAMES.entries.firstOrNull { it.key.contains(trimmed, ignoreCase = true) }?.value
+                    if (friendly != null) Pair(friendly, trimmed) else Pair(trimmed.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }, null)
+                }
+            } catch (_: Exception) {
+                val friendly = PACKAGE_FRIENDLY_NAMES[trimmed]
+                if (friendly != null) Pair(friendly, trimmed) else Pair(trimmed, null)
+            }
+        } else {
+            Pair(rule.pattern, null)
+        }
+    }
+
+    // Friendly rule title (no "Подстрока" jargon)
+    val ruleTitle = when (rule.ruleType) {
+        BlacklistRuleType.PACKAGE_NAME -> "Приложение: $displayPattern"
+        BlacklistRuleType.TITLE -> when (rule.matchMode) {
+            BlacklistMatchMode.CONTAINS_IGNORE_CASE -> "Название содержит: $displayPattern"
+            BlacklistMatchMode.EXACT -> "Название совпадает: $displayPattern"
+            BlacklistMatchMode.REGEX -> "Название по шаблону: $displayPattern"
+        }
+        BlacklistRuleType.ARTIST -> when (rule.matchMode) {
+            BlacklistMatchMode.CONTAINS_IGNORE_CASE -> "Исполнитель содержит: $displayPattern"
+            BlacklistMatchMode.EXACT -> "Исполнитель совпадает: $displayPattern"
+            BlacklistMatchMode.REGEX -> "Исполнитель по шаблону: $displayPattern"
+        }
+    }
 
     // Type badge tokens
     val (badgeText, badgeBg, badgeTextColor) = when (rule.ruleType) {
-        BlacklistRuleType.TITLE -> Triple("[ НАЗВАНИЕ ]", tokens.accentPrimary.copy(alpha = 0.15f), tokens.accentPrimary)
-        BlacklistRuleType.ARTIST -> Triple("[ АРТИСТ ]", tokens.accentSecondary.copy(alpha = 0.15f), tokens.accentSecondary)
-        BlacklistRuleType.PACKAGE_NAME -> Triple("[ ПРОВАЙДЕР ]", tokens.accentGlow.copy(alpha = 0.25f), tokens.accentPrimary)
-    }
-
-    val matchModeDesc = when (rule.matchMode) {
-        BlacklistMatchMode.CONTAINS_IGNORE_CASE -> "Подстрока"
-        BlacklistMatchMode.EXACT -> "Точное совпадение"
-        BlacklistMatchMode.REGEX -> "Регулярное выражение (Regex)"
+        BlacklistRuleType.TITLE -> Triple("Трек", tokens.accentPrimary.copy(alpha = 0.15f), tokens.accentPrimary)
+        BlacklistRuleType.ARTIST -> Triple("Артист", tokens.accentSecondary.copy(alpha = 0.15f), tokens.accentSecondary)
+        BlacklistRuleType.PACKAGE_NAME -> Triple("Приложение", tokens.accentGlow.copy(alpha = 0.25f), tokens.accentPrimary)
     }
 
     val statusDesc = if (rule.isEnabled) "Активно" else "На паузе"
@@ -468,9 +546,8 @@ private fun BlacklistRuleCard(
                         Text(
                             text = badgeText,
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 10.sp
+                                fontSize = 11.sp
                             ),
                             color = badgeTextColor,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -489,20 +566,24 @@ private fun BlacklistRuleCard(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = rule.pattern,
+                    text = ruleTitle,
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.Bold
                     ),
                     color = if (rule.isEnabled) tokens.textPrimary else tokens.textMuted
                 )
 
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Text(
-                    text = matchModeDesc,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = tokens.textSecondary
-                )
+                if (subPattern != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subPattern,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp
+                        ),
+                        color = tokens.textMuted
+                    )
+                }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {

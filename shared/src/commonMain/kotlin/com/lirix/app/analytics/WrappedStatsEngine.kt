@@ -90,6 +90,22 @@ data class WrappedStats(
  */
 object WrappedStatsEngine {
 
+    val UNKNOWN_ARTIST_NAMES: Set<String> = setOf(
+        "unknown artist",
+        "unknown",
+        "<unknown>",
+        "неизвестный исполнитель",
+        "неизвестный артист",
+        "неизвестно"
+    )
+
+    fun isUnknownArtist(artist: String?): Boolean {
+        if (artist == null) return true
+        val trimmed = artist.trim()
+        if (trimmed.isEmpty()) return true
+        return trimmed.lowercase() in UNKNOWN_ARTIST_NAMES
+    }
+
     fun calculateEffectiveSessionDuration(
         session: MusicListeningSessionEntity,
         referenceTimestampMs: Long,
@@ -218,8 +234,9 @@ object WrappedStatsEngine {
 
             uniqueTracksCount = sessionCountsByTrack.keys.size
             val uniqueArtists = sessionCountsByTrack.keys
-                .mapNotNull { trackMap[it]?.artist?.trim() }
-                .filter { it.isNotBlank() }
+                .mapNotNull { trackMap[it]?.artist }
+                .map { it.trim() }
+                .filter { !isUnknownArtist(it) }
                 .distinct()
             uniqueArtistsCount = uniqueArtists.size
 
@@ -228,13 +245,15 @@ object WrappedStatsEngine {
 
             val tracksWithLyrics = sessionCountsByTrack.keys.count { key ->
                 val t = trackMap[key]
-                t?.syncedLyrics != null || t?.plainLyrics != null
+                !t?.syncedLyrics.isNullOrBlank() || !t?.plainLyrics.isNullOrBlank()
             }
             lyricsCoverageRatio = if (uniqueTracksCount > 0) tracksWithLyrics.toFloat() / uniqueTracksCount else 0f
 
             val artistAggregates = mutableMapOf<String, Pair<Int, Long>>()
             for ((key, count) in sessionCountsByTrack) {
-                val artistName = trackMap[key]?.artist?.trim()?.ifBlank { "Unknown Artist" } ?: "Unknown Artist"
+                val rawArtist = trackMap[key]?.artist
+                if (isUnknownArtist(rawArtist)) continue
+                val artistName = rawArtist!!.trim()
                 val dur = sessionDurationsByTrack[key] ?: 0L
                 val current = artistAggregates.getOrDefault(artistName, Pair(0, 0L))
                 artistAggregates[artistName] = Pair(current.first + count, current.second + dur)
@@ -285,15 +304,21 @@ object WrappedStatsEngine {
         } else if (timeframe == AnalyticsTimeframe.ALL_TIME && tracks.isNotEmpty()) {
             totalListeningTimeMs = tracks.sumOf { it.totalDurationMs }
             uniqueTracksCount = tracks.map { it.trackKey }.distinct().size
-            uniqueArtistsCount = tracks.map { it.artist.trim() }.filter { it.isNotBlank() }.distinct().size
+            uniqueArtistsCount = tracks
+                .map { it.artist }
+                .filter { !isUnknownArtist(it) }
+                .map { it.trim() }
+                .distinct()
+                .size
             val totalPlays = tracks.sumOf { it.playCount }
             repeatRatio = if (uniqueTracksCount > 0) totalPlays.toFloat() / uniqueTracksCount else 0f
-            val tracksWithLyrics = tracks.count { it.syncedLyrics != null || it.plainLyrics != null }
+            val tracksWithLyrics = tracks.count { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
             lyricsCoverageRatio = if (uniqueTracksCount > 0) tracksWithLyrics.toFloat() / uniqueTracksCount else 0f
 
             val artistAggregates = mutableMapOf<String, Pair<Int, Long>>()
             for (track in tracks) {
-                val artistName = track.artist.trim().ifBlank { "Unknown Artist" }
+                if (isUnknownArtist(track.artist)) continue
+                val artistName = track.artist.trim()
                 val current = artistAggregates.getOrDefault(artistName, Pair(0, 0L))
                 artistAggregates[artistName] = Pair(
                     current.first + track.playCount,

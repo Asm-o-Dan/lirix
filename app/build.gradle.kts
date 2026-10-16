@@ -13,8 +13,8 @@ android {
         applicationId = "com.lirix.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 15
-        versionName = "1.2.1"
+        versionCode = 17
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -60,8 +60,6 @@ android {
         }
         debug {
             isMinifyEnabled = false
-            applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
         }
     }
 
@@ -124,6 +122,16 @@ dependencies {
 
     // Logging
     implementation(libs.timber)
+
+    // QR & Barcode (ZXing)
+    implementation("com.google.zxing:core:3.5.3")
+
+    // CameraX for QR Scanning
+    val cameraxVersion = "1.3.4"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
 
     // Testing
     testImplementation(libs.junit)

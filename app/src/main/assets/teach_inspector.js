@@ -19,19 +19,30 @@
         window.__teachModeEnabled = !!enabled;
     };
 
+    window.setTouchSlop = function(slopPx) {
+        if (typeof slopPx === "number" && slopPx > 0) {
+            SCROLL_THRESHOLD_PX = slopPx;
+        }
+    };
+
     window.clearTeachSelection = function() {
         for (var i = 0; i < window.__selectedParents.length; i++) {
             var p = window.__selectedParents[i];
             p.el.style.outline = p.origOutline;
+            p.el.style.border = p.origBorder || "";
             p.el.style.boxShadow = p.origShadow;
+            p.el.style.backgroundColor = p.origBg || "";
         }
         window.__selectedParents = [];
 
         for (var j = 0; j < window.__strippedChildren.length; j++) {
             var c = window.__strippedChildren[j];
             c.el.style.outline = c.origOutline;
+            c.el.style.border = c.origBorder || "";
             c.el.style.opacity = c.origOpacity;
             c.el.style.textDecoration = c.origTextDec;
+            c.el.style.backgroundImage = c.origBgImg || "";
+            c.el.style.backgroundColor = c.origBg || "";
         }
         window.__strippedChildren = [];
 
@@ -86,17 +97,48 @@
 
     function extractCleanText(rootEl, strippedElements) {
         if (!rootEl) return "";
-        // Clone node to safely remove stripped children without mutating live DOM
+
+        // Strategy 1: Read innerText directly from the live attached DOM element.
+        // In Chromium/Blink, live innerText evaluates CSS layout and preserves exact newlines
+        // from <br>, <p>, <div>, <pre>, and whitespace around rendered blocks.
+        var liveText = "";
+        try {
+            var hiddenNodes = [];
+            for (var s = 0; s < (strippedElements || []).length; s++) {
+                var sNode = strippedElements[s].el;
+                if (sNode && sNode.style) {
+                    hiddenNodes.push({ el: sNode, prevDisplay: sNode.style.display });
+                    sNode.style.display = "none";
+                }
+            }
+            if (rootEl.innerText && rootEl.innerText.trim().length > 0) {
+                liveText = rootEl.innerText.trim();
+            }
+            // Restore visibility of stripped elements
+            for (var h = 0; h < hiddenNodes.length; h++) {
+                hiddenNodes[h].el.style.display = hiddenNodes[h].prevDisplay;
+            }
+        } catch (e) {}
+
+        if (liveText.length > 0 && liveText.indexOf("\n") !== -1) {
+            // Live DOM provided proper newlines! Normalize excessive blank lines and unstick glued chords.
+            return liveText
+                .replace(/\r\n/g, "\n")
+                .replace(/\n\s*\n\s*\n+/g, "\n\n")
+                .replace(/\b([A-H][#b]?(?:m|maj|min|dim|aug|sus|add|\d)*)([А-Яа-яA-Za-z])/g, "$1 $2");
+        }
+
+        // Strategy 2: Fallback clone processing with explicit <br> -> \n, block breaks, and chord spacing
         var clone = rootEl.cloneNode(true);
 
-        // Remove scripts, styles, iframes, and ads
+        // Remove scripts, styles, iframes, noscript, and svg
         var autoRemoves = clone.querySelectorAll("script, style, iframe, noscript, svg");
         for (var i = 0; i < autoRemoves.length; i++) {
             autoRemoves[i].remove();
         }
 
-        // Remove all user-designated stripped elements
-        for (var j = 0; j < strippedElements.length; j++) {
+        // Remove user-designated stripped elements
+        for (var j = 0; j < (strippedElements || []).length; j++) {
             var strippedNode = strippedElements[j].el;
             var selector = synthesizeSelector(strippedNode);
             try {
@@ -107,7 +149,35 @@
             } catch (e) {}
         }
 
+        // Replace <br> and <br/> with newline text nodes
+        var brs = clone.querySelectorAll("br");
+        for (var b = 0; b < brs.length; b++) {
+            brs[b].replaceWith(document.createTextNode("\n"));
+        }
+
+        // Add newlines around block-level elements so they don't concatenate into a single line
+        var blocks = clone.querySelectorAll("p, div, li, tr, pre, blockquote, h1, h2, h3, h4, h5, h6");
+        for (var bl = 0; bl < blocks.length; bl++) {
+            blocks[bl].prepend(document.createTextNode("\n"));
+            blocks[bl].append(document.createTextNode("\n"));
+        }
+
+        // Ensure spaces around inline chord tags (span, b, strong, a, etc.) so chords don't glue to words
+        var inlines = clone.querySelectorAll("span, b, strong, a, i, em");
+        for (var inl = 0; inl < inlines.length; inl++) {
+            var el = inlines[inl];
+            if (el.nextSibling && el.nextSibling.nodeType === Node.TEXT_NODE) {
+                if (!/^\s/.test(el.nextSibling.textContent) && !/\s$/.test(el.textContent)) {
+                    el.after(document.createTextNode(" "));
+                }
+            }
+        }
+
         var text = (clone.innerText || clone.textContent || "").trim();
+        text = text
+            .replace(/\r\n/g, "\n")
+            .replace(/\n\s*\n\s*\n+/g, "\n\n")
+            .replace(/\b([A-H][#b]?(?:m|maj|min|dim|aug|sus|add|\d)*)([А-Яа-яA-Za-z])/g, "$1 $2");
         return text;
     }
 
@@ -179,17 +249,25 @@
 
         // Restore current element styling
         lastParent.el.style.outline = lastParent.origOutline;
+        lastParent.el.style.border = lastParent.origBorder || "";
         lastParent.el.style.boxShadow = lastParent.origShadow;
+        lastParent.el.style.backgroundColor = lastParent.origBg || "";
 
-        // Style the expanded parent
+        // Style the expanded parent (solid purple 2px #8B5CF6)
         var origOutline = parentEl.style.outline || "";
+        var origBorder = parentEl.style.border || "";
         var origShadow = parentEl.style.boxShadow || "";
-        parentEl.style.outline = "3px solid #B388FF";
-        parentEl.style.boxShadow = "0 0 16px rgba(179, 136, 255, 0.6)";
+        var origBg = parentEl.style.backgroundColor || "";
+        parentEl.style.outline = "2px solid #8B5CF6";
+        parentEl.style.border = "2px solid #8B5CF6";
+        parentEl.style.backgroundColor = "rgba(139, 92, 246, 0.1)";
+        parentEl.style.boxShadow = "0 0 12px rgba(139, 92, 246, 0.35)";
 
         lastParent.el = parentEl;
         lastParent.origOutline = origOutline;
+        lastParent.origBorder = origBorder;
         lastParent.origShadow = origShadow;
+        lastParent.origBg = origBg;
 
         notifySelectionChange();
     };
@@ -213,23 +291,35 @@
                 // Restore child
                 var restored = window.__strippedChildren.splice(strippedIdx, 1)[0];
                 restored.el.style.outline = restored.origOutline;
+                restored.el.style.border = restored.origBorder || "";
                 restored.el.style.opacity = restored.origOpacity;
                 restored.el.style.textDecoration = restored.origTextDec;
+                restored.el.style.backgroundImage = restored.origBgImg || "";
+                restored.el.style.backgroundColor = restored.origBg || "";
             } else {
-                // Strip child
+                // Strip child (Dashed border + diagonal hatched fill + line-through for color-blindness accessibility)
                 var origOutline = target.style.outline || "";
+                var origBorder = target.style.border || "";
                 var origOpacity = target.style.opacity || "";
                 var origTextDec = target.style.textDecoration || "";
+                var origBgImg = target.style.backgroundImage || "";
+                var origBg = target.style.backgroundColor || "";
 
                 target.style.outline = "2px dashed #EF4444";
-                target.style.opacity = "0.6";
+                target.style.border = "2px dashed #EF4444";
+                target.style.backgroundColor = "rgba(239, 68, 68, 0.1)";
+                target.style.backgroundImage = "repeating-linear-gradient(45deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.15) 6px, transparent 6px, transparent 12px)";
+                target.style.opacity = "0.7";
                 target.style.textDecoration = "line-through";
 
                 window.__strippedChildren.push({
                     el: target,
                     origOutline: origOutline,
+                    origBorder: origBorder,
                     origOpacity: origOpacity,
-                    origTextDec: origTextDec
+                    origTextDec: origTextDec,
+                    origBgImg: origBgImg,
+                    origBg: origBg
                 });
             }
         } else {
@@ -251,28 +341,39 @@
                 // Deselect parent
                 var removedParent = window.__selectedParents.splice(parentIdx, 1)[0];
                 removedParent.el.style.outline = removedParent.origOutline;
+                removedParent.el.style.border = removedParent.origBorder || "";
                 removedParent.el.style.boxShadow = removedParent.origShadow;
+                removedParent.el.style.backgroundColor = removedParent.origBg || "";
 
                 // Clean up any stripped children that belonged to this parent
                 for (var k = window.__strippedChildren.length - 1; k >= 0; k--) {
                     if (removedParent.el.contains(window.__strippedChildren[k].el)) {
                         var c = window.__strippedChildren.splice(k, 1)[0];
                         c.el.style.outline = c.origOutline;
+                        c.el.style.border = c.origBorder || "";
                         c.el.style.opacity = c.origOpacity;
                         c.el.style.textDecoration = c.origTextDec;
+                        c.el.style.backgroundImage = c.origBgImg || "";
+                        c.el.style.backgroundColor = c.origBg || "";
                     }
                 }
             } else {
-                // Select new parent container
+                // Select new parent container (solid purple 2px #8B5CF6)
                 var pOrigOutline = target.style.outline || "";
+                var pOrigBorder = target.style.border || "";
                 var pOrigShadow = target.style.boxShadow || "";
-                target.style.outline = "3px solid #B388FF";
-                target.style.boxShadow = "0 0 16px rgba(179, 136, 255, 0.6)";
+                var pOrigBg = target.style.backgroundColor || "";
+                target.style.outline = "2px solid #8B5CF6";
+                target.style.border = "2px solid #8B5CF6";
+                target.style.backgroundColor = "rgba(139, 92, 246, 0.1)";
+                target.style.boxShadow = "0 0 12px rgba(139, 92, 246, 0.35)";
 
                 window.__selectedParents.push({
                     el: target,
                     origOutline: pOrigOutline,
-                    origShadow: pOrigShadow
+                    origBorder: pOrigBorder,
+                    origShadow: pOrigShadow,
+                    origBg: pOrigBg
                 });
             }
         }

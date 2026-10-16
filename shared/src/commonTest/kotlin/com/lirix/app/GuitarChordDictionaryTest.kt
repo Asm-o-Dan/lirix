@@ -74,4 +74,25 @@ class GuitarChordDictionaryTest {
         val chords = GuitarChordDictionary.extractChordsFromText(songText)
         assertEquals(listOf("Am", "Dm", "E7", "F", "C"), chords)
     }
+
+    @Test
+    fun testExtractChordsWithSharpsAndVocalWords() {
+        // Real track case (Sub Urban - Cradles & Gorillaz - Feel Good Inc)
+        val songText = """
+            A#m F F# C# x2
+
+            A#m F F# C#
+            I live inside my own world of make-believe
+            Kids screaming in their cradles, profanities
+            I see the world through eyes covered in ink and bleach
+            Cross out the ones who heard my cries and watched me weep
+            I love everything
+            Fire's spreading all around my room, my world's so bright
+            It's hard to breathe but that's alright, hush
+        """.trimIndent()
+
+        val chords = GuitarChordDictionary.extractChordsFromText(songText)
+        // Must preserve sharps and not include English words like "A"
+        assertEquals(listOf("A#m", "F", "F#", "C#"), chords)
+    }
 }
