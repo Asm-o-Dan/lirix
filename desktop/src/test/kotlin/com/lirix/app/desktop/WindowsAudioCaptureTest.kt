@@ -132,7 +132,7 @@ class WindowsAudioCaptureTest {
     fun testDesktopCastSourceManager_FullFlow() = runBlocking {
         val mockTransport = MockConnectTransport()
         val capture = WindowsWasapiAudioCapture(osName = "Windows 11")
-        val manager = DesktopCastSourceManager(audioCaptureEngine = capture)
+        val manager = DesktopCastSourceManager(audioCaptureEngine = capture, scope = this)
 
         assertFalse(manager.isCasting.value)
 
@@ -152,8 +152,9 @@ class WindowsAudioCaptureTest {
         val audioData = ByteArray(3840) { 1 }
         capture.feedRawAudio(audioData)
 
-        // Даём корутине отправить датаграммы
-        kotlinx.coroutines.delay(50L)
+        // Drain the injected event loop; this unit test checks packet metadata,
+        // not the ordering of independent tasks on a real IO dispatcher.
+        kotlinx.coroutines.yield()
 
         assertEquals(2, mockTransport.sentDatagrams.size)
         val d1 = CastDatagramCodec.decode(mockTransport.sentDatagrams[0])

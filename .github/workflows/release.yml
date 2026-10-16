@@ -5,11 +5,13 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+
 jobs:
-  release:
+  android:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    timeout-minutes: 30
 
     steps:
       - name: Checkout Repository
@@ -25,26 +27,64 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --no-daemon
-
-      - name: Build Release APK
-        run: ./gradlew assembleRelease --no-daemon
+      - name: Test and build Android
+        run: ./gradlew :shared:desktopTest :app:testDebugUnitTest :app:assembleRelease --no-daemon
 
       - name: Rename APK for Release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           mkdir -p release-artifacts
-          cp app/build/outputs/apk/release/app-release.apk release-artifacts/lirix-${{ github.ref_name }}.apk
+          cp app/build/outputs/apk/release/app-release.apk "release-artifacts/lirix-${RELEASE_TAG}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Test and package Windows
+        run: .\gradlew.bat :desktop:test :desktop:packageDistributionForCurrentOS --no-daemon --no-configuration-cache
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: |
+            desktop/build/compose/binaries/main/exe/*.exe
+            desktop/build/compose/binaries/main/msi/*.msi
+          if-no-files-found: error
+
+  release:
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+      - name: Calculate checksums
+        run: |
           cd release-artifacts
-          sha256sum lirix-${{ github.ref_name }}.apk > SHA256SUMS.txt
+          find . -type f \( -name '*.apk' -o -name '*.exe' -o -name '*.msi' \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            release-artifacts/lirix-${{ github.ref_name }}.apk
-            release-artifacts/SHA256SUMS.txt
-          generate_release_notes: true
+          files: release-artifacts/**
+          fail_on_unmatched_files: true
+          body_path: .sdd/releases/${{ github.ref_name }}.md
           name: "Lirix ${{ github.ref_name }}"
           draft: false
-          prerelease: false
+          prerelease: true

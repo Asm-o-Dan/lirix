@@ -140,8 +140,8 @@ fun LibraryScreen(
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
 
-    // Stable AccentFallback
-    val stableAccent = if (lirixColors.isDark) LirixThemeTokens.AccentFallbackDark else LirixThemeTokens.AccentFallbackLight
+    // Dynamic theme accent
+    val accentPrimary = lirixColors.accentPrimary
 
     val recentTracks by db.musicDao().observeRecentTracks().collectAsStateWithLifecycle(initialValue = emptyList())
     val hiddenTrackKeys = remember { mutableStateListOf<String>() }
@@ -250,7 +250,7 @@ fun LibraryScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
-                            tint = stableAccent,
+                            tint = accentPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     },
@@ -266,7 +266,7 @@ fun LibraryScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = lirixColors.surfacePrimary,
                         unfocusedContainerColor = lirixColors.surfacePrimary,
-                        focusedBorderColor = stableAccent,
+                        focusedBorderColor = accentPrimary,
                         unfocusedBorderColor = lirixColors.borderSubtle,
                         focusedTextColor = lirixColors.textPrimary,
                         unfocusedTextColor = lirixColors.textPrimary
@@ -307,10 +307,10 @@ fun LibraryScreen(
                         modifier = Modifier
                             .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(lirixColors.pillCornerRadius))
-                            .background(if (isSelected) stableAccent else lirixColors.surfaceCard)
+                            .background(if (isSelected) accentPrimary else lirixColors.surfaceCard)
                             .border(
                                 1.dp,
-                                if (isSelected) stableAccent else lirixColors.borderSubtle,
+                                if (isSelected) accentPrimary else lirixColors.borderSubtle,
                                 RoundedCornerShape(lirixColors.pillCornerRadius)
                             )
                             .clickable {
@@ -325,7 +325,7 @@ fun LibraryScreen(
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             ),
-                            color = if (isSelected) lirixColors.appBackground else lirixColors.textPrimary
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else lirixColors.textPrimary
                         )
                     }
                 }
@@ -399,7 +399,7 @@ fun LibraryScreen(
                                 items(filteredTracks, key = { it.trackKey }) { track ->
                                     LibraryTrackItemRow(
                                         track = track,
-                                        stableAccent = stableAccent,
+                                        accentPrimary = accentPrimary,
                                         onClick = { onTrackSelected(track) },
                                         onLongClick = { activeBottomSheetTrack = track },
                                         onToggleFavorite = {
@@ -500,7 +500,7 @@ fun LibraryScreen(
 @Composable
 private fun LibraryTrackItemRow(
     track: TrackEntity,
-    stableAccent: Color,
+    accentPrimary: Color,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onToggleFavorite: () -> Unit,
@@ -633,7 +633,7 @@ private fun LibraryTrackItemRow(
                                 fontFamily = GolosTextFontFamily,
                                 fontFeatureSettings = FontFeature.tabularFigures()
                             ),
-                            color = stableAccent
+                            color = accentPrimary
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                     }
@@ -642,7 +642,7 @@ private fun LibraryTrackItemRow(
                         Icon(
                             imageVector = Icons.Default.Favorite,
                             contentDescription = "В избранном",
-                            tint = stableAccent,
+                            tint = tokens.accentSecondary,
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -652,7 +652,7 @@ private fun LibraryTrackItemRow(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (!track.syncedLyrics.isNullOrBlank()) {
-                        BorderBadge(text = "Синхронно", borderColor = stableAccent)
+                        BorderBadge(text = "Синхронно", borderColor = accentPrimary)
                     } else if (!track.plainLyrics.isNullOrBlank()) {
                         BorderBadge(
                             text = "Текст",

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -39,6 +40,7 @@ import com.lirix.app.ui.theme.LirixThemeTokens
 
 enum class PlayerEmptyStateType {
     NO_ACTIVE_PLAYER,
+    SEARCHING_LYRICS,
     LYRICS_NOT_FOUND,
     UNSYNCED_LYRICS
 }
@@ -130,6 +132,54 @@ fun EmptyPlayerStateView(
                             )
                         }
                     }
+                }
+
+                PlayerEmptyStateType.SEARCHING_LYRICS -> {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(tokens.surfaceCard)
+                            .border(1.dp, tokens.borderSubtle, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(28.dp),
+                            color = tokens.accentPrimary,
+                            strokeWidth = 2.5.dp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Ищем текст песни...",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        ),
+                        color = tokens.textPrimary,
+                        textAlign = TextAlign.Center
+                    )
+
+                    if (!trackTitle.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (!trackArtist.isNullOrBlank()) "$trackTitle — $trackArtist" else trackTitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = tokens.textSecondary,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Проверяем базу Lirix и онлайн-источники...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = tokens.textSecondary,
+                        textAlign = TextAlign.Center
+                    )
                 }
 
                 PlayerEmptyStateType.LYRICS_NOT_FOUND -> {

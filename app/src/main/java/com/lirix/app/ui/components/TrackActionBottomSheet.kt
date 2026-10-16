@@ -54,7 +54,7 @@ fun TrackActionBottomSheet(
     val tokens = LirixThemeTokens.colors
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val stableAccent = if (tokens.isDark) LirixThemeTokens.AccentFallbackDark else LirixThemeTokens.AccentFallbackLight
+    val accentPrimary = tokens.accentPrimary
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -119,7 +119,7 @@ fun TrackActionBottomSheet(
             // Action 1: Toggle Favorite
             ActionRowItem(
                 icon = if (track.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                iconTint = if (track.isFavorite) tokens.accentSecondary else stableAccent,
+                iconTint = if (track.isFavorite) tokens.accentSecondary else accentPrimary,
                 title = if (track.isFavorite) "Убрать из избранного" else "В избранное",
                 onClick = {
                     onToggleFavorite(track)

@@ -110,9 +110,9 @@ object CastDatagramCodec {
  * 5. Учёт отчётов удалённого узла `CastStatus` (задержка приемника, джиттер, потери пакетов).
  */
 class DesktopCastSourceManager(
-    val audioCaptureEngine: AudioCaptureEngine = WindowsWasapiAudioCapture()
+    val audioCaptureEngine: AudioCaptureEngine = WindowsWasapiAudioCapture(),
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO)
 ) {
-    private val scope = CoroutineScope(Dispatchers.IO)
 
     private val _isCasting = MutableStateFlow(false)
     val isCasting: StateFlow<Boolean> = _isCasting.asStateFlow()

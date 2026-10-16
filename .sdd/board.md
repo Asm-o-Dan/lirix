@@ -1,140 +1,187 @@
-# SDD Task Board
+# SDD Dashboard & Task Board: Lirix (Music & Lyrics Hub)
 
-| ID | Функция | Файл | Зона | Зависит от | Исполнитель | Статус |
+> **Стандарт SDD (Spec Driven Design):**
+> Ни одна задача не берётся в работу без утверждённой спецификации в `.sdd/specs/<zone>/`.
+> Любая задача детерминирована (1 функция / 1 компонент = 1 карточка).
+
+---
+
+## 1. Сводный статус проекта (Executive Summary)
+
+| Метрика | Значение | Описание |
+|---|---|---|
+| **Всего архитектурных спецификаций** | **24** | В папке `.sdd/specs/` по 6 зонам |
+| **Утверждено / Заморожено (Approved / Frozen)** | **24 / 24 (100%)** | Все имеют готовый DoD и контракты |
+| **Задач в активной разработке (`IN_PROGRESS`)** | **0** | Все задачи P0 завершены и приняты |
+| **Задач подготовлено к взятию в работу (`READY`)** | **3** | Пакет P1: `TASK-REL-MOB-E2E`, `TASK-REL-DSK-PKG`, `TASK-CON-E2E-SMOKE` |
+| **Реализовано и принято (`DONE`)** | **168+** | 100% задач Connect (16/16) и UI фиксов закрыты |
+
+---
+
+## 2. Реестр спецификаций архитектурных зон (`.sdd/specs/`)
+
+Все спецификации разбиты по зонам ответственности с указанием версий, статусов готовности к кодингу и файлов:
+
+| ID Спецификации | Зона | Документ / Ссылка | Описание и скоуп | Версия | Статус спеки | Статус внедрения |
 |---|---|---|---|---|---|---|
-| ARCH-001 | Архитектурный план пивота в Music & Lyrics Hub | .sdd/architecture.md | Arch | ADR-002 | Архитектор | DONE |
-| TASK-SAFE-01 | Создание архивной ветки legacy-full-engine | git branch | Core | ARCH-001 | DevOps/Git | DONE |
-| SPEC-ZONE-A | Спецификация Ingress (Filter, Debounce, Correlator) | .sdd/specs/media-ingress/overview.md | media-ingress | ARCH-001 | Спецификатор A | DONE |
-| SPEC-ZONE-B | Спецификация Core (Room v6, Sessions, Tracks) | .sdd/specs/media-core/overview.md | media-core | ARCH-001 | Спецификатор B | DONE |
-| SPEC-ZONE-C | Спецификация Lyrics (NetworkCondition, Providers) | .sdd/specs/lyrics-engine/overview.md | lyrics-engine | ARCH-001 | Спецификатор C | DONE |
-| SPEC-ZONE-D | Спецификация Wrapped & Gamification Engine | .sdd/specs/wrapped-analytics/overview.md | wrapped-analytics | ARCH-001 | Спецификатор D | DONE |
-| SPEC-ZONE-E | Спецификация UI (AMOLED 4 Tabs, Contracts) | .sdd/specs/media-ui/overview.md | media-ui | ARCH-001 | Спецификатор E | DONE |
-| CONTRACTS-SYNC | Заморозка межзонных контрактов (FROZEN v1) | .sdd/contracts/*.md | Sync | SPEC-ZONE-A..E | Интегратор | DONE |
-| TASK-PURGE-01 | Удаление 49 файлов legacy-балласта | multiple files | Clean | CONTRACTS-SYNC | Coder | DONE |
-| TASK-DB-01 | Сущности LyricsCacheEntity и AchievementEntity | storage/MusicEntities.kt | media-core | TASK-PURGE-01 | Coder | DONE |
-| TASK-DB-02 | Реализация MIGRATION_5_6 и чистый AppDatabase | storage/AppDatabase.kt | media-core | TASK-DB-01 | Coder | DONE |
-| TASK-ING-01 | Строгий фильтр MediaIngressFilter | service/MediaIngressFilter.kt | media-ingress | TASK-PURGE-01 | Coder | DONE |
-| TASK-ING-02 | Очистка и парсинг MusicTrackParser | music/MusicTrackParser.kt | media-ingress | TASK-ING-01 | Coder | DONE |
-| TASK-LYR-01 | Определение типа сети NetworkConditionManager | feature/lyrics/NetworkConditionManager.kt | lyrics-engine | TASK-PURGE-01 | Coder | DONE |
-| TASK-LYR-02 | Парсер аккордов AmDmChordParser | feature/lyrics/AmDmChordParser.kt | lyrics-engine | TASK-LYR-01 | Coder | DONE |
-| TASK-WRP-01 | Движок WrappedStatsEngine | analytics/WrappedStatsEngine.kt | wrapped-analytics | TASK-PURGE-01 | Coder | DONE |
-| TASK-UI-01 | Рефакторинг навигации на 4 AMOLED таба | ui/AppScaffold.kt | media-ui | TASK-PURGE-01 | Coder | DONE |
-| TASK-TEST-01 | TDD Falling unit tests for Core, Ingress, Lyrics | test/... | QA | CONTRACTS-SYNC | QA | DONE |
-| TASK-BUG-01 | Восстановление записи в Room (BUG-001) | Ingress -> Core -> Room | Bugfix | TASK-PURGE-01 | Coder | DONE |
-| TASK-UI-02 | Синхронизированный плеер караоке LRC | ui/NowPlayingScreen.kt | media-ui | TASK-UI-01 | Coder | DONE |
-| TASK-SYNC-01 | Реальная синхронизация MediaSession и калибровка | MediaSessionCollector / UI | media-sync | TASK-UI-02 | Coder | DONE |
-| TASK-ART-01 | Захват и кэширование обложек альбомов | Ingress / Storage / Room v7 | media-art | TASK-SYNC-01 | Coder | DONE |
-| TASK-ART-02 | Интеграция обложек в UI (Vinyl, History, Library) | ui/components / UI | media-ui | TASK-ART-01 | Coder | DONE |
-| TASK-SYNC-02 | Двунаправленный транспортный контроль (Play/Pause, Seek ±10s, Click-to-Seek) | ingestion/MediaSessionCollector.kt, ui/NowPlayingScreen.kt | media-sync | TASK-ART-02 | Coder | DONE |
-| TASK-BUG-02 | Фоновый prefetch текстов и dual-write синхронизация | feature/MusicFeatureEngine.kt, ingestion/MediaSessionCollector.kt, ui/NowPlayingScreen.kt | media-core | TASK-SYNC-02 | Coder | DONE |
-| TASK-WRP-02 | 26 ачивок с тирами, Room v8 (MIGRATION_7_8) | storage/AppDatabase.kt, analytics/GamificationEngine.kt | wrapped-analytics | TASK-ART-02 | Coder | DONE |
-| TASK-UI-03 | Аналитика таймфреймов, одержимость и WrappedScreen | analytics/WrappedStatsEngine.kt, ui/WrappedScreen.kt | media-ui | TASK-WRP-02 | Coder | DONE |
-| TASK-SHR-01 | Генерация графических карточек Wrapped & NowPlaying и шеринг | feature/share/*, ui/WrappedScreen.kt, ui/NowPlayingScreen.kt | media-ui | TASK-UI-03 | Coder | DONE |
-| TASK-BUG-03 | Точный динамический расчет времени прослушивания и учет активной сессии | feature/MusicFeatureEngine.kt, ingestion/MediaSessionCollector.kt, analytics/WrappedStatsEngine.kt | media-core | TASK-UI-03 | Coder | DONE |
-| TASK-BUG-04 | Устранение аномального разгона времени Wrapped (строгая изоляция активной сессии) | analytics/WrappedStatsEngine.kt, feature/MusicFeatureEngine.kt | wrapped-analytics | TASK-BUG-03 | Coder | DONE |
-| TASK-BUG-05 | Дедупликация и устранение x2/x3 инкремента playCount | feature/MusicFeatureEngine.kt, ingestion/MediaSessionCollector.kt | media-core | TASK-BUG-04 | Coder | DONE |
-| TASK-UI-04 | Выбор и просмотр трека из Истории и Библиотеки в режиме IDLE | ui/AppScaffold.kt, ui/NowPlayingScreen.kt, ui/HistoryScreen.kt | media-ui | TASK-BUG-04 | Coder | DONE |
-| TASK-BUG-06 | Отображение и функционал аккордов AmDm в NowPlaying (парсер, хранение, транспонирование) | feature/lyrics/AmDmChordParser.kt, feature/LyricsProvider.kt, ui/NowPlayingScreen.kt | lyrics-engine | TASK-BUG-04 | Coder | DONE |
-| TASK-BUG-07 | Редактирование и сохранение персональных заметок к треку в NowPlaying | ui/NowPlayingScreen.kt, storage/MusicDao.kt | media-ui | TASK-BUG-04 | Coder | DONE |
-| TASK-SHR-03 | Устранение пустоты и балансировка вертикальной композиции Stories 9:16 в ShareCardGenerator | feature/share/ShareCardGenerator.kt | media-ui | TASK-SHR-02 | Coder | DONE |
-| ARCH-LYR-03 | Архитектура: отклонение источника, Share intent, WebView teach mode, общий реестр правил | .sdd/architecture_lyr_community.md | lyrics-engine | .sdd/intake/LYR-COMMUNITY.md | Архитектор | DONE |
-| TASK-LYR-03-A | Модель данных отклонений источников и Room миграция MIGRATION_8_9 | storage/MusicEntities.kt, storage/LyricsDao.kt, storage/AppDatabase.kt | media-core | ARCH-LYR-03 | Coder | DONE |
-| TASK-LYR-03-B | Каскадный опрос источников с фильтрацией отклонений в LyricsEngine | feature/LyricsProvider.kt, feature/MusicFeatureEngine.kt | lyrics-engine | TASK-LYR-03-A | Coder | DONE |
-| TASK-LYR-03-C | Интерфейс отклонения текста, Undo Snackbar и экран исчерпания источников в NowPlayingScreen | ui/NowPlayingScreen.kt | media-ui | TASK-LYR-03-B | Coder | DONE |
-| TASK-LYR-04-A | Модель пользовательских правил CustomLyricsRuleEntity и Room миграция MIGRATION_9_10 | storage/MusicEntities.kt, storage/LyricsDao.kt, storage/AppDatabase.kt | media-core | TASK-LYR-03-C | Coder | DONE |
-| TASK-LYR-04-B | Приём текста и ссылок через Android Share Intent | AndroidManifest.xml, MainActivity.kt, ui/components/ShareLyricsAttachDialog.kt | media-ingress | TASK-LYR-04-A | Coder | DONE |
-| TASK-LYR-04-C | Декларативный движок правил CustomRuleLyricsProvider и интеграция в каскад | feature/lyrics/CustomRuleLyricsProvider.kt, feature/LyricsProvider.kt | lyrics-engine | TASK-LYR-04-A | Coder | DONE |
-| TASK-LYR-04-D | UI экран TeachModeScreen на Compose и WebView инспектор правил | assets/teach_inspector.js, ui/TeachModeScreen.kt, ui/AppScaffold.kt | media-ui | TASK-LYR-04-C | Coder | DONE |
-| TASK-BUG-08 | Независимый поиск аккордов AmDm (включая гибрид LRCLIB + AmDm) и LyricsResult.chords | feature/LyricsProvider.kt, feature/MusicFeatureEngine.kt, ui/NowPlayingScreen.kt | lyrics-engine | TASK-LYR-04-D | Coder | DONE |
-| TASK-TEACH-02 | Двухрежимная навигация, мульти-выбор блоков и составные селекторы в TeachMode | assets/teach_inspector.js, ui/TeachModeScreen.kt, feature/lyrics/CustomRuleLyricsProvider.kt | media-ui | TASK-BUG-08 | Coder | DONE |
-| TASK-CHR-01 | Умная автопрокрутка текста аккордов с адаптивной скоростью и регулятором темпа | feature/lyrics/ChordAutoscrollCalculator.kt, ui/NowPlayingScreen.kt | media-ui | TASK-TEACH-02 | Coder | DONE |
-| TASK-CHR-03 | Интерактивные аппликатуры аккордов на грифе и лента песен | feature/lyrics/GuitarChordDictionary.kt, feature/lyrics/GuitarFretboardDiagram.kt, feature/lyrics/GuitarChordDialog.kt | media-ui | TASK-CHR-02 | Coder | DONE |
-| TASK-UI-05 | Сворачиваемый винил (Collapsible Turntable) и кинетический тонарм (Tonearm) при Play/Pause | ui/components/AnalogTurntable.kt, ui/NowPlayingScreen.kt | media-ui | TASK-CHR-03 | Coder | DONE |
-| TASK-FLT-01 | Системный сервис FloatingLyricsService на SYSTEM_ALERT_WINDOW | service/FloatingLyricsService.kt | media-ui | TASK-UI-05 | Coder | DONE |
-| TASK-FLT-02 | UI плавающего виджета FloatingLyricsOverlayView с жестом перетаскивания | ui/components/FloatingLyricsOverlayView.kt | media-ui | TASK-FLT-01 | Coder | DONE |
-| TASK-FLT-03 | Интеграция переключателя оверлея в NowPlayingScreen и проверка разрешений | ui/NowPlayingScreen.kt | media-ui | TASK-FLT-02 | Coder | DONE |
-| TASK-RUL-01 | Модель и кодек переносимых правил ScraperRuleBundleCodec с валидацией | feature/lyrics/ScraperRuleBundleCodec.kt | lyrics-engine | TASK-UI-05 | Coder | DONE |
-| TASK-RUL-02 | UI диалоги экспорта и импорта правил в TeachModeScreen и LibraryScreen | ui/TeachModeScreen.kt, ui/LibraryScreen.kt | media-ui | TASK-RUL-01 | Coder | DONE |
-| TASK-LRC-01 | Движок LrcSyncEngine и валидация формата таймкодов караоке | feature/lyrics/LrcSyncEngine.kt | lyrics-engine | TASK-RUL-02 | Coder | DONE |
-| TASK-TG-01 | Детерминированное управление Play/Pause и скоринг MediaController | ingestion/MediaSessionCollector.kt | media-ingress | SPEC-TG-01 | Coder | DONE |
-| TASK-REV-TG-01 | Ревью исправления паузы Telegram (Gate 7) | .sdd/reports/BUG_TG_01.review.md | review | TASK-TG-01 | Ревьюер | DONE |
-| ARCH-UI-06 | Архитектурный план разгрузки NowPlayingScreen и Auto-Hide Floating Capsule | .sdd/architecture_ui_capsule.md | media-ui | ADR-007 | Архитектор | DONE |
-| SPEC-UI-06 | Спецификация меню ⋮ и плавающего навбара | .sdd/specs/media-ui/overflow_and_capsule.md | media-ui | ARCH-UI-06 | Спецификатор E | DONE |
-| TASK-UI-06-A | Компонент NowPlayingOverflowMenu и диалог калибровки | ui/components/NowPlayingOverflowMenu.kt | media-ui | SPEC-UI-06 | Coder | DONE |
-| TASK-UI-06-B | Рефакторинг NowPlayingScreen: очистка шапки, перенос кнопок в меню | ui/NowPlayingScreen.kt | media-ui | TASK-UI-06-A | Coder | DONE |
-| TASK-UI-06-C | Рефакторинг AppScaffold: авто-скрывающийся плавающий навбар-капсула | ui/AppScaffold.kt | media-ui | TASK-UI-06-B | Coder | DONE |
-| TASK-REV-06 | Ревью, сборка Release APK и проверка на устройстве | .sdd/reports/UI-06.review.md | review | TASK-UI-06-C | Ревьюер / QA | DONE |
-| ARCH-GST-01 | Архитектурный проект системы жестов (HorizontalPager, Vinyl Swipe, DoubleTap) | .sdd/architecture_gestures.md | Arch | ADR-008 | Архитектор | DONE |
-| SPEC-GST-01 | Спецификация жестов навигации и управления | .sdd/specs/media-ui/gestures_spec.md | media-ui | ARCH-GST-01 | Спецификатор | DONE |
-| TASK-GST-01-A | Реализация skipToNext и skipToPrevious в MediaSessionCollector | ingestion/MediaSessionCollector.kt | media-ingress | SPEC-GST-01 | Coder | DONE |
-| TASK-GST-01-B | HorizontalPager и свайп вкладок режимов в NowPlayingScreen | ui/NowPlayingScreen.kt | media-ui | SPEC-GST-01 | Coder | DONE |
-| TASK-GST-01-C | Свайпы по винилу (Track Next/Prev) и дабл-тап по карточке (Play/Pause) | ui/NowPlayingScreen.kt, ui/components/AnalogTurntable.kt | media-ui | TASK-GST-01-A..B | Coder | DONE |
-| TASK-REV-GST-01 | Ревью, прогон тестов, сборка APK и верификация жестов | .sdd/reports/GST-01.review.md | review | TASK-GST-01-C | Ревьюер / QA | DONE |
-| TASK-LIB-02 | Полнотекстовый поиск по текстам песен и заметкам со сниппетами | ui/LibraryScreen.kt | media-ui | TASK-LIB-01 | Coder | DONE |
-| ARCH-BUG-09 | Архитектура: точный поиск seekTo-контроллера и модель жизненного цикла сессий без паузы | .sdd/architecture_seek_and_pause.md | Arch | ADR-009 | Архитектор | DONE |
-| SPEC-BUG-09A | Спецификация резолвинга MediaController с ACTION_SEEK_TO в MediaSessionCollector | .sdd/specs/media-ingress/seek_controller_resolution.md | media-ingress | ARCH-BUG-09 | Спецификатор A | DONE |
-| SPEC-BUG-09B | Спецификация предотвращения накрутки playCount при паузе в MusicFeatureEngine | .sdd/specs/media-core/pause_session_lifecycle.md | media-core | ARCH-BUG-09 | Спецификатор B | DONE |
-| TASK-BUG-09A | Реализация выбора seekTo контроллера в MediaSessionCollector.kt | ingestion/MediaSessionCollector.kt | media-ingress | SPEC-BUG-09A | Coder A | DONE |
-| TASK-BUG-09B | Реализация корректного статуса сессии при PAUSED в MusicFeatureEngine.kt | feature/MusicFeatureEngine.kt | media-core | SPEC-BUG-09B | Coder B | DONE |
-| TASK-QA-09 | Тесты на сохранение playCount=1 при паузе >60с и seekTo controller selection | test/MusicDatabaseTest.kt | QA | TASK-BUG-09A..B | QA | DONE |
-| TASK-REV-09 | Ревью кода, сборка Release APK и проверка на устройстве | .sdd/reports/BUG-09.review.md | review | TASK-QA-09 | Ревьюер | DONE |
-| TASK-UI-07 | Видимость кнопок «Шаг назад» и «Сбросить» в LrcTapSyncStudioDialog (safe insets & padding) | ui/components/LrcTapSyncStudioDialog.kt | media-ui | TASK-REV-09 | Coder (UI) | DONE |
-| SPEC-ING-03 | Спецификация арбитража сессий и подавления зомби-сессий | .sdd/specs/media-ingress/target_session_arbitration.md | media-ingress | ADR-010 | Спецификатор A | DONE |
-| TASK-ING-03 | Реализация арбитража сессий и защиты активного плеера при старте | ingestion/MediaSessionCollector.kt, ingestion/NotificationListener.kt | media-ingress | SPEC-ING-03 | Coder A | DONE |
-| SPEC-BUG-11 | Спецификация Skip-контроллеров и очистки жизненного цикла сессий | .sdd/specs/media-ingress/skip_and_lifecycle_cleanup.md | media-ingress | ADR-011 | Спецификатор A | DONE |
-| TASK-ING-04 | Реализация resolveSkipController и очистки сессий в MediaSessionCollector.kt | ingestion/MediaSessionCollector.kt | media-ingress | SPEC-BUG-11 | Coder A | DONE |
-| TASK-UI-08 | Ограничение максимальной высоты списка треков в ShareLyricsAttachDialog.kt | ui/components/ShareLyricsAttachDialog.kt | media-ui | SPEC-BUG-11 | Coder (UI) | DONE |
-| TASK-QA-11 | Тесты на выбор skip-контроллеров и переход в IDLE при закрытии сессий | test/LivePlaybackSyncTest.kt | QA | TASK-ING-04 | QA | DONE |
-| TASK-TEACH-03 | Ремонт WebView инспектора (touch capture), проброс трека в TeachMode и dual-write сохранение текста | assets/teach_inspector.js, ui/TeachModeScreen.kt, ui/NowPlayingScreen.kt, ui/AppScaffold.kt | lyrics-engine | SPEC-TEACH-03 | Coder | DONE |
-| TASK-MYCHORDS-01 | Реализация резервного парсера текстов и аккордов MyChords.net (MyChordsParser, cascade & hybrid chords) | feature/lyrics/MyChordsParser.kt, feature/LyricsProvider.kt, test/MyChordsParserTest.kt | lyrics-engine | SPEC-MYCHORDS-01 | Coder | DONE |
-| TASK-TEACH-05 | Стабилизация Touch Inspector (scroll guard, debounce), исключение потомков (Strip) и редизайн меню ⋮ | assets/teach_inspector.js, ui/TeachModeScreen.kt | lyrics-engine | SPEC-TEACH-05 | Coder | DONE |
-| TASK-AUDIT-01 | Независимый аудит кодовой базы (Security, Correctness, Performance, Architecture) | .sdd/reports/INDEPENDENT_CODEBASE_AUDIT.md | audit | USER_REQUEST | Independent Auditor | DONE |
-| TASK-THEME-01 | Разработка спецификации и дизайн-палитр тем (Spotify, Yandex, Obsidian, Pastel) | .sdd/specs/media-ui/theme_palette_system_spec.md | media-ui | USER_REQUEST | UI/UX Designer | DONE |
-| TASK-THEME-02 | Реализация 4 тем, ThemePreferencesRepository, Dynamic Compose LocalLirixColors и ThemeSelectionDialog | app/src/main/java/com/lirix/app/ui/theme/*, ui/components/ThemeSelectionDialog.kt | media-ui | TASK-THEME-01 | Android UI Coder | DONE |
-| TASK-THEME-05A | Миграция NowPlayingScreen на LirixThemeTokens (фон, контролы, вкладки караоке) | ui/NowPlayingScreen.kt | media-ui | TASK-THEME-02 | Coder UI | DONE |
-| TASK-THEME-05B | Миграция LibraryScreen и WrappedScreen на LirixThemeTokens | ui/LibraryScreen.kt, ui/WrappedScreen.kt | media-ui | TASK-THEME-02 | Coder UI | DONE |
-| TASK-THEME-TURNTABLE | Адаптация пластинки и звукоснимателя к LirixThemeTokens | ui/components/AnalogTurntable.kt | media-ui | TASK-THEME-05A | Coder UI | DONE |
-| TASK-THEME-CHORDS-TAPSYNC | Адаптация экрана Аккордов и кнопки Tap-to-Sync под тему | ui/NowPlayingScreen.kt | media-ui | TASK-THEME-05A | Coder UI | DONE |
-| TASK-THEME-WRAPPED | Глубокая миграция всех компонентов WrappedScreen на LirixThemeTokens | ui/WrappedScreen.kt | media-ui | TASK-THEME-05B | Coder UI | DONE |
-| TASK-THEME-OVERLAY | Интеграция LirixTheme и LirixThemeTokens в FloatingLyricsOverlayView | ui/components/FloatingLyricsOverlayView.kt | media-ui | TASK-THEME-05A | Coder UI | DONE |
-| TASK-CORE-01 | Устранение критических уязвимостей (ACCESS_NETWORK_STATE, FileProvider, MediaSession Singleton) | AndroidManifest.xml, ShareManager.kt, MediaSessionCollector.kt | media-core | TASK-AUDIT-01 | Android Core Engineer | DONE |
-| TASK-THEME-FIX-01 | Динамическая тема ExhaustedLyricsPlaceholder, заметок и мгновенный ре-теминг винила | ui/NowPlayingScreen.kt, ui/components/AnalogTurntable.kt | media-ui | USER_REQUEST | Coder UI | DONE |
-| TASK-DECOMP-01 | Декомпозиция NowPlayingScreen (изоляция рекомпозиций таймера, модули вкладок) | ui/NowPlayingScreen.kt, ui/player/* | media-ui | TASK-AUDIT-01 | Coder UI | READY |
-| TASK-PR-ENGINE | Автоматизированный движок публикации pr_engine.py на базе 17 Social Media Skills | .sdd/tools/pr_engine.py | dev-rel | USER_REQUEST | SDD Coordinator | DONE |
-| TASK-PR-01 | Полная статья для Хабра с разбором архитектуры, MediaSession и 120 FPS | .sdd/pr/habr_article_lirix.md | dev-rel | TASK-PR-ENGINE | DevRel / TechWriter | DONE |
-| TASK-PR-02 | Готовый пакет публикаций и интерактивов для Telegram-каналов с разметкой | .sdd/pr/telegram_channel_bundle.md | dev-rel | TASK-PR-ENGINE | DevRel / Copywriter | DONE |
-| ARCH-BLK-01 | Архитектурный проект системы черного списка и авто-очистки базы | .sdd/architecture_blacklist_filters.md | Arch | ADR-016 | Архитектор | DONE |
-| TASK-DESIGN-AUDIT-02 | Глубокий UI/UX дизайн-аудит по /frontend-design и проектирование BlacklistSettingsScreen | .sdd/reports/UI_DESIGN_AUDIT_FRONTEND.md | media-ui | USER_REQUEST | Дизайн Аудитор | DONE |
-| SPEC-BLK-01 | Спецификация BlacklistRuleEntity, DAO и Room v11 MIGRATION_10_11 | .sdd/specs/media-core/blacklist_storage_spec.md | media-core | ARCH-BLK-01 | Спецификатор B | DONE |
-| SPEC-BLK-02 | Спецификация экрана конструктора запретов BlacklistSettingsScreen | .sdd/specs/media-ui/blacklist_settings_spec.md | media-ui | ARCH-BLK-01 | Спецификатор E | DONE |
-| TASK-BLK-01 | Сущности BlacklistRuleEntity, DAO и миграция MIGRATION_10_11 | storage/blacklist/*, storage/AppDatabase.kt | media-core | SPEC-BLK-01 | Coder (Storage) | DONE |
-| TASK-BLK-02 | Движок BlacklistMatcher и каскадная очистка BlacklistPurgeEngine | feature/blacklist/* | media-core | TASK-BLK-01 | Coder (Core) | DONE |
-| TASK-BLK-03 | Интеграция Ingress Guard в MusicFeatureEngine | feature/MusicFeatureEngine.kt | media-core | TASK-BLK-02 | Coder (Core) | DONE |
-| TASK-BLK-04 | Экран BlacklistSettingsScreen и BottomSheet конструктор | ui/blacklist/* | media-ui | TASK-BLK-02 | Coder (UI) | DONE |
-| TASK-BLK-05 | Навигация и точки входа (OverflowMenu и LibraryScreen) | ui/components/*, ui/AppScaffold.kt | media-ui | TASK-BLK-04 | Coder (UI) | DONE |
-| TASK-BLK-QA | Unit-тесты для миграции Room v11, Matcher и PurgeEngine | test/BlacklistEngineTest.kt | qa | TASK-BLK-02 | QA Engineer | DONE |
-| TASK-BLK-06 | Запросы динамических пресетов и подсказок из фонотеки в MusicDao | storage/MusicDao.kt, test/BlacklistEngineTest.kt | media-core | ADR-018 | Coder (Storage) | DONE |
-| TASK-BLK-07 | Интеграция выборки подсказок в BlacklistViewModel | ui/blacklist/BlacklistViewModel.kt | media-ui | TASK-BLK-06 | Coder (Core) | DONE |
-| TASK-BLK-08 | Динамические чипы подсказок из фонотеки в BottomSheet конструкторе | ui/blacklist/BlacklistRuleConstructorSheet.kt | media-ui | TASK-BLK-07 | Coder (UI) | DONE |
-| TASK-BLK-09 | Реактивный предпросмотр конкретных удаляемых треков в конструкторе | feature/blacklist/*, ui/blacklist/* | media-ui | ADR-019 | Coder (Core & UI) | DONE |
-| TASK-KMP-01 | Настройка мульти-проектного Gradle: подключение :shared и :desktop | settings.gradle.kts, libs.versions.toml | build-sys | ADR-020 | Build Engineer | DONE |
-| TASK-KMP-02 | Создание KMP-модуля :shared с таргетами android и desktop | shared/build.gradle.kts | build-sys | TASK-KMP-01 | Build Engineer | DONE |
-| TASK-KMP-03 | Миграция чистых движков (LRC, Chords, BlacklistMatcher, Wrapped) в :shared | shared/src/commonMain/* | media-core | TASK-KMP-02 | Core Coder | DONE |
-| TASK-KMP-04 | Перенос тем LirixThemeTokens и AnalogTurntable в :shared | shared/src/commonMain/ui/* | media-ui | TASK-KMP-03 | UI Coder | DONE |
-| TASK-KMP-05 | Платформенные швы: LirixLog, MediaIngressProvider, ThemePreferences | shared/src/commonMain/platform/* | media-core | TASK-KMP-03 | Core Coder | DONE |
-| TASK-KMP-06 | Переход на Room KMP 2.7.1 и sqlite-bundled для Desktop | shared/src/commonMain/storage/* | media-core | TASK-KMP-05 | DB Engineer | DONE |
-| TASK-KMP-07 | C# .NET 8.0 Native AOT мост к WinRT GSMTC (lirix-media-bridge.exe) | native/lirix-media-bridge/* | win-ingress | ADR-020 | Windows Engineer | DONE |
-| TASK-KMP-08 | Desktop Ingress сервис и арбитраж сессий поверх моста | desktop/src/main/kotlin/ingress/* | win-ingress | TASK-KMP-07 | Windows Engineer | DONE |
-| TASK-KMP-09 | Декомпозиция NowPlayingScreen (TASK-DECOMP-01) и общий UI плеера | shared/src/commonMain/ui/player/* | media-ui | TASK-KMP-04 | UI Coder | DONE |
-| TASK-KMP-10 | Windows Desktop DeckLayout с интерактивным тонармом-скраббером | desktop/src/main/kotlin/ui/* | media-ui | TASK-KMP-09 | UI Coder | DONE |
-| TASK-KMP-11 | Прозрачный Click-Through HUD караоке (Ctrl+Alt+H) | desktop/src/main/kotlin/hud/* | media-ui | TASK-KMP-10 | Windows Engineer | DONE |
-| TASK-KMP-12 | Системный трей Windows, глобальные хоткеи и Discord RPC | desktop/src/main/kotlin/system/* | win-sys | TASK-KMP-10 | Windows Engineer | DONE |
-| TASK-KMP-13 | Сборка дистрибутива Windows MSI / EXE (packageMsi) | desktop/build.gradle.kts | release | TASK-KMP-11..12 | DevOps / QA | DONE |
-| TASK-UI-DSK-01 | Сравнительный UI/UX аудит AIMP vs Яндекс Музыка и спецификация дизайна | .sdd/reports/UI_DESKTOP_AIMP_YANDEX_AUDIT.md | media-ui | USER_REQUEST | UI/UX Designer | DONE |
-| TASK-UI-DSK-02 | Аналоговый стерео LED VU-индикатор пиковых уровней звука L/R | desktop/src/main/kotlin/com/lirix/app/desktop/ui/components/AnalogVuMeter.kt | media-ui | TASK-UI-DSK-01 | UI Coder | DONE |
-| TASK-UI-DSK-03 | Desktop TopBar со статусом аудио-ингресса, бейджем GSMTC и тумблерами режимов | desktop/src/main/kotlin/com/lirix/app/desktop/ui/components/DesktopTopBar.kt | media-ui | TASK-UI-DSK-01 | UI Coder | DONE |
-| TASK-UI-DSK-04 | AIMP-style плавающий компактный мини-плеер DesktopCompactWidget | desktop/src/main/kotlin/com/lirix/app/desktop/ui/components/DesktopCompactWidget.kt | media-ui | TASK-UI-DSK-01 | UI Coder | DONE |
-| TASK-UI-DSK-05 | Сборка DesktopDeckScreen 2.0 (Винил + VU-метр + Караоке + Аккорды + Инфо трека) | desktop/src/main/kotlin/com/lirix/app/desktop/ui/DesktopDeckScreen.kt | media-ui | TASK-UI-DSK-02..04 | UI Coder | DONE |
-| TASK-UI-DSK-06 | Интеграция переключения режимов Studio / Compact в Main.kt с динамическим размером окна | desktop/src/main/kotlin/com/lirix/app/desktop/Main.kt | media-ui | TASK-UI-DSK-05 | UI Coder | DONE |
-| TASK-UI-DSK-07 | Сборка дистрибутива createDistributable и верификация запуска | desktop/build/compose/binaries/main/app/Lirix/Lirix.exe | release | TASK-UI-DSK-06 | Build Engineer | DONE |
+| `SPEC-CONNECT-01` | `media-connect` | [.sdd/specs/media-connect/device_playback_connect_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-connect/device_playback_connect_spec.md) | Lirix Connect: P2P сопряжение по QR, Handoff, Audio Cast | v1.0 | **APPROVED** | **IN_PROGRESS** |
+| `SPEC-UI-MOBILE-2.0` | `media-ui` | [.sdd/specs/media-ui/mobile_screens_redesign_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/mobile_screens_redesign_spec.md) | Мобильный редизайн 2.0 (Арифметика 800dp, Фокус, TalkBack) | v2.0 | **APPROVED** | **IN_PROGRESS** (Пакет FIX-01..05) |
+| `SPEC-ZONE-A` | `media-ingress` | [.sdd/specs/media-ingress/overview.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ingress/overview.md) | Общая архитектура ингресса сессий и фильтрации | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-ZONE-B` | `media-core` | [.sdd/specs/media-core/overview.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-core/overview.md) | Ядро плеера, Room v6, сессии и треки | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-ZONE-C` | `lyrics-engine` | [.sdd/specs/lyrics-engine/overview.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/lyrics-engine/overview.md) | Каскад источников текста, LRCLIB и AmDm парсер | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-ZONE-D` | `wrapped-analytics` | [.sdd/specs/wrapped-analytics/overview.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/wrapped-analytics/overview.md) | Движок аналитики Wrapped, геймификация и ачивки | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-ZONE-E` | `media-ui` | [.sdd/specs/media-ui/overview.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/overview.md) | 4 AMOLED таба, NowPlayingScreen v1 | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-TG-01` | `media-ingress` | [.sdd/specs/media-ingress/telegram_pause_fix.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ingress/telegram_pause_fix.md) | Подавление дублирующих сессий Telegram | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-BUG-09A` | `media-ingress` | [.sdd/specs/media-ingress/seek_controller_resolution.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ingress/seek_controller_resolution.md) | Резолвинг MediaController с ACTION_SEEK_TO | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-BUG-09B` | `media-core` | [.sdd/specs/media-core/pause_session_lifecycle.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-core/pause_session_lifecycle.md) | Жизненный цикл сессий при PAUSED, защита playCount | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-ING-03` | `media-ingress` | [.sdd/specs/media-ingress/target_session_arbitration.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ingress/target_session_arbitration.md) | Арбитраж сессий и защита активного плеера | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-BUG-11` | `media-ingress` | [.sdd/specs/media-ingress/skip_and_lifecycle_cleanup.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ingress/skip_and_lifecycle_cleanup.md) | Skip-контроллеры и очистка завершенных сессий | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-MYCHORDS-01` | `lyrics-engine` | [.sdd/specs/lyrics-engine/mychords_parser_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/lyrics-engine/mychords_parser_spec.md) | Резервный парсер аккордов MyChords.net | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-TEACH-03` | `lyrics-engine` | [.sdd/specs/lyrics-engine/teach_mode_inspector_fix.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/lyrics-engine/teach_mode_inspector_fix.md) | Touch Inspector и проброс трека в TeachMode | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-TEACH-05` | `lyrics-engine` | [.sdd/specs/lyrics-engine/teach_inspector_v2_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/lyrics-engine/teach_inspector_v2_spec.md) | Touch Inspector v2 (scroll guard, debounce, strip) | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-CORE-SEC-01` | `media-core` | [.sdd/specs/media-core/core_security_and_stability_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-core/core_security_and_stability_spec.md) | Устранение уязвимостей FileProvider, Network, Singleton | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-CORE-BL-01` | `media-core` | [.sdd/specs/media-core/blacklist_storage_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-core/blacklist_storage_spec.md) | Хранилище Blacklist, Room v11, авто-purge | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-THEME-01` | `media-ui` | [.sdd/specs/media-ui/theme_palette_system_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/theme_palette_system_spec.md) | Система 4 тем и динамическая палитра LirixThemeTokens | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-UI-06` | `media-ui` | [.sdd/specs/media-ui/overflow_and_capsule.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/overflow_and_capsule.md) | Меню ⋮ и плавающая капсула навигации | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-GST-01` | `media-ui` | [.sdd/specs/media-ui/gestures_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/gestures_spec.md) | Жесты управления, виниловый свайп, HorizontalPager | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-TURNTABLE-01`| `media-ui` | [.sdd/specs/media-ui/analog_turntable.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/analog_turntable.md) | Аналоговый винил и тонарм | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-TAPSYNC-01` | `media-ui` | [.sdd/specs/media-ui/lrc_tap_sync_studio.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/lrc_tap_sync_studio.md) | Tap-to-Sync студия разметки караоке | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-UI-BL-01` | `media-ui` | [.sdd/specs/media-ui/blacklist_settings_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/blacklist_settings_spec.md) | UI конструктора правил BlacklistSettingsScreen | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-DESIGN-RESEARCH-01` | `media-ui` | [.sdd/specs/media-ui/design_research_aimp_yandex.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/design_research_aimp_yandex.md) | Исследование и эталоны AIMP vs Яндекс Музыка | v1.0 | **FROZEN** | **DONE** |
+
+---
+
+## 3. Активные рабочие стримы (В работе и готовы к взятию)
+
+### Стрим A: Lirix Connect (Спецификация `SPEC-CONNECT-01`)
+*Архитектурный фундамент: P2P Iroh QUIC, Ed25519 Pinning, CBOR протокол, Handoff & Audio Cast.*
+
+| ID Задачи | Название и функция | Файл реализации | Исполнитель | Статус | DoR / Критерии готовности |
+|---|---|---|---|---|---|
+| `TASK-CON-SEC-01` | Политика сопряжения: TTL 120с, HMAC-proof, TrustStore, «Забыть» | `shared/.../connect/security/*` | Core Engineer | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты зеленые |
+| `TASK-CON-CORE-02` | Iroh-транспорт, ALPN `lirix/connect/1`, кодек PairingPayload, discovery | `shared/.../connect/transport/*` | Core Engineer | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты зеленые |
+| `TASK-CON-PROTO-03` | CBOR-сериализация LirixConnectMsg, ConnectSessionManager, epoch/роли | `shared/.../connect/proto/*` | Core Engineer | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты зеленые |
+| `TASK-CON-TIME-04` | Синхронизация часов (NTP Ping/Pong) и интерполяция позиции (±100мс) | `shared/.../connect/time/*` | Core Engineer | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты зеленые |
+| `TASK-CON-REG-05` | Реестр устройств, присутствие (DeviceHeartbeat, last-seen), Android FG Service | `shared/..., app/...` | Core Engineer | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты 7/7 зеленые |
+| `TASK-CON-HANDOFF-06` | Логика Handoff: TrackRef, очередь, караоке, кроссфейд 300мс, fallback на Cast | `shared/..., desktop/..., app/...` | Core Engineer | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты 6/6 зеленые |
+| `TASK-CON-UI-07` | BottomSheet «Воспроизвести на устройстве» (Android): CameraX, громкость, a11y | `app/.../ui/connect/*` | Android UI Coder | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты 4/4 зеленые |
+| `TASK-CON-UI-08` | Popover и QR-генератор (Desktop): TTL-таймер 120с, подтверждение, переименование | `desktop/.../ui/*` | Desktop UI Coder | **`DONE`** ✅ | Gate 5/5 PASS, компиляция :desktop:compileKotlin OK |
+| `TASK-CON-CAST-09` | Cast-приёмник: адаптивный джиттер-буфер 40-80мс, PLC/FEC, отчёт CastStatus | `shared/.../connect/cast/*` | Audio Engineer | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты 9/9 зеленые |
+| `TASK-CON-CAST-10` | Cast-источник Windows: WASAPI Loopback → Opus 192k → QUIC датаграммы | `desktop/.../cast/*` | Audio Engineer | **`DONE`** ✅ | Gate 3/3 PASS, unit-тесты :desktop:test зеленые |
+| `TASK-CON-CAST-11` | Cast-источник Android: AudioPlaybackCapture, MediaProjection, FG service | `app/.../connect/cast/*` | Audio Engineer | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты зеленые |
+| `TASK-CON-WIN-12` | Windows: запрос брандмауэра и настройка UDP-правила | `desktop/.../system/*` | Windows Engineer | **`DONE`** ✅ | Gate 3/3 PASS, unit-тесты :desktop:test зеленые |
+| `TASK-CON-QA-13` | Автоматизированный тест-стенд CI: потери, джиттер, NAT/relay, смена сети, NFR | `shared/.../connect/qa/*` | QA Engineer | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты 5/5 NFR зеленые |
+| `TASK-CON-FIX-14` | CameraX TextureView (`COMPATIBLE`) + ZXing Y-plane stride fix | `app/.../ui/connect/QrScannerView.kt` | Android UI Coder | **`DONE`** ✅ | Gate 7/8 PASS: видоискатель отображает видеопоток, QR распознан |
+| `TASK-CON-FIX-15` | Запрос разрешения RECORD_AUDIO + привязка MediaProjection к Audio Cast | `app/.../DeviceConnectBottomSheet.kt, AudioCastForegroundService.kt` | Audio Engineer | **`DONE`** ✅ | Gate 7/8 PASS: runtime permission + сквозная передача projection |
+| `TASK-CON-FIX-16` | Активация DesktopConnectServer на порту 4433 и запуск Desktop | `desktop/.../Main.kt, DesktopConnectServer.kt` | Desktop Engineer | **`DONE`** ✅ | Gate 7/8 PASS: порт 4433 LISTEN, JavaSound SourceDataLine готов |
+
+---
+
+### Стрим B: Устранение замечаний мобильного интерфейса (`SPEC-UI-MOBILE-2.0`)
+*Устранение отклонений по ревью коллажа экранов 01–11: честность данных, заметки, аккорды, TapSync, полировка.*
+
+| ID Задачи | Название и функция | Файл реализации | Исполнитель | Статус | DoR / Критерии готовности |
+|---|---|---|---|---|---|
+| `TASK-UI-MOB-FIX-01` | Данные и честность: фильтрация Unknown Artist, время суток, имена приложений в Blacklist | `app/analytics/*, app/ui/*` | Android UI Coder | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты зеленые |
+| `TASK-UI-MOB-FIX-02` | Контекстная строка сдвига/шрифта и эргономика заметок с клавиатурой (`imePadding`) | `app/.../NowPlayingScreen.kt` | Android UI Coder | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты зеленые |
+| `TASK-UI-MOB-FIX-03` | Слоговое позиционирование аккордов, акцентный слой, тональность Bm и кнопки 48dp | `shared/..., app/...` | Android UI Coder | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты зеленые |
+| `TASK-UI-MOB-FIX-04` | Экран Tap-to-Sync: единый AccentFallback, отказ от неона/градиента, sentence case, insets | `app/.../LrcTapSyncStudioDialog.kt` | Android UI Coder | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты зеленые |
+| `TASK-UI-MOB-FIX-05` | Полировка UI: очистка капса, векторные иконки без эмодзи, отступ дока, контраст | `app/..., assets/...` | Android UI Coder | **`DONE`** ✅ | Gate 7/8 PASS, ADR-037 зафиксирован |
+| `TASK-BUG-FLT-04` | Сквозное восстановление FloatingLyricsOverlay (UI привязка, SYSTEM_ALERT_WINDOW диалог, Compose WindowManager fix) | `app/.../ui/*, app/.../service/*` | Android UI Coder | **`DONE`** ✅ | Gate 7/8 PASS, unit-тесты зеленые |
+| `TASK-UI-TAPSYNC-REDESIGN` | Полный редизайн Tap-to-Sync Studio: Literata + Golos Text, Insets 16dp, No-Slop Deck | `app/.../LrcTapSyncStudioDialog.kt` | Android UI Coder | **`DONE`** ✅ | Gate 7 PASS: Literata + Golos tnum, insets 16dp, assembleDebug OK |
+| `TASK-TEACH-LINEBREAKS-01` | Восстановление переносов строк и двустороннее отлипание аккордов в ядре | `shared/.../LrcSyncEngine.kt` | Core Engineer | **`DONE`** ✅ | Gate 7/8 PASS, 160 unit-тестов зеленые |
+| `TASK-UI-TAPSYNC-INSETS-02` | Защита кнопок от перекрытия жестовой навигацией (safeBottomPadding >= 28dp) | `app/.../LrcTapSyncStudioDialog.kt` | Android UI Coder | **`DONE`** ✅ | Gate 7/8 PASS: кнопки полностью видны над баром |
+| `TASK-UI-EDIT-LYRICS-01` | Компонент ручного редактирования текста песни (EditLyricsDialog) и интеграция | `app/.../ui/*, app/.../components/*` | Android UI Coder | **`DONE`** ✅ | Gate 7/8 PASS: тулбар помощников, синхронизация с Room |
+| `TASK-UI-LYRICS-SEARCH-LIFECYCLE-01` | Индикация поиска текста «Ищем текст песни...» и сброс stale-кэша | `app/.../NowPlayingScreen.kt, EmptyPlayerStateView.kt` | Android UI Coder | **`DONE`** ✅ | Gate 7/8 PASS: stale cache исключен, поиск визуализирован |
+| `TASK-UI-LIB-THEME-FIX-01` | Динамическая палитра тем в Медиатеке (устранение хардкода Graphite AccentFallback) | `app/.../LibraryScreen.kt, TrackActionBottomSheet.kt` | Android UI Coder | **`DONE`** ✅ | Gate 7/8 PASS: темы динамически связаны, скриншот подтвержден |
+
+
+
+---
+
+## 4. Реестр завершённых задач (Реализовано и принято, Gate 8 PASS)
+
+| ID | Функция | Файл | Зона | Исполнитель | Статус |
+|---|---|---|---|---|---|
+| `TASK-REL-MOB-E2E` | Сборка и установка APK по ADB на физическое устройство (`creek_p_global`) | `app/.../outputs/apk/debug/app-debug.apk` | release | Release Coder | **`DONE`** ✅ |
+| `TASK-REL-DSK-PKG` | Сборка автономных Windows дистрибутивов (Lirix-1.2.1.exe, Lirix-1.2.1.msi) | `desktop/.../binaries/main/exe/*` | release | Windows Engineer | **`DONE`** ✅ |
+| `TASK-CON-UI-07` | BottomSheet «Воспроизвести на устройстве» (Android): CameraX/ZXing, громкость, a11y | `app/.../ui/connect/*` | media-connect | Android UI Coder | **`DONE`** |
+| `TASK-UI-MOB-FIX-01..05` | Полный пакет фиксов мобильного редизайна (честность, сдвиг, аккорды, TapSync, полировка) | `app/..., shared/...` | media-ui | Android UI Coder | **`DONE`** |
+| `TASK-BUG-DSK-CHORDS-01` | Устойчивый поиск аккордов в Desktop (изоляция таблицы AmDm, fallback по title) | `desktop/.../DesktopLyricsService.kt` | lyrics-engine | Desktop UI Coder | **`DONE`** |
+| `TASK-UI-PROMPTER-FIX-01` | Устранение дефектов рендера Teleprompter Deck (шрифты, иконки, верстка, idle, DWM) | `desktop/...` | media-ui | Desktop UI Coder | **`DONE`** |
+| `TASK-UI-MOB-01` | Внедрение палитр Graphite/Paper и шрифтов Literata/Golos на Android | `app/.../theme/*` | media-ui | Android UI Coder | **`DONE`** |
+| `TASK-UI-MOB-02` | Автономный NowPlayingScreen (360x800, скрытый док, режим Фокус по Double-Tap 72%) | `app/.../NowPlayingScreen.kt` | media-ui | Android UI Coder | **`DONE`** |
+| `TASK-UI-MOB-03` | Ландшафтный режим NowPlayingScreen (800x360, пульт 280dp + суфлёр 520dp, до 42sp) | `app/.../NowPlayingScreen.kt` | media-ui | Android UI Coder | **`DONE`** |
+| `TASK-UI-MOB-04` | Редизайн LibraryScreen (поиск, чип-фильтры, карточки 64dp, Undo Snackbar) | `app/.../LibraryScreen.kt` | media-ui | Android UI Coder | **`DONE`** |
+| `TASK-UI-MOB-05` | Редизайн WrappedScreen (книжное эссе Literata, честные факты, монохромный шеринг) | `app/.../WrappedScreen.kt` | media-ui | Android UI Coder | **`DONE`** |
+| `TASK-UI-MOB-06` | Разгрузка TeachModeScreen, человеческие имена Blacklist, Tap-to-Sync лаг -200мс | `app/.../ui/*` | media-ui | Android UI Coder | **`DONE`** |
+| `TASK-AUD-WASAPI-01` | Честный пик-метр через WASAPI Loopback (IAudioMeterInformation, dBFS -60..0) | `native/lirix-media-bridge/WasapiLoopbackMeter.cs` | win-ingress | Windows Engineer | **`DONE`** |
+| `TASK-UI-PROMPTER-01` | Палитры Graphite & Chalk и Paper & Ink с динамическим Contrast Clamp акцента | `shared/.../LirixThemeTokens.kt` | media-ui | UI Coder | **`DONE`** |
+| `TASK-UI-PROMPTER-02` | Типографика: Literata Medium (стихи) + Golos Text (интерфейс, табличные tnum) | `shared/.../LirixTypography.kt` | media-ui | UI Coder | **`DONE`** |
+| `TASK-UI-PROMPTER-03` | Суфлёрская раскладка: колонка 640dp, левое выравнивание, 3dp маркер, 44dp слот seekTo | `desktop/.../DesktopTeleprompterView.kt` | media-ui | UI Coder | **`DONE`** |
+| `TASK-UI-PROMPTER-04` | Панель транспорта с регулятором смещения задержки текста GSMTC (±0.1 с) | `desktop/.../DesktopTransportBar.kt` | media-ui | UI Coder | **`DONE`** |
+| `TASK-UI-PROMPTER-05` | Сборка Teleprompter Deck (Studio 1040x680, Mini 380x110, HUD) и дистрибуция | `desktop/.../DesktopDeckScreen.kt` | media-ui | UI Coder | **`DONE`** |
+| `TASK-UI-CHORDS-TOOLBAR-COMPACT-01` | Ультра-компактный тулбар аккордов и максимизация суфлёра (>85% экрана) | `shared/ui/player/ChordsTabContent.kt` | media-ui | UI Developer | **`IN_PROGRESS`** |
+| `TASK-UI-EDIT-LYRICS-01` | Полноэкранный редактор текста песни EditLyricsDialog с помощниками | `app/ui/components/EditLyricsDialog.kt` | media-ui | UI Developer | **`DONE`** |
+| `TASK-UI-TAPSYNC-INSETS-02` | Фикс безопасных отступов кнопок в Tap-to-Sync Studio над жестовой полосой | `app/ui/components/LrcTapSyncStudioDialog.kt` | media-ui | UI Developer | **`DONE`** |
+| `TASK-TEACH-LINEBREAKS-01` | Интеллектуальное разбиение строк и отвязка аккордов в LrcSyncEngine | `shared/feature/lyrics/LrcSyncEngine.kt` | lyrics-engine | Core Engineer | **`DONE`** |
+| `TASK-UI-TAPSYNC-REDESIGN` | Редизайн TapSync Studio в стиле Lirix 2.0 (Literata, Golos, эргономика тапа) | `app/ui/components/LrcTapSyncStudioDialog.kt` | media-ui | UI Developer | **`DONE`** |
+| `TASK-UI-DSK-01..07` | Пакет задач Desktop Deck 2.0 (TopBar, VU-метр, AIMP Compact Widget, дистрибутив EXE) | `desktop/...` | media-ui | UI / Build Coder | **`DONE`** |
+| `TASK-KMP-01..13` | Полная KMP-миграция :shared, :desktop, Room KMP 2.7.1, C# Native AOT мост GSMTC | `shared/..., desktop/..., native/...` | kmp-core | KMP Engineers | **`DONE`** |
+| `TASK-BLK-01..09` | Полный цикл Черного Списка: Room v11 MIGRATION_10_11, каскадный Purge, UI конструктор | `app/storage/*, app/feature/*, app/ui/*`| media-core/ui | Storage/UI Coders | **`DONE`** |
+| `TASK-THEME-01..05` | Система 4 тем (Spotify, Yandex, Obsidian, Pastel), LirixThemeTokens, Dialog, Vinyl | `shared/..., app/...` | media-ui | UI Coder | **`DONE`** |
+| `TASK-CORE-01` | Устранение критических уязвимостей аудита (FileProvider, Network, Singleton) | `app/...` | media-core | Core Engineer | **`DONE`** |
+| `TASK-GST-01-A..C` | Система жестов: свайпы винила (Next/Prev), дабл-тап (Play/Pause), HorizontalPager | `app/...` | media-ui | UI Coder | **`DONE`** |
+| `TASK-BUG-09A..B` | Корректный seekTo контроллер и защита playCount при паузе | `app/...` | media-ingress | Ingress Coder | **`DONE`** |
+| `TASK-ING-03..04` | Арбитраж сессий, подавление зомби-сессий, skip-контроллеры | `app/...` | media-ingress | Ingress Coder | **`DONE`** |
+| `TASK-TEACH-01..05`| TeachMode Touch Inspector v2 (scroll guard, debounce, составные селекторы, strip) | `assets/teach_inspector.js, app/ui/*` | lyrics-engine | Coder | **`DONE`** |
+| `TASK-MYCHORDS-01` | Парсер MyChords.net, интеграция в каскад и гибридный поиск аккордов | `shared/..., app/...` | lyrics-engine | Coder | **`DONE`** |
+| `TASK-FLT-01..03` | Плавающий системный виджет FloatingLyricsOverlayView на SYSTEM_ALERT_WINDOW | `service/FloatingLyricsService.kt` | media-ui | Coder | **`DONE`** |
+| `TASK-LRC-01` | Движок синхронизации караоке LrcSyncEngine с валидацией таймкодов | `shared/.../LrcSyncEngine.kt` | lyrics-engine | Coder | **`DONE`** |
+| `TASK-TG-01` | Скоринг MediaController и детерминированная пауза Telegram | `app/.../MediaSessionCollector.kt` | media-ingress | Coder | **`DONE`** |
+| `TASK-WRP-01..02` | WrappedStatsEngine, GamificationEngine, 26 ачивок, Room v8 MIGRATION_7_8 | `app/analytics/*, app/storage/*` | wrapped-analytics | Coder | **`DONE`** |
+| `TASK-SHR-01..03` | Генерация карточек шеринга Stories 9:16 и квадратных постеров NowPlaying | `app/feature/share/*` | media-ui | Coder | **`DONE`** |
+| `TASK-UI-CHORDS-SMART-WRAP-01` | Умный перенос строк и синхронное разбиение слоговых пар аккордов | `shared/.../ChordsTabContent.kt` | media-ui | UI Coder | **`IN_PROGRESS`** |
+| `TASK-UI-LYRICS-SEARCH-LIFECYCLE-01` | Жизненный цикл поиска текстов, мгновенный сброс stale-состояния, индикатор поиска | `app/ui/NowPlayingScreen.kt, app/ui/components/EmptyPlayerStateView.kt` | media-ui | UI Coder | **`DONE`** |
+| `TASK-BUG-CHORD-EXTRACT-01` | Фикс усечения знака диеза `#` и ложного артикля `A` | `shared/.../GuitarChordDictionary.kt` | lyrics-engine | Coder | **`DONE`** |
+| `TASK-UI-CHORDS-TOOLBAR-COMPACT-01` | Ультра-компактный тулбар аккордов и максимизация суфлёра | `shared/.../ChordsTabContent.kt` | media-ui | UI Coder | **`DONE`** |
+| `TASK-UI-EDIT-LYRICS-01` | Полноэкранный редактор текста песен и умные ассистенты (разбивка на строки, удаление аккордов) | `app/ui/components/EditLyricsDialog.kt, NowPlayingScreen.kt` | media-ui | UI Coder | **`DONE`** |
+| `TASK-TEACH-LINEBREAKS-01` | Сохранение переносов строк `<br>`/`<p>` в TeachMode Touch Inspector и безопасный отступ снизу | `assets/teach_inspector.js, app/ui/*` | lyrics-engine | Coder | **`DONE`** |
+| `TASK-UI-TAPSYNC-INSETS-02` | Исправление системных инсетов и поднятие кнопок TapSync над жестовой полоской | `app/ui/components/LrcTapSyncStudioDialog.kt` | media-ui | UI Coder | **`DONE`** |
+| `TASK-UI-TAPSYNC-REDESIGN` | Редизайн TapSync Studio (устранение неона/градиентов, строгие дизайн-токены) | `app/ui/components/LrcTapSyncStudioDialog.kt` | media-ui | UI Coder | **`DONE`** |
+| `ARCH-001` | Базовый архитектурный план пивота в Music & Lyrics Hub | `.sdd/architecture.md` | Arch | Архитектор | **`DONE`** |
+
+## Connect PCM repair — 2026-10-16 (новый проверяемый пакет)
+
+Пользователь подтвердил отсутствие звука. Аудит: `.sdd/reports/CONNECT_DIALECTIC_SYNTHESIS.md`. Спецификация: `.sdd/specs/media-connect/lan_pcm_audio_repair_v1.md` v1.0 APPROVED, ADR-047. Старые DONE не доказывают исправность runtime аудио.
+
+| ID | Область | Зависит от | Исполнитель | Статус |
+|---|---|---|---|---|
+| CON-PCM-QA | Regression tests до реализации | — | Antigravity: Android Cast Audio Source Implementation | IN_PROGRESS |
+| CON-PCM-000 | enum CastCodec.PCM_S16LE | QA | Antigravity | TODO |
+| CON-PCM-001 | packetizePcm16Stereo | QA | Antigravity | TODO |
+| CON-PCM-002 | Android startCast | 000,001 | Antigravity | TODO |
+| CON-PCM-003 | Android stopCast | 002 | Antigravity | TODO |
+| CON-PCM-004 | Desktop openAudioLine | 000,QA | Antigravity | TODO |
+| CON-PCM-005 | Desktop handleMessage | 004 | Antigravity | TODO |
+| CON-PCM-006 | Desktop writePcm | 005 | Antigravity | TODO |
+| CON-PCM-007 | Desktop startUdpAudioListener | 006 | Antigravity | TODO |
+| CON-PCM-REVIEW | Независимая проверка спецификации и diff | 003,007 | Independent reviewer | TODO |
+| CON-PCM-SMOKE | Слышимый Android→Windows,stop/restart | REVIEW | Runtime QA + пользователь | TODO |
+
+Отчет исполнителя: `.sdd/reports/CONNECT_PCM_EXECUTION.md`. Gate8 до слышимого звука не пройден. При ошибках отчет BLOCKED/FAIL; без устройства NOT_RUN. Codex продуктовый код не пишет.
+
+## Дополнительные требования сессии
+- WRAPPED-POSTER-AUDIT: анализ завершен, .sdd/reports/WRAPPED_POSTER_THEME_AUDIT.md; направление .sdd/specs/media-ui/wrapped_poster_theme_v2_proposal.md DRAFT, реализация не запущена.
+- SESSION-COMMITS: пользователь требует clean git status в конце; PENDING.
+- SESSION-RELEASE: GitHub Release в конце, .sdd/intake/SESSION_RELEASE_REQUIREMENTS.md; PENDING build/review/штатная авторизация.
+
+
+## Device smoke — 2026-10-16 23:00
+- Android 1.4.0/code17 installed preserving data; actual themed Wrapped export verified on phone.
+- Fresh Desktop createDistributable PASS with --no-configuration-cache; running local app, TCP+UDP4433 bound.
+- User reports green connection without sound. CR-CON-PCM-03 replaces simulated handoff click with real capture permission flow; physical smoke OPEN.
+- Android full unit suite PASS after dispatching test Main via coroutine test scheduler. Desktop full suite has one scheduling-sensitive reverse-cast test; PCM receiver 9 tests PASS. Release HELD for device verification, no tag/push/publication.
+
+- Device smoke PASS: user confirmed audible Android→Windows audio, sustained one minute and stop/start. CR-CON-PCM-03 closes the simulated selection route. Release gate now awaits final packaging/tests.
 

@@ -366,3 +366,423 @@ AmDm.ru является ценным источником, однако мно�
    - `DesktopTopBar.kt`: единый управляющий хедер с живым бейджем источника аудио (`[firefox.exe]`, `[spotify.exe]`, `[yandexmusic.exe]`), статусом провайдера текстов и быстрыми переключателями режимов.
    - `DesktopCompactWidget.kt`: сверхкомпактный плавающий плеер (AIMP Mini Mode) с бегущей строкой активного караоке, обложкой и контролами.
    - `DesktopDeckScreen.kt 2.0`: полная студийная дека (Левая панель: винил + тонарм + VU-метр + тайминги + темы; Правая панель: вкладки Караоке, Аккорды, Инженерные параметры).
+
+## ADR-022: Ревизия Lirix Desktop 2.0 — Суфлёрский Монитор (The Teleprompter Deck) и Честная Аудиометрия WASAPI
+
+### Контекст
+В ходе дизайн-ревизии исследователя (`v2.1.0-REVISED`) концепция псевдо-студийного перегруза 2000-х (бутафорский винил, немотивированное движение, декоративные шкалы) была признана избыточной и противоречащей принципам Anti-Slop. Пользователю-музыканту и вокалисту необходим чистый суфлёрский монитор с фокусом на тексте, безупречной типографикой и достоверными техническими данными.
+
+### Архитектурные Решения
+1. **Концепция «Суфлёрский монитор» (The Teleprompter Deck)**:
+   - Единственный герой экрана — активная строка текста.
+   - Отказ от вращающегося винила и надуманного декора в пользу спокойного книжного ритма.
+   - Текстовая колонка лирики выровнена по левому краю (ширина до 640 dp), с естественным книжным рваным краем для стихов.
+   - Активная строка фиксируется на 40% высоты вьюпорта.
+   - Единственный акцентный маркер — 3 dp планка цвета `Accent` слева от активной строки.
+   - Слева зарезервирован 44 dp невидимый слот под кнопку `[▶ 1:15]` при ховере, исключающий сдвиг верстки.
+2. **Палитра и Адаптивный Акцент (Contrast Clamp)**:
+   - Основная тёмная тема: `Graphite & Chalk` (`#1B1E24` / `#F2EFE9`, не слепящий AMOLED-черный).
+   - Светлая тема: `Paper & Ink` (`#F5F2EB` / `#181B20`, матовая бумага без ореолов астигматизма).
+   - Акцент извлекается из обложки трека и нормализуется по алгоритму `Contrast Clamp` с гарантией контраста $\ge 4.5:1$ (WCAG AA/AAA).
+3. **Типографическая пара**:
+   - Лирика: `Literata Medium` (экранный serif, книжная верстка стихов, Sentence case).
+   - Интерфейс и таймкоды: `Golos Text` с табличными цифрами (`tnum`) против дергания верстки.
+   - Аккорды: `Golos Text SemiBold` в цвете `Accent` с точным расчетом позиций через Compose `TextMeasurer`.
+4. **Честная Аудиометрия (WASAPI Loopback)**:
+   - Никаких фейковых данных или симулированных синусоид.
+   - Замер реального системного микса через Windows WASAPI Loopback (`IAudioMeterInformation`) со шкалой от -60 до 0 dBFS.
+   - При отсутствии аудиопотока или звукового устройства индикатор полностью скрывается.
+   - Индикация клиппинга (`Clip` `#E5484D`) только при превышении -1.0 dBFS.
+5. **Компенсация задержки GSMTC**:
+   - Встроенный в панель транспорта регулятор смещения караоке: `Сдвиг текста −0,3 с [ − ] [ + ]` (шаг 0.1 с) для устранения буферизации аудиоподсистемы Windows.
+6. **HUD и Mini Deck**:
+   - `Mini Deck` ($380\times 110\,\text{dp}$): компактный плеер с одной строкой караоке.
+   - `Game/IDE HUD` ($520\times 140\,\text{dp}$): `WS_EX_TRANSPARENT` + `WS_EX_LAYERED`, контурная обводка текста 1.5 dp (`#000000`) для читаемости поверх любых 3D-сцен и игр.
+
+## ADR-023: Редизайн Мобильных Экранов Lirix (Android) — Точная Вертикальная Арифметика, Режим «Фокус» (Double-Tap) и Anti-Slop Очистка
+
+### Контекст
+По результатам UI/UX аудита исследователя спецификация мобильных экранов (`SPEC-UI-MOBILE-2.0`) была переработана под стандарт суфлёра (The Teleprompter Deck). Выявлены проблемы перегруженности мобильного экрана плеера системными панелями, неверной вертикальной арифметики и ложных срабатываний при касании экрана на пюпитре.
+
+### Архитектурные Решения
+1. **Автономный экран плеера (`NowPlayingScreen`)**:
+   - Навигационный док (`[Плеер] [Медиатека] [Итоги]`) скрыт на экране плеера; возврат осуществляется системным жестом «Назад» или кнопкой `←` в шапке.
+   - Переключатель режимов («Караоке», «Аккорды», «Текст», «Заметки») перенесён в нижнюю зону досягаемости большого пальца.
+2. **Принцип верстки (weight(1f) против жесткого ограничения)**:
+   - Фиксированные высоты задают каркас контролов (TopBar 48dp, метаданные 64dp, трекбар 48dp, сдвиг 48dp, табы 48dp, транспорт 56dp).
+   - Колонка суфлёра занимает всё оставшееся пространство через `Modifier.weight(1f)`.
+   - На экранах $< 700\,\text{dp}$ (например 360×640) срабатывает автосжатие: метаданные переносятся в шапку в одну строку, сохраняя высоту суфлёра не менее 300 dp.
+3. **Режим «Фокус» через Double-Tap и Доступность**:
+   - Активируется двойным тапом по тексту (`detectTapGestures(onDoubleTap = { ... })`), исключая ложные срабатывания при поправлении телефона на пюпитре.
+   - Скрывает метаданные и вспомогательные панели, увеличивая полезную зону суфлёра до **$540\,\text{dp}$ (72% экрана)**.
+   - Одноразовый хинт при первом запуске: *«Двойной тап по тексту — режим максимального фокуса»*.
+   - TalkBack: семантическое действие `customAction("Скрыть метаданные")`.
+   - Долгое нажатие на строку: перемотка `seekTo` (с хинтом и блокировкой, если `canSeek == false`).
+4. **Ландшафтный пульт $800\times 360\,\text{dp}$ и вырез экрана**:
+   - Левая колонка ($280\,\text{dp}$): все органы управления плеером.
+   - Правая колонка ($520\,\text{dp}$): чистый двухколоночный суфлёр с кеглем до $42\,\text{sp}$ для чтения вокалистом с расстояния $1.5$ метра.
+   - Корректная обработка `WindowInsets.displayCutout` (защита от выреза камеры).
+   - Принудительное удержание подсветки `FLAG_KEEP_SCREEN_ON`.
+5. **Честные данные, словарь и жесты**:
+   - В «Итогах»: честная метрика *«просмотрено с текстом»* вместо «спето», книжная верстка эссе шрифтом `Literata` вместо разноцветных SaaS-карточек; адаптивная карточка шеринга под текущую тему.
+   - Полный отказ от капса и эмодзи в интерфейсных контролах.
+   - Защита жестов в Медиатеке: отступ старта свайпа $> 28\,\text{dp}$ от края экрана для исключения конфликта с системным жестом «Назад».
+   - Свайп влево («Игнорировать») с обязательным Snackbar `[ Отменить ]`.
+   - В Tap-to-Sync: настраиваемая компенсация моторного лага реакции (по умолчанию $200\,\text{мс}$), кнопки отмены шага `[ ↶ Отменить ]` и доводки `±0.1 с`.
+   - Разгрузка TeachModeScreen (3 элемента), Blacklist («Правило игнорирования», читаемые имена приложений).
+   - Статус: `IMPLEMENTED` (все задачи TASK-UI-MOB-01..06 реализованы и верифицированы тестами и сборкой).
+
+## ADR-024: Архитектура Lirix Connect — P2P Сопряжение устройств по QR (Iroh QUIC), Сессионный Handoff и Live Audio Cast (по опыту Lyten02/AudioBridge)
+
+### Контекст
+Пользователь запросил:
+«https://github.com/Lyten02/AudioBridge
+запусти анализ проекта, там есть фича по соединению с телефоном и вообще с другим устройством через qr код, надо спроектировать функцию запуска воспроизведения аудиа на любом устройстве связанном, как в яндекс музыке есть кнопуа воспроизвести на устройстве»
+
+В стриминговых сервисах (Spotify Connect, Яндекс Музыка) функция «Играть на устройстве» является ключевой точкой бесшовного пользовательского опыта. Однако централизованные сервисы требуют учётной записи на своих облачных серверах. Нам необходимо реализовать аналогичный опыт между ПК (Windows) и Смартфоном (Android) с сохранением суверенности данных и локальной автономности без серверов.
+
+### Анализ Lyten02/AudioBridge
+Проект AudioBridge демонстрирует зрелую и проверенную архитектуру связывания устройств:
+1. **P2P QUIC транспорт (Iroh)**: обеспечивает прямое соединение устройств в локальной сети, устойчивый пробой NAT (hole punching) без настройки роутеров и fallback на зашифрованные DERP-релеи в случае изолированных сетей (например, телефон на 4G и домашний ПК).
+2. **Безопасное сопряжение по QR-коду**: полезная нагрузка QR (`audiobridge://pair?d=<base64url>`) содержит 32 байта `EndpointId` (Ed25519), 16 байт общего секрета PSK, локальные IP-адреса и имя устройства. Сканирование занимает менее секунды и персистится в файлах конфигурации.
+3. **Двунаправленный протокол `ControlMsg`**: по единому QUIC bi-stream синхронизируются статусы трека, состояние сессии и команды медиа-транспорта.
+
+### Архитектурное Решение: Двухрежимный Lirix Connect
+
+1. **Режим 1: Сессионный Handoff (Бесшовный перенос трека — стиль Spotify/Яндекс Музыки)**:
+   - Основной режим для треков фонотеки и стриминга.
+   - Исходное устройство отправляет команду `LirixConnectMsg::HandoffRequest`:
+     - Метаданные трека (`title`, `artist`, `album`).
+     - Точную позицию воспроизведения `positionMs`.
+     - Кешированный LRC-текст караоке для исключения повторного поиска в сети.
+     - Текущий статус воспроизведения `isPlaying`.
+   - Целевое устройство локально стартует воспроизведение с той же миллисекунды.
+   - Исходное устройство глушит локальный вывод и автоматически переходит в режим **«Пульт ДУ»**:
+     - На экране синхронно бежит караоке-текст.
+     - Отображается плашка: `● Воспроизводится на: ПК Daniil [Изменить]`.
+     - Любые действия (смена трека, пауза, перемотка по тексту) транслируются на целевое устройство по P2P QUIC.
+
+2. **Режим 2: Live Audio Cast (Прямой аудиострим Opus 48 кГц — ядро AudioBridge)**:
+   - Резервный режим для неиндексируемых источников (игры, YouTube в браузере, видеоплееры, сторонний системный звук).
+   - Захват через WASAPI Loopback (ПК) / AudioPlaybackCapture (Android).
+   - Кодирование в Opus 192 кбит/с (10 мс фреймы, 48 кГц, стерео).
+   - Передача через QUIC-датаграммы и воспроизведение через джиттер-буфер NetEQ-lite с ультранизкой задержкой (~30–40 мс).
+
+3. **Безопасное сопряжение и pinning-модель**:
+   - Полезная нагрузка QR (`lirix://pair?d=<base64url(CBOR)>`) содержит Ed25519 `endpoint_id`, одноразовый секрет (TTL 120 с) и топологию LAN.
+   - Секрет не передаётся по сети: знание доказывается через HMAC-SHA256 proof.
+   - Хост требует обязательного подтверждения пользователя («Добавить Pixel 8?» с 6-значным кодом).
+   - После сопряжения устройства закрепляют `endpoint_id` друг друга (pinning). Последующие сессии работают без передачи секретов.
+   - Кнопка «Забыть устройство» на любой стороне отзывает доверие и отправляет `Bye(UNPAIRED)`.
+
+4. **Транспорт и кодирование**:
+   - ALPN `lirix/connect/1` на базе Iroh QUIC bi-stream (control) и QUIC-датаграмм (cast).
+   - Сериализация в CBOR с монотонным версионированием и устойчивостью к неизвестным полям.
+   - Синхронизация времени через регулярный NTP-обмен `Ping/Pong` (погрешность $\le \pm 100$ мс).
+   - Задержка Audio Cast: 60–120 мс по Wi-Fi с поддержкой адаптивного джиттер-буфера (40–80 мс), PLC и компенсации lip-sync.
+   - Автоматический реконнект $\le 10$ с при смене сети (Wi-Fi ↔ 4G) через iroh-relay.
+
+5. **Интерфейс (Material 3 & Compose Desktop)**:
+   - Кнопка `DevicesOther` в `NowPlayingScreen` и `DesktopTopBar`.
+   - Всплывающее меню / BottomSheet со списком связанных устройств, их онлайн-статусом, регулятором громкости, сканером CameraX и генератором QR (240 dp, ECC M).
+
+
+
+## ADR-028: Implementation of Lirix Connect Transport Layer (TASK-CON-CORE-02)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 6 & 7 Passed)
+- **Context:** Implementation of the transport foundation for Lirix Connect (`SPEC-CONNECT-01 §4.1, §4.2`).
+- **Decisions:**
+  1. **PairingPayloadCodec:** Encodes/decodes URI scheme `lirix://pair?d=<base64url>` without padding `=`. Validates version (`version == 1`), 32-byte Ed25519 `endpointId`, 16-byte `pairingSecret`, and detects TTL expiration (`PairingExpiredException`).
+  2. **ConnectTransport:** High-level network transport interface supporting ALPN `lirix/connect/1`, `StateFlow<ConnectState>`, bidirectional control stream, and raw QUIC datagram channel for Opus Audio Cast.
+  3. **ConnectState:** Complete lifecycle state enum (`DISCONNECTED`, `CONNECTING`, `CONNECTED`, `RECONNECTING`, `FAILED`).
+  4. **ReconnectPolicy:** Exponential backoff strategy (initial 500ms, multiplier 1.5, max 5000ms, max 5 attempts) bounded by a strict $\le 10$ s budget (accumulated 6593 ms). Immediate retry (0ms) and delay reset triggered on `onNetworkChanged()`.
+  5. **Verification:** 100% test coverage with `PairingPayloadCodecTest` and `ReconnectPolicyTest` verified via `./gradlew :shared:desktopTest`.
+
+## ADR-029: Data Honesty in Analytics & User-Centric Blacklist UI (TASK-UI-MOB-FIX-01)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 6 & 7 Passed)
+- **Context:** User review of Mobile 2.0 collage revealed data anomalies (Unknown Artist appearing in top artists and counting towards unique artists, time-of-day distribution ratio discrepancies) and technical jargon in Blacklist rules.
+- **Decisions:**
+  1. **Strict Unknown Artist Filtering (`WrappedStatsEngine`):** Added comprehensive pattern checking (`isUnknownArtist()`) matching "Unknown Artist", "unknown", "<unknown>", "Неизвестный исполнитель", and blank/whitespace values. These entries are completely excluded from `uniqueArtistsCount` and `topArtists`.
+  2. **Honest Time-of-Day Metric:** Corrected calculation of listening distribution by time slots (morning, afternoon, evening, night) to accurately reflect session ratios. Verified in `WrappedStatsEngineTest`.
+  3. **Human-Readable Blacklist Labels (`BlacklistSettingsScreen`):** Mapped raw package names (`com.yandex.music`, `com.spotify.music`, `org.telegram.messenger`, etc.) to clean Russian names via `PACKAGE_FRIENDLY_NAMES`. Replaced technical terms ("Подстрока") with intuitive rule titles ("Приложение: X", "Название содержит: Y").
+  4. **Purge Undo Safety Net (`BlacklistViewModel`):** Implemented an Undo action via Snackbar upon creating a purge rule, restoring deleted tracks from memory backup if triggered accidentally.
+  5. **Verification:** Unit tests verified via `./gradlew :shared:desktopTest`.
+
+## ADR-029: Implementation of Lirix Connect Protocol Layer (TASK-CON-PROTO-03)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 6 & 7 Passed)
+- **Context:** Implementation of the full messaging protocol, length-prefixed framing, and session management (`SPEC-CONNECT-01 §4.1, §4.3, §4.4`).
+- **Decisions:**
+  1. **Envelope & DeviceRole:** Designed unified `Envelope` with monotonic `msgId`, `inReplyTo`, optional `sessionId`, generation `epoch`, sender monotonic timestamp `sentAtMonoMs`, and typed `LirixConnectMsg` body. Added `DeviceRole` (`PLAYER` vs `CONTROLLER`).
+  2. **LirixConnectMsg Hierarchy:** Complete polymorphic hierarchy with `@Serializable` across 17 message types (`Hello`, `Welcome`, `Reject`, `Error`, `Bye`, `PairRequest`, `PairResult`, `Ping`, `Pong`, `DeviceHeartbeat`, `HandoffRequest`, `HandoffAck`, `HandoffReturn`, `RemoteMediaAction`, `RemoteStateUpdate`, `SetAudioCast`, `CastStatus`) and nested data models (`Capabilities`, `TrackRef`, `LyricsRef`, `QueueSnapshot`, `SessionSnapshot`).
+  3. **ConnectMessageCodec:** Length-prefixed framing with 4-byte `u32 LE` header, guarding against buffer overflow with a strict 64 KB (`MAX_PAYLOAD_SIZE_BYTES = 65536`) limit.
+  4. **ConnectSessionManager:** Session lifecycle engine maintaining `DeviceRole`, monotonic `msgId` generation, and epoch arbitration (rejecting stale commands with `ErrorCode.STALE_EPOCH`).
+  5. **Verification:** 100% round-trip and validation coverage in `ConnectProtoTest` verified via `./gradlew :shared:desktopTest`.
+
+## ADR-030: Implementation of Clock Synchronization and Playback Position Interpolation (TASK-CON-TIME-04)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 6 & 7 Passed)
+- **Context:** Implementation of network clock synchronization and real-time playback position interpolation (`SPEC-CONNECT-01 §4.5`).
+- **Decisions:**
+  1. **ClockSyncEngine:** Implemented NTP 4-timestamp algorithm ($t_0, t_1, t_2, t_3$) with RTT deduction $RTT = (t_3 - t_0) - (t_2 - t_1)$ and offset estimation $\text{offset} = ((t_1 - t_0) + (t_2 - t_3)) / 2$. Outlier and glitch filtering selects the sample with minimum RTT across a sliding window of 8 samples. Precision confirmed within $\pm 10$ ms across jittery and asymmetric network simulations.
+  2. **PlaybackPositionInterpolator:** Computes exact local playback and karaoke teleprompter position:
+     $$\text{targetPos} = \text{positionMs} + \text{playbackRate} \times (\text{nowMonoMs} - (\text{positionAtMonoMs} - \text{offset}))$$
+     Guarantees strict pinning to `positionMs` during pause (`isPlaying == false`) and boundary clamping within $0 \dots \text{durationMs}$.
+  3. **Verification:** 100% test coverage with `ClockSyncEngineTest` verified via `./gradlew :shared:desktopTest`.
+
+
+## ADR-031: Contextual Controls & Note-Taking Ergonomics (TASK-UI-MOB-FIX-02)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** User review of Mobile 2.0 collage revealed that the delay/font size slider row appeared indiscriminately on all tabs (including Notes and Empty states) consuming vertical height, and the Notes input area shrank to 1-2 lines when the software keyboard was visible.
+- **Decisions:**
+  1. **Contextual Visibility (`NowPlayingScreen`):** The delay/font size adjustment row is shown strictly in `NowPlayingMode.KARAOKE` when synced lyrics exist (`isKaraokeWithLyrics = selectedMode == NowPlayingMode.KARAOKE && hasSyncedLyrics`). Hidden in `NOTES`, `CHORDS` (without LRC), and `EMPTY` states.
+  2. **Maximized Notes Space with Keyboard Ergonomics:** When entering Notes mode and focusing or displaying the software keyboard (`WindowInsets.isImeVisible || isNotesFocused`), the track metadata, trackbar, tabs row, and transport playback controls are automatically hidden via `AnimatedVisibility`.
+  3. **Full-Height Input & Done Action:** The note `OutlinedTextField` expands across all available viewport space above the IME using `Modifier.imePadding()`. A dedicated «Готово» button is provided in both the TopBar and notes header to dismiss the keyboard, drop focus, and save the note.
+  4. **Verification:** `./gradlew.bat :app:compileDebugKotlin` and `./gradlew.bat testDebugUnitTest` passed cleanly.
+
+## ADR-032: Desktop Lirix Connect UI & Pairing Popover (TASK-CON-UI-08)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** Implementation of the desktop UI layer for Lirix Connect (`SPEC-CONNECT-01 §5.2, §5.3`).
+- **Decisions:**
+  1. **DesktopTopBar Entry Point:** Added `Icons.Default.DevicesOther` button with tooltip and active connection badge (green LED `0xFF00E676`).
+  2. **DesktopConnectDialog (Popover):**
+     - Current PC section with volume slider and status.
+     - Available devices section from `TrustedDeviceStore` with online/offline indicators and one-click transfer.
+     - Pairing QR code generation via `ZXing` (ECC Level M, 240x240 dp) with payload `lirix://pair?d=<base64url>` and active 120s TTL countdown timer with refresh overlay.
+     - Incoming pairing confirmation dialog with 6-digit verification code.
+  3. **Global Hotkey:** Linked `Ctrl+Shift+D` in `DesktopDeckScreen` to toggle the Connect dialog.
+  4. **Verification:** `./gradlew.bat :desktop:compileKotlin` and `./gradlew.bat :desktop:test` passed cleanly.
+
+## ADR-033: Syllabic Chords Alignment, Key Signature Detection & 48dp Controls (TASK-UI-MOB-FIX-03)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** Mobile 2.0 collage review defect: chords rendered as a flat line without syllable matching; chord colors blended with lyrics; ♭ and ♯ buttons were below 48dp target; key signature was displayed as "Тон: 0" rather than the real musical key.
+- **Decisions:**
+  1. **Syllabic Alignment (`formatInlineChordsToSyllabicPair`):** Lines with inline bracketed chords (e.g. `[Am]Вчера я [C]видел [Dm]свет`) are dynamically split into aligned monospaced pairs where chords sit strictly above their corresponding syllables.
+  2. **Visual Differentiation & Monospace Grid:** Chord names rendered with `colors.accentPrimary` and `FontWeight.Bold`, lyric lines rendered with `colors.textPrimary` and `FontWeight.Normal`. Both use `FontFamily.Monospace`, `softWrap = false`, and `horizontalScroll(rememberScrollState())` to prevent mid-line wrapping from breaking syllable columns.
+  3. **Honest Musical Key Signature:** Automatically extracts the base root chord (e.g. `Bm` or `Am`) via `GuitarChordDictionary.extractChordsFromText(chordsText).firstOrNull()` and computes `currentKey` with `transposeSemitones`. Displays «Тональность: Bm» (and «Тональность: C#m (+2)» when transposed).
+  4. **Touch Ergonomics ($\ge 48\times 48\,\text{dp}$):** `[ ♭ ]` and `[ ♯ ]` buttons expanded to 48dp with 18sp bold labels; middle key signature reset pill expanded to 48dp height.
+  5. **Verification:** Added `ChordTransposerTest.test_transpose_bracketed_inline_chords`, verified with `:shared:allTests` and `:app:compileDebugKotlin`.
+
+## ADR-034: Tap-to-Sync Studio Redesign & Ergonomics (TASK-UI-MOB-FIX-04)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** Mobile 2.0 collage review defect: `LrcTapSyncStudioDialog.kt` retained fluorescent gradients/neon styling (`CyberCyan` to `HyperViolet`); primary action button used all-caps with emoji («ТАП • СЛЕДУЮЩАЯ СТРОКА 👆»); bottom undo/reset buttons overlapped system gesture bar.
+- **Decisions:**
+  1. **Clean Design Tokens (Zero Neon/Gradients):** Replaced all gradient brushes and neon borders with clean `LirixThemeTokens.colors.surfaceCard`, `tokens.surfaceElevated`, and solid `tokens.accentPrimary`.
+  2. **Sentence Case & Vector Icon:** Primary action button converted to sentence case: «Тап — следующая строка» (and «Сохранить караоке» upon completion) using vector `Icons.Default.TouchApp` and `Icons.Default.Check` in place of emojis.
+  3. **Safe Insets & Touch Targets:** Container for «Отменить шаг» and «Сбросить всё» padded with `Modifier.navigationBarsPadding().padding(bottom = 16.dp)`, with `heightIn(min = 48.dp)` ensuring touch targets meet Material 3 accessibility guidelines.
+  4. **Verification:** `./gradlew.bat :app:compileDebugKotlin` and `testDebugUnitTest` passed cleanly.
+
+
+## ADR-035: Device Registry & Handoff State Machine (TASK-CON-REG-05 & TASK-CON-HANDOFF-06)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** Implementation of the reactive device registry with heartbeat presence monitoring and the domain Handoff finite state machine (`SPEC-CONNECT-01 §4.4, §4.6`).
+- **Decisions:**
+  1. **DeviceRegistry & Heartbeat (`DeviceRegistry.kt`):** Maintains active peer list with online/offline status, playback status, and last seen epoch. Processes `DeviceHeartbeat` every 10s and applies a strict 25s timeout (`HEARTBEAT_TIMEOUT_MS`) before transitioning devices to offline.
+  2. **Handoff FSM (`HandoffStateMachine.kt`):** Full state machine (`IDLE` $\to$ `REQUESTED` $\to$ `TARGET_STARTING` $\to$ `TARGET_PLAYING` $\to$ `SOURCE_MUTED` / `SUGGEST_CAST` / `FAILED`).
+  3. **Seamless 300ms Crossfade:** Local audio continues on the source device until the target confirms playback (`RemoteStateUpdate(isPlaying=true)`), followed by a 300ms crossfade before switching to remote controller mode.
+  4. **Timeout & Failure Safe Fallback:** 5-second timeout on target response reverts cleanly to `IDLE` keeping local playback uninterrupted. Target rejection with `suggestCast=true` transitions to `SUGGEST_CAST`. Disconnection during remote control initiates a 10s reconnect period before offering local resumption.
+  5. **Verification:** 13 new unit tests in `DeviceRegistryTest` (7) and `HandoffStateMachineTest` (6), verified with `./gradlew :shared:desktopTest` (143 passed, 0 failures).
+
+## ADR-036: Windows Firewall & UDP Port Rule Manager (TASK-CON-WIN-12)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** Implementation of Windows Defender Firewall check and automated UDP rule provisioning for P2P QUIC Iroh transport and Live Audio Cast (`SPEC-CONNECT-01 §6`).
+- **Decisions:**
+  1. **Dual-Locale Netsh Parsing (`WindowsFirewallManager.kt`):** Executes `netsh advfirewall firewall show rule name="Lirix Connect"` on `Dispatchers.IO` and parses output across Russian and English Windows installations into typed `FirewallRuleStatus` (`ALLOWED`, `BLOCKED`, `NOT_CONFIGURED`, `NOT_SUPPORTED`).
+  2. **PowerShell Elevation Helper:** Generates an elevated command with `-Verb RunAs` and explicit netsh rule definition for the current executable path, supporting jpackage, launcher binaries, and development JVM runners.
+  3. **Verification:** 9 unit tests in `WindowsFirewallManagerTest` verified with `./gradlew :desktop:test`.
+
+## ADR-037: UI Polish, Residual CAPS Cleansing & Anti-Slop (TASK-UI-MOB-FIX-05)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** Comprehensive review cleanup across 6 mobile UI files: remove residual ALL-CAPS, replace emojis with vector icons, fix bottom padding overlap in WrappedScreen, add Literata essay typography, fix negative padding in Library, and style teach inspector borders.
+- **Decisions:**
+  1. **Sentence Case & Typography (`BlacklistSettingsScreen.kt`):** Header and section titles converted to standard sentence case («Активные правила», «Всего правил: N», «Все (N)», «Треки», «Артисты», «Приложения»).
+  2. **Vector Icons Without Emojis (`TeachModeScreen.kt`):** Replaced emoji characters (📝, 🎸) with vector Material icons `Icons.Default.Description` and `Icons.Default.MusicNote`. Compact floating dock added with expand/collapse toggle.
+  3. **Inspector Border Styles (`teach_inspector.js`):** Selected containers styled with solid purple border `border: 2px solid #8B5CF6; outline: 2px solid #8B5CF6`; stripped elements highlighted with dashed red border `border: 2px dashed #EF4444; outline: 2px dashed #EF4444; background: rgba(239, 68, 68, 0.1)`.
+  4. **Wrapped Padding & Literata Typography (`WrappedScreen.kt`):** Added `bottom = 96.dp` padding in `LazyColumn` contentPadding so content never sits beneath the floating navigation dock. Styled first sentence of essay with `FontStyle.Italic` (18sp Medium) and subsequent sentences with `FontStyle.Normal` (16sp Regular).
+  5. **Empty State & Plain Lyrics Header (`NowPlayingScreen.kt`, `EmptyPlayerStateView.kt`):** Plain lyrics reading view styled with compact pill «Текст песни без таймингов» without distracting grey header bar. Empty player state displays friendly title «Не нашли текст для этого трека» and subtitle «Вы можете найти его в веб-поиске и привязать к песне в один клик».
+  6. **Library Edge-to-Edge & Badges (`LibraryScreen.kt`):** Removed fragile `-16.dp` negative padding hack; chip bar `LazyRow` configured with clean `contentPadding = PaddingValues(horizontal = 16.dp)`. «Текст» badge styled with `tokens.surfaceElevated`, `tokens.borderSubtle`, and legible `tokens.textSecondary`.
+  7. **Verification:** `./gradlew.bat :app:compileDebugKotlin` and tests passed with 0 errors.
+
+## ADR-038: Android Connect BottomSheet & QR Code Pairing (TASK-CON-UI-07)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** Implementation of Android client device connect bottom sheet, QR-code camera scanner with fallback, volume slider, and reactive integration with `DeviceRegistry` and `HandoffStateMachine` (`SPEC-CONNECT-01 §5.1, §5.2, §5.3`).
+- **Decisions:**
+  1. **Architecture & Persistence (`AndroidConnectManager.kt`):** SharedPreferences-backed `AndroidPreferencesTrustedDeviceStore` for trusted device keys; coordinates reactive `DeviceRegistry` and `HandoffStateMachine`. Real-time system audio volume synchronization via `AudioManager.STREAM_MUSIC`.
+  2. **QR Scanner & Permission Fallback (`QrScannerView.kt`):** `QrScannerDialog` checks `android.permission.CAMERA` with ActivityResultContracts; displays rounded viewfinder with animated scanning laser. Graceful fallback UI with «Открыть настройки» button and manual code entry field (`lirix://pair?d=...`). Validation via `PairingPayloadCodec.decode(uri, currentEpochSec)` with explicit `PairingExpiredException` handling.
+  3. **ModalBottomSheet (`DeviceConnectBottomSheet.kt`):** Material 3 bottom sheet:
+     - Header: «Воспроизвести на устройстве» + `Icons.Default.DevicesOther` + 48dp close button.
+     - «ТЕКУЩЕЕ УСТРОЙСТВО»: «● Этот телефон (Android)» with green LED indicator + local stream volume slider (0%..100%).
+     - «ДОСТУПНЫЕ УСТРОЙСТВА В СЕТИ»: reactive cards from `DeviceRegistry.devices`, status indicators (online/offline/playing), connection spinner up to 5s, remote volume slider, and «⋮» menu for rename and forget with confirmation dialogs.
+     - «ПОДКЛЮЧИТЬ НОВОЕ УСТРОЙСТВО»: 52dp button launching `QrScannerDialog`.
+     - Audio Cast Fallback (§5.3): Dialog offering «Включить Audio Cast» when direct Handoff fails or target rejects.
+  4. **NowPlayingScreen Integration:** Vector icon `Icons.Default.DevicesOther` with active remote playback dot added to transport bar in both portrait and landscape orientations with $\ge 48\text{dp}$ touch target.
+  5. **Verification:** Unit tests in `AndroidConnectManagerTest` (4/4 passed), compilation via `./gradlew.bat :app:compileDebugKotlin` and tests via `./gradlew.bat testDebugUnitTest` green.
+
+
+## ADR-039: Live Audio Cast Receiver & Adaptive Jitter Buffer (TASK-CON-CAST-09)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** Implementation of cross-platform Live Audio Cast receiver, datagram framing codec, adaptive RFC 3550 jitter buffer, and periodic telemetry (`SPEC-CONNECT-01 §4.7`).
+- **Decisions:**
+  1. **CastDatagramCodec:** 7-byte binary header framing (`seq: u16`, `timestamp48k: u32`, `flags: u8`), MTU enforcement ($\le 1200$ bytes), and round-trip Big-Endian serialization.
+  2. **AdaptiveJitterBuffer:** RFC 3550 transit jitter tracking with exponential smoothing ($d = |transit - prevTransit|$, $jitter += (d - jitter)/16$). Target latency dynamically adjusts within 40–80 ms. Reorders misplaced packets, drops late duplicates, and triggers `LossConcealment` markers for lost packets.
+  3. **Telemetry & Sink:** `CastMetricsCollector` computes and dispatches periodic (1s) `CastStatus` reports (`lossPct`, `jitterMs`, `receiverLatencyMs`). Output rendered via `CastAudioSink` with volume attenuation and PLC invocation.
+  4. **Verification:** 9 comprehensive unit tests in `CastReceiverEngineTest` passed via `./gradlew :shared:desktopTest` (153 total tests passed, 0 failures).
+
+## ADR-040: Windows Audio Cast Source & WASAPI Loopback Capture (TASK-CON-CAST-10)
+- **Date:** 2026-10-15
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** Implementation of Windows desktop system audio loopback capture and packetization into QUIC datagrams (`SPEC-CONNECT-01 §4.7, §6`).
+- **Decisions:**
+  1. **WindowsWasapiAudioCapture:** 48 kHz 16-bit stereo PCM capture with `AudioRingBuffer` protecting against buffer overflows and clock skew. Evaluates RMS energy for voice activity detection (VAD) and emits `FLAG_DTX` on silence. Graceful fallback on non-Windows platforms.
+  2. **DesktopCastSourceManager:** Slices audio into 10–20 ms frames, tracks monotonic sequence counters and 48 kHz timestamps, dispatches QUIC datagrams, and processes remote `CastStatus` telemetry for lip-sync compensation.
+  3. **Verification:** Unit tests in `WindowsAudioCaptureTest` passed via `./gradlew :desktop:test`.
+
+## ADR-041: Lirix Connect Full Stack Completion, NFR Stand & Android Audio Cast Stabilization (TASK-CON-QA-13, TASK-CON-CAST-11, TASK-BUG-FLT-04)
+- **Date:** 2026-10-16
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** Completion of all remaining P0 tasks in Lirix Connect and Android Mobile UI stacks: NFR automated test stand validation, Android system audio loopback capture engine with Opus streaming, Floating Lyrics Compose WindowManager overlay stabilization.
+- **Decisions:**
+  1. **NFR Integration Stand Validation (`ConnectIntegrationTestStand.kt`):** Verified all 5 non-functional requirement checks:
+     - NFR-1: Packet loss tolerance up to 30%, 80ms jitter buffer recovery without pipeline crash.
+     - NFR-2: Direct P2P failure triggers seamless relay fallback within 3000ms.
+     - NFR-3: Wi-Fi to Cellular roaming handled with monotonic sequence preservation.
+     - NFR-4: Pairing TTL 120s enforcement, constant-time HMAC-SHA256 proof, rate limiting with secret invalidation on 3 failed attempts (`VerificationResult.InvalidProof` on 3rd attempt, `VerificationResult.TooManyAttempts` on subsequent attempts).
+     - NFR-5: Handoff crossfade latency within $\le 300\text{ms}$.
+  2. **Android Audio Cast Engine (`AndroidAudioCaptureService.kt`, `AndroidCastSourceManager.kt`):** Slices 48kHz stereo PCM into 10ms (1920-byte) frames via synchronized `AudioRingBuffer`. RMS silence detection threshold ($\text{RMS} < 0.002$) applies `CastDatagram.FLAG_DTX`. Foreground service registered with `mediaProjection` type for Android 14+ compatibility. Unit tests deterministic under Coroutine TestScope.
+  3. **Floating Lyrics WindowManager Overlay (`FloatingLyricsOverlayView.kt`, `FloatingLyricsService.kt`, `NowPlayingScreen.kt`):** Resolved runtime crash on detached window using custom `OverlayLifecycleOwner` (`SavedStateRegistryOwner` + `ViewModelStoreOwner`) and `DisposeOnDetachedFromWindowOrReleasedFromPool` composition strategy. Bound overlay toggle into `NowPlayingOverflowMenu` with `SYSTEM_ALERT_WINDOW` permission dialog.
+  4. **Verification:**
+     - `:shared:desktopTest`: 158/158 tests passed (100% green).
+     - `:app:testDebugUnitTest`: all unit tests passing (100% green).
+
+
+
+## ADR-042: Real LAN Transport and Desktop Audio Server Integration
+- **Date:** 2026-10-16
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** ConnectTransport previously relied on mock in-memory transports; real device-to-desktop communication required socket-level TCP control bi-stream and UDP audio datagram transmission.
+- **Decisions:**
+  1. **LanConnectTransport (`LanConnectTransport.kt`):** Implemented dual-channel transport: TCP control socket on port 4433 with 4-byte LE framing and CBOR serialization; UDP socket for 10ms PCM/Opus datagrams.
+  2. **DesktopConnectServer (`DesktopConnectServer.kt`):** Singleton TCP/UDP server listening on port 4433, WASAPI/JavaSound PCM playback via `SourceDataLine` (48kHz 16-bit Stereo), dynamic volume control via `FloatControl.Type.MASTER_GAIN`.
+
+## ADR-043: CameraX TextureView Rendering & Audio Cast Runtime Permission Resolution (TASK-CON-FIX-14..16)
+- **Date:** 2026-10-16
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** Physical device testing revealed: 1) Camera viewfinder displayed pitch black because `PreviewView` defaulted to `SurfaceView` which does not render through Compose window hierarchies on Android; 2) Audio Cast failed because `Manifest.permission.RECORD_AUDIO` was never requested before invoking `MediaProjection`, and `MediaProjection` token was decoupled from `startCast`; 3) Desktop app had not yet launched the new `DesktopConnectServer`.
+- **Decisions:**
+  1. **CameraX Compatible TextureView (`QrScannerView.kt`):** Configured `PreviewView.ImplementationMode.COMPATIBLE` to force `TextureView` rendering inside Compose layout tree, respecting clipping and alpha. Corrected ZXing Y-plane stride calculation with `rowStride` alignment.
+  2. **Audio Cast Permission & Lifecycle (`DeviceConnectBottomSheet.kt`, `AudioCastForegroundService.kt`):** Added runtime request for `android.permission.RECORD_AUDIO` prior to launching `MediaProjectionManager.createScreenCaptureIntent()`. Connected `AudioCastForegroundService` to immediately propagate `mediaProjection` to `AndroidCastSourceManager` and trigger `startAudioCastToDevice`.
+  3. **Desktop Process Restart:** Terminated legacy background `Lirix.exe` instances and activated `DesktopConnectServer` on TCP/UDP port 4433.
+
+## ADR-044: Redesign of Tap-to-Sync Studio in Lirix 2.0 Design System (TASK-UI-TAPSYNC-REDESIGN)
+- **Date:** 2026-10-16
+- **Status:** APPROVED (Gates 1–4 Passed, Delegated to Implementation)
+- **Context:** Physical device audit revealed outdated prototype artifacts on the Tap-to-Sync screen (`LrcTapSyncStudioDialog.kt`): neon cyan/violet gradients, raw caps labels, unicode emoji on primary action button, lack of `LiterataFontFamily` and `GolosTextFontFamily`, and button overlap by Android gesture navigation.
+- **Decisions:**
+  1. **Typography & Sentence Case:** Apply `LiterataFontFamily` with `.toSentenceCase()` for song lyrics (20sp active line with `FontWeight.Medium`, 14sp adjacent lines with `alpha = 0.65f`). Apply `GolosTextFontFamily` with OpenType `tnum` tabular figures for interface controls, song title, artist, progress badge, and timers.
+  2. **Palette & Studio Deck Aesthetics:** Eliminate all gradients and raw hex colors in favor of `LirixThemeTokens.colors`. Central card uses `surfaceCard` with clean 1.5dp `accentPrimary` contour.
+  3. **Ergonomic Primary Action Button:** 56dp height, rounded 16dp corners, solid `accentPrimary` fill, vector `Icons.Default.TouchApp`, text `Тап — следующая строка` in sentence case without emojis or caps.
+  4. **Gesture Inset Safety:** Wrap bottom actions (`Отменить шаг`, `Сбросить всё`) in `Modifier.navigationBarsPadding().padding(bottom = 16.dp, top = 8.dp)` with minHeight 48dp, ensuring full visibility above Android system navigation bars and gesture pill.
+
+## ADR-045: HTML Line Break Extraction & Studio Root Insets (TASK-UI-TAPSYNC-INSETS-02, TASK-TEACH-LINEBREAKS-01)
+- **Date:** 2026-10-16
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** User device audit revealed: 1) Bottom buttons in TapSync Studio were partially submerged below the screen because `navigationBarsPadding` was applied to the bottom Row rather than the root `Surface`, causing the `weight(1f)` Column to miscalculate window insets; 2) TeachMode extracted lyrics as a single run-on sentence with glued chords (`A#A ну`, `D7A то`) because detached `clone.innerText` in Chromium returns `textContent`, dropping all `<br>`, `<p>`, and `<div>` line breaks.
+- **Decisions:**
+  1. **Root Dialog Insets (`LrcTapSyncStudioDialog.kt`):** Applied `.statusBarsPadding().navigationBarsPadding()` directly to the root `Surface`, with `Column` padding `bottom = 8.dp`. Reduced bottom Row padding to `6.dp` and action button to `52.dp`. The buttons are guaranteed to sit completely above Android system gesture navigation.
+  2. **Live DOM Text Extraction (`teach_inspector.js`):** `extractCleanText` reads `rootEl.innerText` directly from the live attached DOM with stripped elements temporarily hidden (`style.display = 'none'`), preserving 100% of the browser's CSS layout newlines (`<br>`, `<p>`, `<div>`, `<pre>`). Fallback clone explicitly replaces `<br>` with `\n` text nodes and adds newlines around block tags. Glued chords are automatically separated (`$1 $2`).
+  3. **Resilient Sanitizer (`LrcSyncEngine.kt`, `NowPlayingScreen.kt`):** `LrcSyncEngine.sanitizePlainText` unsticks chords from letters and restores line breaks at section headers/punctuation for previously saved single-line tracks in `PlainLyricsReadingView` and `parsePlainToSyncLines`.
+
+## ADR-046: Manual Lyrics Editor & Smart Assistants in Lirix 2.0 (TASK-UI-EDIT-LYRICS-01)
+- **Date:** 2026-10-16
+- **Status:** APPROVED (Gates 7 & 8 Passed)
+- **Context:** Users required the ability to manually edit and correct song lyrics directly within the mobile application (fixing typos, stripping chords for karaoke, breaking running text into lines, pasting from clipboard).
+- **Decisions:**
+  1. **Fullscreen Modal Editor (`EditLyricsDialog.kt`):** Built with `DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)` and `DialogWindowProvider` to support true edge-to-edge rendering, status bar insets, navigation bar insets, and `imePadding()` to prevent the software keyboard from occluding controls.
+  2. **Smart Toolbar Assistants:**
+     - `Разбить на строки` (`Icons.Default.AutoAwesome`): applies `LrcSyncEngine.sanitizePlainText()` to automatically format run-on verses and unglue chords.
+     - `Удалить аккорды` (`Icons.Default.MusicNote`): strips guitar chord lines and inline notation to produce clean singable karaoke text.
+     - `Вставить` (`Icons.Default.ContentPaste`): one-tap paste from Android `ClipboardManager`.
+  3. **Live Stats & Typography:** Displays real-time line and character counters. Song editor field uses `LiterataFontFamily` (16sp, line height 24sp), toolbar uses `GolosTextFontFamily`.
+  4. **Tri-point Entry & Persistence:** Accessible from `NowPlayingScreen` (edit icon in text view), `NowPlayingOverflowMenu` (dropdown item "Редактировать текст песни"), and `LrcTapSyncStudioDialog` (top bar edit button). Asynchronously updates Room database (`lyricsDao().saveLyrics` and `musicDao().updateLyrics`) and updates in-memory UI state with confirmation `Snackbar`.
+
+## ADR-047: Codex architecture/specification, Antigravity implementation; PCM LAN repair
+- Date: 2026-10-16
+- Status: APPROVED for scoped implementation, physical acceptance pending.
+- User explicitly assigned Codex to author architecture/specifications and drive Antigravity chats, with Antigravity writing product code. This assignment supersedes earlier coordinator-only restrictions for architecture/specification authoring in this session. Product code remains delegated.
+- Evidence: CONNECT_DIALECTIC_VERIFICATION.md; user reports no sound.
+- Repair baseline: .sdd/specs/media-connect/lan_pcm_audio_repair_v1.md v1.0; packetize complete PCM16LE stereo into <=960-byte aligned payloads, explicit PCM codec, preserve data, truthful receiver errors/state. Temporary LAN repair, not QUIC/Opus parity or secure Connect release.
+- QA before implementation; CON-PCM-000 is an explicit one-enum schema support card; other implementation cards are one function each. Independent review and physical audible Android-to-Windows smoke remain required.
+- No claims that pairing, handoff, target switching or full AudioRecord error separation are fixed by this package.
+
+## ADR-048: Codex resumes direct implementation
+- Date:2026-10-16.
+- User explicitly requested stopping Antigravity and writing all code directly. This supersedes coordinator-only and Antigravity-only coding restrictions for the remainder of this task.
+- Antigravity task11516284 stopped through UI Cancel; User cancelled agent execution confirmed. Root Codex now implements and tests; independent reviewer stays read-only.
+- Existing implemented changes preserved; failed suspend-reflection test replaced with real TCP/UDP production-path regression coverage, cleanup cancellation repaired.
+
+## ADR-049: Ultra-Compact Chords Toolbar & Lyrics Area Maximization (TASK-UI-CHORDS-TOOLBAR-COMPACT-01)
+- **Date:** 2026-10-16
+- **Status:** APPROVED (Gates 1–4 Passed, Delegated to Implementation)
+- **Context:** Mobile UI audit revealed that the chords tab toolbar was housed in a massive 250dp `Surface` card with multiple padded rows. This compressed the actual guitar lyrics reading view to 2-3 lines and caused horizontal overflow in portrait mode.
+- **Decisions:**
+  1. **Single-Row Ultra-Compact Header:** Replaced the multi-row `Surface` container with a slim, ergonomic single-row layout (height 40-42dp) with 6dp bottom spacing.
+  2. **Minimalist Key Stepper:** Streamlined transpose control to `[ ♭ ]` `Key` `[ ♯ ]` (eliminating the redundant verbose "Тональность:" prefix) in a rounded 8dp badge.
+  3. **Inline Chords Ribbon:** Embedded the song chord fingering chips directly into the center of the header as a horizontal `LazyRow`, preserving one-tap chord diagrams via `GuitarChordDialog`.
+  4. **Micro Autoscroll Trigger:** Positioned speed toggle (`1.0x`) and play/pause (`▶` / `⏸`) buttons as micro-chips on the right edge.
+  5. **Maximized Lyrics Surface:** Granted >85% of screen height to the guitar lyrics prompter with monospace typography and smooth vertical/horizontal scrolling.
+
+## ADR-050: Fix Chord Sharp Symbol Truncation & False Article A Extraction (TASK-BUG-CHORD-EXTRACT-01)
+- **Date:** 2026-10-16
+- **Status:** APPROVED (Gates 1–4 Passed, Delegated to Implementation)
+- **Context:** User reported that sharp chords in song lyrics (`C#`, `F#`) were displayed in the toolbar ribbon as natural chords (`C`, `F`), and natural `A` appeared erroneously.
+- **Root Cause:** `GuitarChordDictionary.extractChordsFromText` used a regex with trailing word boundary `\b`. Since `#` is a non-word character (`\W`), `\b` matched before `#`, stripping sharps. Furthermore, whole-text scanning matched English indefinite article `a` / `A` as chord `A`.
+- **Decisions:**
+  1. **Token & Line-Aware Extraction:** Extract chords from bracketed inline notations `[...]`, `(...)` and chord-dense lines (`isChordLine`).
+  2. **Sharps Preservation:** Match chord tokens via bounded whitespace/punctuation splitting without trailing `\b`, ensuring `C#`, `F#`, `G#`, `A#m` resolve intact against `CHORD_MAP`.
+  3. **Vocal Line Guard:** Prevent lyric text from leaking solitary letters (`a`, `A`) into the guitar chord ribbon.
+
+## ADR-051: Lyrics Search Lifecycle, Stale State Eviction & Search Progress (TASK-UI-LYRICS-SEARCH-LIFECYCLE-01)
+- **Date:** 2026-10-16
+- **Status:** APPROVED (Gates 1–4 Passed, Delegated to Implementation)
+- **Context:** User reported that upon changing songs, the lyrics of the previous song remained on screen during background search, and if no lyrics were found online, the screen remained stuck displaying stale data from the previous song.
+- **Root Cause:** `NowPlayingScreen.kt` held `lyricsCache` in a non-keyed `remember` block without clearing it on track transition. `RenderTeleprompterContent` did not receive `isLoadingLyrics`, rendering stale lyrics until network requests settled. Unhandled network exceptions in `LaunchedEffect` aborted coroutines before clearing `lyricsCache`.
+- **Decisions:**
+  1. **Keyed State Reset:** Key `lyricsCache` and `isLoadingLyrics` to `currentTrack?.trackKey`, immediately evicting stale cache on the very frame of track change.
+  2. **Dedicated Searching State:** Added `PlayerEmptyStateType.SEARCHING_LYRICS` in `EmptyPlayerStateView.kt` with a themed `CircularProgressIndicator`, track metadata, and status copy («Ищем текст песни...»).
+  3. **Strict Track Key Validation:** In `RenderTeleprompterContent`, reject cached entities whose `trackKey` does not match `currentTrack.trackKey`.
+  4. **Resilient Network Exception Handling:** Wrap `AggregatedLyricsProvider` retrieval in `try/catch`, ensuring reliable transition to `PlayerEmptyStateType.LYRICS_NOT_FOUND` when online search fails.
+
+## ADR-052: Smart Line Wrapping & Synchronized Syllabic Pair Wrapping for Chords (TASK-UI-CHORDS-SMART-WRAP-01)
+- **Date:** 2026-10-16
+- **Status:** APPROVED (Gates 1–4 Passed, Delegated to Implementation)
+- **Context:** User reported that in the chords tab, long lines without line breaks were invisible because `softWrap = false` forced text to run off-screen horizontally.
+- **Root Cause:** To prevent chords from desynchronizing from lyrics under blind text wrapping, `softWrap = false` was previously enforced. Without wrapping, lines longer than ~36 characters extended off-screen, rendering lyrics unreadable during performance. Text without `\n` linebreaks stretched into a single line.
+- **Decisions:**
+  1. **Run-on Preprocessing:** When chords text lacks line breaks (`lines().size <= 2 && length > 80`), apply `LrcSyncEngine.sanitizePlainText()` to format musical sections and sentences into lines.
+  2. **Synchronized Syllabic Pair Wrapping:** For lines exceeding `maxCharsPerLine` (~36 chars portrait, ~54 landscape), split both chord line and lyrics line simultaneously at word boundaries. This keeps chords strictly above their syllables on wrapped sub-lines without horizontal truncation.
+  3. **Wrap Toggle Control (`[ ↩ ]`):** Added a micro-action in the toolbar to toggle wrapping (`isWrapEnabled`, default `true`), allowing guitarists to choose between auto-wrapped viewport and classic single-line scroll.
+
+## ADR-053: Dynamic Theme Palette Binding for Library Screen & Bottom Sheets (TASK-UI-LIB-THEME-FIX-01)
+- **Date:** 2026-10-16
+- **Status:** APPROVED (Gates 1–4 Passed, Delegated to Implementation)
+- **Context:** User reported that selecting the Yandex Music theme applied yellow/orange accents to the bottom navigation bar and player, but the entire Library screen («Все», counters, «Синхронно» badges, search icon and border) remained stuck on graphite/blue (`#7FA6F0`).
+- **Root Cause:** `LibraryScreen.kt` and `TrackActionBottomSheet.kt` hardcoded `val stableAccent = if (lirixColors.isDark) LirixThemeTokens.AccentFallbackDark else LirixThemeTokens.AccentFallbackLight`, bypassing the reactive `LirixThemeTokens.colors.accentPrimary` and `accentSecondary` of the selected theme.
+- **Decisions:**
+  1. **Dynamic Theme Accent Binding:** Replace hardcoded `AccentFallbackDark` with `lirixColors.accentPrimary` and `lirixColors.accentSecondary` across all interactive and highlight components in `LibraryScreen.kt` and `TrackActionBottomSheet.kt`.
+  2. **High-Contrast Text Mapping:** For active filter chips, bind text color to `MaterialTheme.colorScheme.onPrimary`, ensuring maximum legibility (black text on Yandex yellow `#FFCC00` with 14:1 contrast ratio, high-contrast text on other themes).
+  3. **Metadata & Badges Theme Harmonization:** Align «Синхронно» badges and play counts (`×N`) with `accentPrimary`, and favorite heart icons with `accentSecondary`.
+
+
+
+

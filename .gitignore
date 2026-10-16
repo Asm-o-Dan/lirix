@@ -36,3 +36,5 @@ __pycache__/
 /test_out.txt
 /.sdd/reports/connect_pcm_baseline/
 /.sdd/intake/connect_pcm_*.json
+*.apk
+

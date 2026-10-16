@@ -313,8 +313,8 @@ fun NowPlayingScreen(
         }
     }
 
-    var lyricsCache by remember { mutableStateOf<LyricsCacheEntity?>(null) }
-    var isLoadingLyrics by remember { mutableStateOf(false) }
+    var lyricsCache by remember(currentTrack?.trackKey) { mutableStateOf<LyricsCacheEntity?>(null) }
+    var isLoadingLyrics by remember(currentTrack?.trackKey) { mutableStateOf(currentTrack != null) }
     var isLoadingChords by remember { mutableStateOf(false) }
 
     var isEditingNotes by remember { mutableStateOf(false) }
@@ -364,7 +364,7 @@ fun NowPlayingScreen(
     val isImeVisible = WindowInsets.isImeVisible
     var isNotesFocused by remember { mutableStateOf(false) }
     val isHideControlsForNotes = (selectedMode == NowPlayingMode.NOTES && (isImeVisible || isNotesFocused)) || isImeVisible
-    val hasSyncedLyrics = !lyricsCache?.syncedLyricsLrc.isNullOrBlank() || !currentTrack?.syncedLyrics.isNullOrBlank()
+    val hasSyncedLyrics = (lyricsCache?.trackKey == currentTrack?.trackKey && !lyricsCache?.syncedLyricsLrc.isNullOrBlank()) || (!isLoadingLyrics && !currentTrack?.syncedLyrics.isNullOrBlank())
     val isKaraokeWithLyrics = selectedMode == NowPlayingMode.KARAOKE && hasSyncedLyrics
 
     val saveNotes: () -> Unit = {
@@ -475,36 +475,48 @@ fun NowPlayingScreen(
 
     // Load lyrics from database or online providers
     LaunchedEffect(currentTrack?.trackKey) {
-        val track = currentTrack ?: return@LaunchedEffect
+        val track = currentTrack
+        if (track == null) {
+            lyricsCache = null
+            isLoadingLyrics = false
+            return@LaunchedEffect
+        }
         isLoadingLyrics = true
+        lyricsCache = null
         withContext(Dispatchers.IO) {
-            if (db.musicDao().getTrackByKey(track.trackKey) == null) {
-                db.musicDao().insertOrUpdateTrack(track)
-            }
-            val cached = db.lyricsDao().getLyrics(track.trackKey)
-            if (cached != null) {
-                lyricsCache = cached
-                isLoadingLyrics = false
-            } else {
-                val rejected = db.lyricsDao().getRejectedSourceIds(track.trackKey).toSet()
-                val fetched = AggregatedLyricsProvider(lyricsDao = db.lyricsDao()).getLyrics(track, rejectedSourceIds = rejected)
-                if (fetched.hasLyrics && fetched.sourceId !in rejected) {
-                    val plain = fetched.plainLyrics ?: fetched.lyricsText
-                    val synced = fetched.syncedLyrics
-                    val entity = LyricsCacheEntity(
-                        trackKey = track.trackKey,
-                        plainLyrics = plain,
-                        syncedLyricsLrc = synced,
-                        chordsAmDm = fetched.chords ?: AmDmChordParser.parseAmDmHtml(plain),
-                        userNotes = track.userNotes,
-                        provider = fetched.sourceId.ifBlank { fetched.source }
-                    )
-                    db.lyricsDao().saveLyrics(entity)
-                    db.musicDao().updateLyrics(track.trackKey, plain, synced)
-                    lyricsCache = entity
-                } else {
-                    lyricsCache = null
+            try {
+                if (db.musicDao().getTrackByKey(track.trackKey) == null) {
+                    db.musicDao().insertOrUpdateTrack(track)
                 }
+                val cached = db.lyricsDao().getLyrics(track.trackKey)
+                if (cached != null && (!cached.plainLyrics.isNullOrBlank() || !cached.syncedLyricsLrc.isNullOrBlank())) {
+                    lyricsCache = cached
+                    isLoadingLyrics = false
+                } else {
+                    val rejected = db.lyricsDao().getRejectedSourceIds(track.trackKey).toSet()
+                    val fetched = AggregatedLyricsProvider(lyricsDao = db.lyricsDao()).getLyrics(track, rejectedSourceIds = rejected)
+                    if (fetched.hasLyrics && fetched.sourceId !in rejected) {
+                        val plain = fetched.plainLyrics ?: fetched.lyricsText
+                        val synced = fetched.syncedLyrics
+                        val entity = LyricsCacheEntity(
+                            trackKey = track.trackKey,
+                            plainLyrics = plain,
+                            syncedLyricsLrc = synced,
+                            chordsAmDm = fetched.chords ?: AmDmChordParser.parseAmDmHtml(plain),
+                            userNotes = track.userNotes,
+                            provider = fetched.sourceId.ifBlank { fetched.source }
+                        )
+                        db.lyricsDao().saveLyrics(entity)
+                        db.musicDao().updateLyrics(track.trackKey, plain, synced)
+                        lyricsCache = entity
+                    } else {
+                        lyricsCache = null
+                    }
+                    isLoadingLyrics = false
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("NowPlayingScreen", "Failed to load lyrics for ${track.trackKey}", e)
+                lyricsCache = null
                 isLoadingLyrics = false
             }
         }
@@ -922,6 +934,7 @@ fun NowPlayingScreen(
                         selectedMode = selectedMode,
                         lyricsCache = lyricsCache,
                         currentTrack = currentTrack,
+                        isLoadingLyrics = isLoadingLyrics,
                         playbackPositionMs = playbackPositionMs,
                         isPlaying = isPlaying,
                         syncOffsetMs = syncOffsetMs,
@@ -1085,9 +1098,14 @@ fun NowPlayingScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = if (!lyricsCache?.syncedLyricsLrc.isNullOrBlank()) "Текст: синхронно" else "Текст: статично",
+                                text = when {
+                                    isLoadingLyrics -> "Поиск текста..."
+                                    lyricsCache?.trackKey == currentTrack.trackKey && !lyricsCache?.syncedLyricsLrc.isNullOrBlank() -> "Текст: синхронно"
+                                    lyricsCache?.trackKey == currentTrack.trackKey && !lyricsCache?.plainLyrics.isNullOrBlank() -> "Текст: статично"
+                                    else -> "Текст не найден"
+                                },
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-                                color = lirixColors.accentPrimary
+                                color = if (isLoadingLyrics) lirixColors.textSecondary else lirixColors.accentPrimary
                             )
                         }
 
@@ -1138,6 +1156,7 @@ fun NowPlayingScreen(
                         selectedMode = selectedMode,
                         lyricsCache = lyricsCache,
                         currentTrack = currentTrack,
+                        isLoadingLyrics = isLoadingLyrics,
                         playbackPositionMs = playbackPositionMs,
                         isPlaying = isPlaying,
                         syncOffsetMs = syncOffsetMs,
@@ -1690,6 +1709,7 @@ private fun RenderTeleprompterContent(
     selectedMode: NowPlayingMode,
     lyricsCache: LyricsCacheEntity?,
     currentTrack: TrackEntity,
+    isLoadingLyrics: Boolean,
     playbackPositionMs: Long,
     isPlaying: Boolean,
     syncOffsetMs: Long,
@@ -1712,15 +1732,98 @@ private fun RenderTeleprompterContent(
 ) {
     val tokens = LirixThemeTokens.colors
 
+    if (selectedMode == NowPlayingMode.NOTES) {
+        val keyboardController = LocalSoftwareKeyboardController.current
+        val focusManager = LocalFocusManager.current
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+                .padding(8.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Личные заметки к песне",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = tokens.textSecondary
+                )
+                TextButton(
+                    onClick = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                        onNotesFocusChange(false)
+                        onSaveNotes()
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Готово",
+                        tint = tokens.accentPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Готово",
+                        color = tokens.accentPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+            OutlinedTextField(
+                value = notesText,
+                onValueChange = onNotesChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .onFocusChanged { focusState ->
+                        onNotesFocusChange(focusState.isFocused)
+                    },
+                placeholder = {
+                    Text("Личные заметки к песне (тональность, каподастр, структура)...")
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = tokens.surfacePrimary,
+                    unfocusedContainerColor = tokens.surfacePrimary,
+                    focusedTextColor = tokens.textPrimary,
+                    unfocusedTextColor = tokens.textPrimary,
+                    focusedBorderColor = tokens.accentPrimary,
+                    unfocusedBorderColor = tokens.borderSubtle
+                )
+            )
+        }
+        return
+    }
+
+    if (isLoadingLyrics) {
+        EmptyPlayerStateView(
+            stateType = PlayerEmptyStateType.SEARCHING_LYRICS,
+            trackTitle = currentTrack.title,
+            trackArtist = currentTrack.artist,
+            modifier = Modifier.fillMaxSize()
+        )
+        return
+    }
+
+    val validCache = if (lyricsCache?.trackKey == currentTrack.trackKey) lyricsCache else null
+    val effectivePlain = validCache?.plainLyrics ?: currentTrack.plainLyrics
+    val effectiveSynced = validCache?.syncedLyricsLrc ?: currentTrack.syncedLyrics
+
     when (selectedMode) {
         NowPlayingMode.KARAOKE -> {
-            val hasLrc = !lyricsCache?.syncedLyricsLrc.isNullOrBlank()
-            val hasPlain = !lyricsCache?.plainLyrics.isNullOrBlank()
+            val hasLrc = !effectiveSynced.isNullOrBlank()
+            val hasPlain = !effectivePlain.isNullOrBlank()
 
             if (hasLrc) {
                 HighFidelityKaraokePlayer(
-                    lrcText = lyricsCache?.syncedLyricsLrc,
-                    plainText = lyricsCache?.plainLyrics,
+                    lrcText = effectiveSynced,
+                    plainText = effectivePlain,
                     playbackPositionMs = playbackPositionMs,
                     isPlaying = isPlaying,
                     onSeekTo = onSeekTo,
@@ -1733,7 +1836,7 @@ private fun RenderTeleprompterContent(
                 )
             } else if (hasPlain) {
                 PlainLyricsReadingView(
-                    lyricsText = lyricsCache?.plainLyrics.orEmpty(),
+                    lyricsText = effectivePlain.orEmpty(),
                     onStartTapSync = onStartTapSync,
                     onEditLyrics = onEditLyrics,
                     fontScale = fontScale,
@@ -1751,10 +1854,9 @@ private fun RenderTeleprompterContent(
         }
 
         NowPlayingMode.LYRICS -> {
-            val text = lyricsCache?.plainLyrics ?: currentTrack.plainLyrics
-            if (!text.isNullOrBlank()) {
+            if (!effectivePlain.isNullOrBlank()) {
                 PlainLyricsReadingView(
-                    lyricsText = text,
+                    lyricsText = effectivePlain,
                     onStartTapSync = onStartTapSync,
                     onEditLyrics = onEditLyrics,
                     fontScale = fontScale,
@@ -1772,8 +1874,8 @@ private fun RenderTeleprompterContent(
         }
 
         NowPlayingMode.CHORDS -> {
-            val chords = lyricsCache?.chordsAmDm
-                ?: AmDmChordParser.detectAndFormatInlineChords(lyricsCache?.plainLyrics.orEmpty())
+            val chords = validCache?.chordsAmDm
+                ?: AmDmChordParser.detectAndFormatInlineChords(effectivePlain.orEmpty())
             if (!chords.isNullOrBlank()) {
                 ChordsTabContent(
                     chordsText = chords,
@@ -1793,73 +1895,7 @@ private fun RenderTeleprompterContent(
             }
         }
 
-        NowPlayingMode.NOTES -> {
-            val keyboardController = LocalSoftwareKeyboardController.current
-            val focusManager = LocalFocusManager.current
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .imePadding()
-                    .padding(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Личные заметки к песне",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = tokens.textSecondary
-                    )
-                    TextButton(
-                        onClick = {
-                            keyboardController?.hide()
-                            focusManager.clearFocus()
-                            onNotesFocusChange(false)
-                            onSaveNotes()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Готово",
-                            tint = tokens.accentPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Готово",
-                            color = tokens.accentPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-                OutlinedTextField(
-                    value = notesText,
-                    onValueChange = onNotesChange,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .onFocusChanged { focusState ->
-                            onNotesFocusChange(focusState.isFocused)
-                        },
-                    placeholder = {
-                        Text("Личные заметки к песне (тональность, каподастр, структура)...")
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = tokens.surfacePrimary,
-                        unfocusedContainerColor = tokens.surfacePrimary,
-                        focusedTextColor = tokens.textPrimary,
-                        unfocusedTextColor = tokens.textPrimary,
-                        focusedBorderColor = tokens.accentPrimary,
-                        unfocusedBorderColor = tokens.borderSubtle
-                    )
-                )
-            }
-        }
+        NowPlayingMode.NOTES -> { /* Handled above */ }
     }
 }
 

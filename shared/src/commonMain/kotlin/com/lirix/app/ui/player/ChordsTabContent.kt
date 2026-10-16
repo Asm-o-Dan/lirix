@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,8 +32,10 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.lirix.app.feature.lyrics.LrcSyncEngine
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
@@ -159,38 +162,149 @@ private fun AnnotatedString.Builder.appendChordLine(
     }
 }
 
-private fun buildChordAnnotatedString(
+/**
+ * Wraps a monospaced chord-syllable pair so neither line exceeds [maxChars],
+ * maintaining chord positions directly above their respective syllables.
+ */
+internal fun wrapSyllabicPair(
+    chordLine: String,
+    lyricLine: String,
+    maxChars: Int
+): List<Pair<String, String>> {
+    if (chordLine.length <= maxChars && lyricLine.length <= maxChars) {
+        return listOf(Pair(chordLine, lyricLine))
+    }
+
+    val result = mutableListOf<Pair<String, String>>()
+    var curChord = chordLine
+    var curLyric = lyricLine
+
+    while (curChord.length > maxChars || curLyric.length > maxChars) {
+        val maxLen = maxOf(curChord.length, curLyric.length)
+        val limit = minOf(maxChars, maxLen)
+
+        // Find best word boundary <= limit in lyricLine or chordLine
+        var splitIdx = -1
+        if (curLyric.length > limit) {
+            val spaceIdx = curLyric.lastIndexOf(' ', limit)
+            if (spaceIdx > limit / 3) {
+                splitIdx = spaceIdx + 1
+            }
+        } else if (curChord.length > limit) {
+            val spaceIdx = curChord.lastIndexOf(' ', limit)
+            if (spaceIdx > limit / 3) {
+                splitIdx = spaceIdx + 1
+            }
+        }
+
+        if (splitIdx <= 0) {
+            splitIdx = limit
+        }
+
+        val chunkChord = if (curChord.length >= splitIdx) curChord.substring(0, splitIdx) else curChord
+        val chunkLyric = if (curLyric.length >= splitIdx) curLyric.substring(0, splitIdx) else curLyric
+        result.add(Pair(chunkChord.trimEnd(), chunkLyric.trimEnd()))
+
+        val remChord = if (curChord.length > splitIdx) curChord.substring(splitIdx) else ""
+        val remLyric = if (curLyric.length > splitIdx) curLyric.substring(splitIdx) else ""
+
+        var leadingSpaces = 0
+        while (leadingSpaces < remLyric.length && remLyric[leadingSpaces] == ' ') {
+            leadingSpaces++
+        }
+        curLyric = remLyric.substring(leadingSpaces)
+        curChord = if (remChord.length >= leadingSpaces) remChord.substring(leadingSpaces) else remChord.trimStart()
+
+        if (chunkChord.isEmpty() && chunkLyric.isEmpty()) break
+    }
+
+    if (curChord.isNotBlank() || curLyric.isNotBlank()) {
+        result.add(Pair(curChord.trimEnd(), curLyric.trimEnd()))
+    }
+    return result
+}
+
+internal fun wrapSingleLine(line: String, maxChars: Int): List<String> {
+    if (line.length <= maxChars) return listOf(line)
+    val result = mutableListOf<String>()
+    var cur = line.trimEnd()
+    while (cur.length > maxChars) {
+        var spaceIdx = cur.lastIndexOf(' ', maxChars)
+        if (spaceIdx <= maxChars / 3) {
+            spaceIdx = maxChars
+        }
+        result.add(cur.substring(0, spaceIdx).trimEnd())
+        cur = cur.substring(spaceIdx).trimStart()
+    }
+    if (cur.isNotEmpty()) {
+        result.add(cur)
+    }
+    return result
+}
+
+internal fun buildChordAnnotatedString(
     text: String,
     accentColor: Color,
-    textColor: Color
+    textColor: Color,
+    isWrapEnabled: Boolean = false,
+    maxChars: Int = 36
 ): AnnotatedString {
+    // 1. If text lacks line breaks (e.g. single run-on line), preprocess with LrcSyncEngine
+    val normalizedText = if (text.lines().count { it.isNotBlank() } <= 2 && text.length > 80) {
+        LrcSyncEngine.sanitizePlainText(text)
+    } else {
+        text
+    }
+
     return buildAnnotatedString {
-        val lines = text.lines()
-        lines.forEachIndexed { index, line ->
-            val inlinePair = formatInlineChordsToSyllabicPair(line)
+        val lines = normalizedText.lines()
+        lines.forEachIndexed { index, rawLine ->
+            val inlinePair = formatInlineChordsToSyllabicPair(rawLine)
             if (inlinePair != null) {
-                appendChordLine(inlinePair.first, accentColor, textColor)
-                append("\n")
-                withStyle(
-                    SpanStyle(
-                        color = textColor,
-                        fontWeight = FontWeight.Normal,
-                        fontFamily = FontFamily.Monospace
-                    )
-                ) {
-                    append(inlinePair.second)
+                val pairs = if (isWrapEnabled) {
+                    wrapSyllabicPair(inlinePair.first, inlinePair.second, maxChars)
+                } else {
+                    listOf(inlinePair)
                 }
-            } else if (isChordLine(line)) {
-                appendChordLine(line, accentColor, textColor)
+                pairs.forEachIndexed { pairIdx, pair ->
+                    appendChordLine(pair.first, accentColor, textColor)
+                    append("\n")
+                    withStyle(
+                        SpanStyle(
+                            color = textColor,
+                            fontWeight = FontWeight.Normal,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    ) {
+                        append(pair.second)
+                    }
+                    if (pairIdx < pairs.size - 1) {
+                        append("\n")
+                    }
+                }
+            } else if (isChordLine(rawLine)) {
+                val wrapped = if (isWrapEnabled) wrapSingleLine(rawLine, maxChars) else listOf(rawLine)
+                wrapped.forEachIndexed { wIdx, wLine ->
+                    appendChordLine(wLine, accentColor, textColor)
+                    if (wIdx < wrapped.size - 1) {
+                        append("\n")
+                    }
+                }
             } else {
-                withStyle(
-                    SpanStyle(
-                        color = textColor,
-                        fontWeight = FontWeight.Normal,
-                        fontFamily = FontFamily.Monospace
-                    )
-                ) {
-                    append(line)
+                val wrapped = if (isWrapEnabled) wrapSingleLine(rawLine, maxChars) else listOf(rawLine)
+                wrapped.forEachIndexed { wIdx, wLine ->
+                    withStyle(
+                        SpanStyle(
+                            color = textColor,
+                            fontWeight = FontWeight.Normal,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    ) {
+                        append(wLine)
+                    }
+                    if (wIdx < wrapped.size - 1) {
+                        append("\n")
+                    }
                 }
             }
             if (index < lines.size - 1) {
@@ -249,13 +363,10 @@ fun ChordsTabContent(
     var isAutoscrollRunning by remember { mutableStateOf(false) }
     var autoscrollMultiplier by remember { mutableFloatStateOf(1.0f) }
     var selectedChordForDialog by remember { mutableStateOf<String?>(null) }
+    var isWrapEnabled by rememberSaveable { mutableStateOf(true) }
 
     val transposedText = remember(chordsText, transposeSemitones) {
         if (transposeSemitones == 0) chordsText else ChordTransposer.transposeText(chordsText, transposeSemitones)
-    }
-
-    val chordAnnotatedText = remember(transposedText, colors.accentPrimary, colors.textPrimary) {
-        buildChordAnnotatedString(transposedText, colors.accentPrimary, colors.textPrimary)
     }
 
     val songChords = remember(transposedText) {
@@ -423,11 +534,36 @@ fun ChordsTabContent(
                 Spacer(modifier = Modifier.weight(1f))
             }
 
-            // 3. Compact Autoscroll Controls: [ 1.0x ] [ ▶ / ⏸ ]
+            // 3. Compact Autoscroll Controls: [ ↩ ] [ 1.0x ] [ ▶ / ⏸ ]
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                // Line wrap toggle: [ ↩ ]
+                Box(
+                    modifier = Modifier
+                        .height(34.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isWrapEnabled) colors.accentPrimary.copy(alpha = 0.15f) else colors.surfaceCard)
+                        .border(
+                            width = 1.dp,
+                            color = if (isWrapEnabled) colors.accentPrimary else colors.borderSubtle,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .clickable {
+                            isWrapEnabled = !isWrapEnabled
+                        }
+                        .padding(horizontal = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (isWrapEnabled) "↩" else "⇄",
+                        color = if (isWrapEnabled) colors.accentPrimary else colors.textSecondary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
                 // Speed multiplier chip
                 Box(
                     modifier = Modifier
@@ -485,24 +621,45 @@ fun ChordsTabContent(
         val horizontalScrollState = rememberScrollState()
 
         // 4. Maximized Chords Content View (>85% vertical screen space)
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(RoundedCornerShape(12.dp))
                 .background(colors.surfacePrimary)
                 .border(1.dp, colors.borderSubtle, RoundedCornerShape(12.dp))
-                .verticalScroll(scrollState)
-                .horizontalScroll(horizontalScrollState)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Text(
-                text = chordAnnotatedText,
-                fontSize = 14.sp,
-                fontFamily = FontFamily.Monospace,
-                lineHeight = 22.sp,
-                softWrap = false
-            )
+            val availableWidthDp = maxWidth.value
+            val maxCharsPerLine = (availableWidthDp / 8.8f).toInt().coerceIn(26, 90)
+
+            val chordAnnotatedText = remember(transposedText, colors.accentPrimary, colors.textPrimary, isWrapEnabled, maxCharsPerLine) {
+                buildChordAnnotatedString(
+                    text = transposedText,
+                    accentColor = colors.accentPrimary,
+                    textColor = colors.textPrimary,
+                    isWrapEnabled = isWrapEnabled,
+                    maxChars = maxCharsPerLine
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .then(
+                        if (!isWrapEnabled) Modifier.horizontalScroll(horizontalScrollState)
+                        else Modifier
+                    )
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = chordAnnotatedText,
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace,
+                    lineHeight = 22.sp,
+                    softWrap = isWrapEnabled
+                )
+            }
         }
     }
 

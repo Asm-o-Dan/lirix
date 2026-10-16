@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -113,6 +114,8 @@ import kotlinx.coroutines.launch
  * 4. Fallback-диалог на Audio Cast при сбое Handoff.
  * 5. Управление доверенными устройствами (переименование, удаление).
  */
+private const val IS_CONNECT_FEATURE_READY = false
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeviceConnectBottomSheet(
@@ -217,14 +220,17 @@ fun DeviceConnectBottomSheet(
         },
         modifier = modifier
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        if (!IS_CONNECT_FEATURE_READY) {
+            ConnectUnderDevelopmentContent(onDismissRequest = onDismissRequest)
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             // Заголовок
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -565,6 +571,7 @@ fun DeviceConnectBottomSheet(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+            }
         }
     }
 
@@ -922,3 +929,168 @@ private fun DeviceCardItem(
         }
     }
 }
+
+@Composable
+private fun ConnectUnderDevelopmentContent(
+    onDismissRequest: () -> Unit
+) {
+    val tokens = LirixThemeTokens.colors
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp, vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(tokens.accentPrimary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DevicesOther,
+                        contentDescription = null,
+                        tint = tokens.accentPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Column {
+                    Text(
+                        text = "Lirix Connect",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = tokens.textPrimary
+                        )
+                    )
+                    Text(
+                        text = "Синхронизация с ПК",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = tokens.accentPrimary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = onDismissRequest,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Закрыть",
+                    tint = tokens.textSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        // Hero Card: В разработке
+        Surface(
+            shape = RoundedCornerShape(tokens.cardCornerRadius.coerceAtLeast(16.dp)),
+            color = tokens.surfaceCard,
+            border = BorderStroke(1.dp, tokens.borderSubtle),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(tokens.accentPrimary.copy(alpha = 0.12f))
+                        .border(1.dp, tokens.accentPrimary.copy(alpha = 0.3f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Computer,
+                        contentDescription = null,
+                        tint = tokens.accentPrimary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(tokens.pillCornerRadius),
+                    color = tokens.accentPrimary.copy(alpha = 0.15f),
+                    border = BorderStroke(1.dp, tokens.accentPrimary.copy(alpha = 0.3f))
+                ) {
+                    Text(
+                        text = "ФУНКЦИЯ В РАЗРАБОТКЕ",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp,
+                            fontSize = 10.sp
+                        ),
+                        color = tokens.accentPrimary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = "Трансляция и суфлёр для ПК",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    ),
+                    color = tokens.textPrimary,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "Мы разрабатываем Lirix Desktop для Windows 10/11 с прямым захватом звука через системный микшер WASAPI и полупрозрачным телесуфлёром поверх всех окон.\n\nФункция беспроводного сопряжения Lirix Connect (Handoff очереди и трансляция караоке на монитор) станет доступна в релизе версии 2.0.0 вместе с выходом ПК-версии.",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        lineHeight = 20.sp
+                    ),
+                    color = tokens.textSecondary,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        Button(
+            onClick = onDismissRequest,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            shape = RoundedCornerShape(tokens.pillCornerRadius),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = tokens.accentPrimary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
+        ) {
+            Text(
+                text = "Понятно",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
