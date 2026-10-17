@@ -1,6 +1,6 @@
 package com.lirix.app.desktop
 
-import com.lirix.app.desktop.ui.components.DesktopSyncOffsetStore
+import com.lirix.app.desktop.ui.components.DesktopSyncOffsetPreferences
 import com.lirix.app.desktop.ui.components.formatOffsetString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -24,15 +24,12 @@ class DesktopTransportBarTest {
 
     @Test
     fun test_desktopSyncOffsetStore_persistence() {
-        val original = DesktopSyncOffsetStore.getOffsetMs()
-        try {
-            DesktopSyncOffsetStore.setOffsetMs(-500L)
-            assertEquals(-500L, DesktopSyncOffsetStore.getOffsetMs())
-
-            DesktopSyncOffsetStore.setOffsetMs(200L)
-            assertEquals(200L, DesktopSyncOffsetStore.getOffsetMs())
-        } finally {
-            DesktopSyncOffsetStore.setOffsetMs(original)
-        }
+        val preferences = MemoryPreferences()
+        val store = DesktopSyncOffsetPreferences(preferences)
+        assertEquals(-300L, store.getOffsetMs())
+        store.setOffsetMs(-500L)
+        assertEquals(-500L, store.getOffsetMs())
+        store.setOffsetMs(200L)
+        assertEquals(200L, DesktopSyncOffsetPreferences(preferences).getOffsetMs())
     }
 }

@@ -29,7 +29,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import com.lirix.app.desktop.ui.components.DesktopLyricsMode
+import com.lirix.app.desktop.ui.components.DesktopLyricsContent
+import com.lirix.app.desktop.ui.components.DesktopKaraokeUnavailable
+import com.lirix.app.desktop.ui.components.desktopPlainLyrics
+import com.lirix.app.desktop.ui.components.desktopPlaybackPositions
+import com.lirix.app.desktop.ui.components.desktopLyricSeekPosition
+import com.lirix.app.desktop.ui.components.resolveDesktopLyricsContent
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,11 +98,13 @@ fun DesktopDeckScreen(
     onToggleCompactMode: () -> Unit = {},
     audioLevels: AudioLevels? = null,
     modifier: Modifier = Modifier,
-    connectRequestVersion: Int = 0
+    connectRequestVersion: Int = 0,
+    onOpenTapSync: () -> Unit = {},
+    canTapSync: Boolean = false
 ) {
     val colors = LirixThemeTokens.colors
     val typography = LocalLirixTypography.current
-    var selectedRightTab by remember { mutableIntStateOf(0) } // 0: Текст, 1: Аккорды, 2: О треке
+    var selectedRightTab by remember { mutableStateOf(DesktopLyricsMode.KARAOKE) }
 
     // Safely load local album thumbnail bitmap if available from bridge
     val albumArtBitmap = remember(playback?.albumArtUri) {
@@ -110,10 +120,11 @@ fun DesktopDeckScreen(
         }
     }
 
-    val currentPositionMs = playback?.currentPositionMs() ?: 0L
+    var currentPositionMs by remember(playback) { mutableLongStateOf(playback?.currentPositionMs() ?: 0L) }
+    LaunchedEffect(playback) { desktopPlaybackPositions(playback).collect { currentPositionMs = it } }
     val durationMs = playback?.durationMs ?: 0L
-    var syncOffsetMs by remember { mutableLongStateOf(DesktopSyncOffsetStore.getOffsetMs()) }
-    val effectiveLyricsPositionMs = (currentPositionMs - syncOffsetMs).coerceAtLeast(0L)
+    val syncOffsetMs by DesktopSyncOffsetStore.offsetMs.collectAsState()
+    val effectiveLyricsPositionMs = currentPositionMs - syncOffsetMs
 
     var isConnectDialogOpen by remember { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(connectRequestVersion) {
@@ -279,7 +290,7 @@ fun DesktopDeckScreen(
                             onSkipNext = { ingressProvider.skipNext() },
                             onSkipPrevious = { ingressProvider.skipPrevious() },
                             initialOffsetMs = syncOffsetMs,
-                            onOffsetChanged = { newOffset -> syncOffsetMs = newOffset },
+                            onOffsetChanged = DesktopSyncOffsetStore::setOffsetMs,
                             accentColor = colors.accentPrimary,
                             isDark = colors.isDark,
                             modifier = Modifier.fillMaxWidth()
@@ -298,7 +309,7 @@ fun DesktopDeckScreen(
             }
 
             // ==========================================
-            // RIGHT COLUMN: Tabs (Текст, Аккорды, О треке)
+            // Lyrics modes
             // ==========================================
             Surface(
                 modifier = Modifier
@@ -313,7 +324,7 @@ fun DesktopDeckScreen(
                         .fillMaxSize()
                         .padding(16.dp)
                 ) {
-                    // Clean Tab Selection: «Текст», «Аккорды», «О треке» (No emoji, no all-caps)
+                    // Keep static text and synchronized karaoke explicit.
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -322,24 +333,15 @@ fun DesktopDeckScreen(
                             .padding(4.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        DeckTabButton(
-                            label = "Текст",
-                            isSelected = selectedRightTab == 0,
-                            onClick = { selectedRightTab = 0 },
-                            modifier = Modifier.weight(1f)
-                        )
-                        DeckTabButton(
-                            label = "Аккорды",
-                            isSelected = selectedRightTab == 1,
-                            onClick = { selectedRightTab = 1 },
-                            modifier = Modifier.weight(1f)
-                        )
-                        DeckTabButton(
-                            label = "О треке",
-                            isSelected = selectedRightTab == 2,
-                            onClick = { selectedRightTab = 2 },
-                            modifier = Modifier.weight(1f)
-                        )
+                        listOf(
+                            DesktopLyricsMode.TEXT to "Текст",
+                            DesktopLyricsMode.KARAOKE to "Караоке",
+                            DesktopLyricsMode.CHORDS to "Аккорды",
+                            DesktopLyricsMode.ABOUT to "О треке"
+                        ).forEach { (mode, label) ->
+                            DeckTabButton(label = label, isSelected = selectedRightTab == mode,
+                                onClick = { selectedRightTab = mode }, modifier = Modifier.weight(1f))
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -351,106 +353,25 @@ fun DesktopDeckScreen(
                             .weight(1f)
                     ) {
                         when (selectedRightTab) {
-                            0 -> {
-                                when {
-                                    lyricsState.isLoading -> {
-                                        Box(
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                                            ) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(28.dp),
-                                                    color = colors.accentPrimary,
-                                                    strokeWidth = 2.5.dp
-                                                )
-                                                Text(
-                                                    text = "Поиск текста песни...",
-                                                    style = typography.trackTitle.copy(fontSize = 15.sp),
-                                                    color = colors.textPrimary
-                                                )
-                                                Text(
-                                                    text = "LrcLib • Genius • Музыкальные базы",
-                                                    style = typography.timecodeAndBadges,
-                                                    color = colors.textMuted
-                                                )
-                                            }
-                                        }
+                            DesktopLyricsMode.TEXT, DesktopLyricsMode.KARAOKE -> {
+                                when (val content = resolveDesktopLyricsContent(selectedRightTab, playback != null, lyricsState)) {
+                                    DesktopLyricsContent.TEXT -> SelectionContainer {
+                                        Text(desktopPlainLyrics(lyricsState), color = colors.textPrimary,
+                                            style = typography.lyricsNear,
+                                            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp))
                                     }
-                                    playback == null -> {
-                                        // Honest IDLE State
-                                        Box(
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.MusicNote,
-                                                    contentDescription = null,
-                                                    tint = colors.textMuted.copy(alpha = 0.4f),
-                                                    modifier = Modifier.size(44.dp)
-                                                )
-                                                Text(
-                                                    text = "Ничего не играет",
-                                                    style = typography.lyricsNear.copy(fontSize = 18.sp),
-                                                    color = colors.textSecondary
-                                                )
-                                                Text(
-                                                    text = "Запустите музыку в любом плеере",
-                                                    style = typography.timecodeAndBadges,
-                                                    color = colors.textMuted
-                                                )
-                                            }
-                                        }
-                                    }
-                                    lyricsState.lrcLines.isEmpty() && !lyricsState.plainLyrics.isNullOrBlank() -> {
-                                        SelectionContainer {
-                                            Text(lyricsState.plainLyrics, color = colors.textPrimary,
-                                                style = typography.lyricsNear,
-                                                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp))
-                                        }
-                                    }
-                                    lyricsState.lrcLines.isEmpty() -> {
-                                        Box(
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Text(
-                                                    text = "Текст не найден",
-                                                    style = typography.lyricsNear.copy(fontSize = 18.sp),
-                                                    color = colors.textSecondary
-                                                )
-                                                Text(
-                                                    text = "Для этого трека пока нет синхронизированных строк LRC",
-                                                    style = typography.timecodeAndBadges,
-                                                    color = colors.textMuted
-                                                )
-                                            }
-                                        }
-                                    }
-                                    else -> {
-                                        DesktopTeleprompterView(
-                                            lines = lyricsState.lrcLines,
-                                            currentPositionMs = effectiveLyricsPositionMs,
-                                            onSeekRequested = { pos -> ingressProvider.seekTo(pos) },
-                                            accentColor = colors.accentPrimary,
-                                            isDark = colors.isDark,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    }
+                                    DesktopLyricsContent.KARAOKE -> DesktopTeleprompterView(
+                                        lines = lyricsState.lrcLines,
+                                        currentPositionMs = effectiveLyricsPositionMs,
+                                        onSeekRequested = { timestamp -> ingressProvider.seekTo(desktopLyricSeekPosition(timestamp, syncOffsetMs, durationMs)) },
+                                        accentColor = colors.accentPrimary, isDark = colors.isDark,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    else -> DesktopKaraokeUnavailable(content, canTapSync, onOpenTapSync,
+                                        onShowText = { selectedRightTab = DesktopLyricsMode.TEXT })
                                 }
                             }
-                            1 -> {
+                            DesktopLyricsMode.CHORDS -> {
                                 when {
                                     lyricsState.isLoading -> {
                                         Box(

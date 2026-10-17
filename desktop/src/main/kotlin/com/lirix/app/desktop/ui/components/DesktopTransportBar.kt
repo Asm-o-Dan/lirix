@@ -46,6 +46,9 @@ import com.lirix.app.ui.player.formatDurationMs
 import com.lirix.app.ui.theme.ContrastClampHelper
 import com.lirix.app.ui.theme.LirixThemeTokens
 import com.lirix.app.ui.theme.LocalLirixTypography
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.util.Locale
 import java.util.prefs.Preferences
 
@@ -54,16 +57,24 @@ import java.util.prefs.Preferences
  * Persists locally to Windows Registry HKCU\Software\JavaSoft\Prefs.
  */
 object DesktopSyncOffsetStore {
-    private val prefs: Preferences = Preferences.userNodeForPackage(DesktopSyncOffsetStore::class.java)
-    private const val KEY_SYNC_OFFSET_MS = "teleprompter_sync_offset_ms"
     const val DEFAULT_OFFSET_MS = -300L // -0.3 s default offset for Windows GSMTC
+    private val storage = DesktopSyncOffsetPreferences(Preferences.userNodeForPackage(DesktopSyncOffsetStore::class.java))
+    val offsetMs: StateFlow<Long> = storage.offsetMs
 
-    fun getOffsetMs(): Long {
-        return prefs.getLong(KEY_SYNC_OFFSET_MS, DEFAULT_OFFSET_MS)
-    }
+    fun getOffsetMs(): Long = storage.getOffsetMs()
+
+    fun setOffsetMs(offsetMs: Long) = storage.setOffsetMs(offsetMs)
+}
+
+internal class DesktopSyncOffsetPreferences(private val preferences: Preferences) {
+    private val currentOffset = MutableStateFlow(preferences.getLong("teleprompter_sync_offset_ms", -300L))
+    val offsetMs: StateFlow<Long> = currentOffset.asStateFlow()
+
+    fun getOffsetMs(): Long = currentOffset.value
 
     fun setOffsetMs(offsetMs: Long) {
-        prefs.putLong(KEY_SYNC_OFFSET_MS, offsetMs)
+        preferences.putLong("teleprompter_sync_offset_ms", offsetMs)
+        currentOffset.value = offsetMs
     }
 }
 

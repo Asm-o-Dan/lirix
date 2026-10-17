@@ -200,3 +200,12 @@
 - Acceptance: ordinary and repeated dragging track the pointer without runaway movement; header buttons remain clickable; geometry survives hide/reopen; existing reset remains available. Check Windows scaling and secondary monitor origins when the runtime permits.
 - User cannot currently perform manual checks. Do not make manual acceptance a prerequisite for implementation or automated regression checks.
 
+## Desktop karaoke missing mode — 2026-10-17
+
+- User clarified that Karaoke tab is absent; only Text is visible. Intake: `.sdd/intake/DESKTOP_KARAOKE_MISSING_MODE.md`.
+- Architect: `karaoke_architect`; QA: `karaoke_qa`; implementation: `karaoke_coder`. Root coordinates according to supplied AGENTS.md.
+- Specification direction and frozen helper API approved: `.sdd/specs/media-ui/desktop_karaoke_fix.md`. Architect completes exact one-function cards; QA establishes regressions before implementation, then hands build ownership to coder.
+- Required behavior: explicit Karaoke/Text modes, honest untimed state with studio action, sampled playback clock, offset-correct seek and shared offset observation. Separate captured-scope hotkey fix addresses observed missing Main dispatcher.
+- Status: IN_PROGRESS. Native acceptance remains separate from unit tests. Preserve HUD fix and published release tag.
+- Implementation and independent review PASS. Final desktop 51 tests PASS; shared 173 existing tests PASS/up-to-date. Standard fresh distributable created and project jar hashes verified. Native acceptance NOT RUN (capture timeout); current running copies retain old UI. Evidence: `.sdd/reports/DESKTOP_KARAOKE_VALIDATION.md`. No release publication.
+

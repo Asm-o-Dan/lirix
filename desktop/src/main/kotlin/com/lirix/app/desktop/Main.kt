@@ -63,9 +63,10 @@ fun main() = application {
     val playback by ingressProvider.currentPlayback.collectAsState()
     val audioLevels by audioMeterService.audioLevels.collectAsState()
     val lyricsState by lyricsService.lyricsState.collectAsState()
+    val syncOffsetMs by com.lirix.app.desktop.ui.components.DesktopSyncOffsetStore.offsetMs.collectAsState()
     val latestPlayback by rememberUpdatedState(playback)
     val hotkeysManager = remember {
-        fun action(block: () -> Unit): () -> Unit = { coroutineScope.launch(Dispatchers.Main) { block() }; Unit }
+        fun action(block: () -> Unit): () -> Unit = { coroutineScope.launch { block() }; Unit }
         GlobalHotkeysManager(
             onToggleHud = action { isHudVisible = !isHudVisible },
             onTogglePlayPause = action { ingressProvider.playPause() },
@@ -197,7 +198,7 @@ fun main() = application {
             lyricsLines = lyricsState.lrcLines,
             settings = hudSettings,
             onSettingsChange = hudStore::update,
-            syncOffsetMs = com.lirix.app.desktop.ui.components.DesktopSyncOffsetStore.getOffsetMs(),
+            syncOffsetMs = syncOffsetMs,
             onHelp = { helpVisible = true; isMainWindowVisible = true }
         )
     }

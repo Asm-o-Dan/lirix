@@ -786,3 +786,10 @@ AmDm.ru является ценным источником, однако мно�
 
 
 
+
+## Desktop karaoke correction — 2026-10-17
+- User clarified that the missing feature is a separate Karaoke tab on PC.
+- Approved architect contract `.sdd/specs/media-ui/desktop_karaoke_fix.md` and function cards KARAOKE-001–012. Explicit Text/Karaoke modes; no invented timing for plain lyrics; contextual studio action, lifecycle playback sampling, correct offset inversion and observable offset.
+- Scope includes removing the unnecessary Dispatchers.Main override in the captured Compose hotkey scope, addressing observed missing-dispatcher runtime errors without a new dependency.
+- QA owns regression tests before implementation; coder owns product changes; independent review and native acceptance are separate gates. Current release stays immutable.
+- CR-KARAOKE-PREFS-01: independent review found tests mutating the actual user preference node. Approved QA's proposal for an injected Preferences-backed offset store retaining the singleton API, key and default; tests use in-memory AbstractPreferences. QA specifies and owns fixture/tests, coder owns the backing implementation. Require a fresh passing run after isolation; the preceding successful run is not final acceptance.

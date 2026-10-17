@@ -108,7 +108,8 @@ fun DesktopWorkspace(
                         TextButton(onClick = { showSourceTools = true }, enabled = currentTrack != null) { Text("Источники") }
                     }
                     DesktopDeckScreen(playback, ingress, selectedTheme, onTheme, lyrics, hudVisible, onToggleHud,
-                        onToggleCompactMode = onMini, audioLevels = audioLevels, modifier = Modifier.weight(1f), connectRequestVersion = connectRequest)
+                        onToggleCompactMode = onMini, audioLevels = audioLevels, modifier = Modifier.weight(1f), connectRequestVersion = connectRequest,
+                        onOpenTapSync = { syncTrack = currentTrack }, canTapSync = currentTrack != null)
                 }
                 1 -> DesktopLibraryPanel(tracks, sessions, picked, query, { query = it }, searchFocus,
                     onSelect = { selectedKey = it.trackKey }, onFavorite = { t -> repository.favorite(t.trackKey, !t.isFavorite) },

@@ -79,7 +79,7 @@ fun DesktopHudWindow(
         var positionMs by remember { mutableLongStateOf(0) }
         LaunchedEffect(playback, syncOffsetMs) {
             while (isActive) {
-                positionMs = ((playback?.currentPositionMs() ?: 0) - syncOffsetMs).coerceAtLeast(0)
+                positionMs = (playback?.currentPositionMs() ?: 0) - syncOffsetMs
                 delay(50)
             }
         }

@@ -83,18 +83,7 @@ fun DesktopTeleprompterView(
 
     // Binary search / find the active line index for current timestamp
     val activeLineIndex = remember(lines, currentPositionMs) {
-        if (lines.isEmpty()) -1
-        else {
-            var found = -1
-            for (i in lines.indices) {
-                if (lines[i].timestampMs <= currentPositionMs) {
-                    found = i
-                } else {
-                    break
-                }
-            }
-            if (found == -1 && lines.isNotEmpty()) 0 else found
-        }
+        activeDesktopLyricIndex(lines, currentPositionMs)
     }
 
     if (lines.isEmpty()) {
