@@ -208,4 +208,5 @@
 - Required behavior: explicit Karaoke/Text modes, honest untimed state with studio action, sampled playback clock, offset-correct seek and shared offset observation. Separate captured-scope hotkey fix addresses observed missing Main dispatcher.
 - Status: IN_PROGRESS. Native acceptance remains separate from unit tests. Preserve HUD fix and published release tag.
 - Implementation and independent review PASS. Final desktop 51 tests PASS; shared 173 existing tests PASS/up-to-date. Standard fresh distributable created and project jar hashes verified. Native acceptance NOT RUN (capture timeout); current running copies retain old UI. Evidence: `.sdd/reports/DESKTOP_KARAOKE_VALIDATION.md`. No release publication.
+- User smoke PASS, 2026-10-17: «работает караоке». Core desktop karaoke accepted by user; detailed native edge cases and broader feature parity remain separate checks.
 

@@ -1,6 +1,6 @@
 # Desktop karaoke validation — 2026-10-17
 
-Status: implementation, automated verification and independent source review PASS. Native visual acceptance remains NOT RUN.
+Status: implementation, automated verification and independent source review PASS. User confirmed working desktop karaoke on 2026-10-17: «работает караоке». Agent visual capture remains unavailable; detailed native edge cases are not implied by this confirmation.
 
 User clarification: Karaoke mode is missing from the desktop UI. The previous Text tab contained an implicit timed/plain branch. The corrected UI has explicit Text / Karaoke / Chords / About modes and defaults to Karaoke. Static text stays selectable; untimed content explains missing timing and links to the existing Tap-to-Sync dialog. No artificial timestamps are introduced.
 
@@ -31,6 +31,8 @@ Created by the standard Compose desktop packager; not a published release or ins
 The original packaging directory was not used by running processes before packaging. Installed Lirix and a previous separate HUD validation image remained running; neither was terminated or overwritten. The new image has not been launched. An already running copy retains the old modes until the user exits it normally and opens the new image.
 
 ## Native acceptance / follow-ups
+
+User acceptance: «работает караоке» after delivery of the new build. Core karaoke smoke PASS by user observation. This does not independently verify all seek/offset, pause/resume, theme and hotkey cases below.
 
 Capture of the current HUD-validation main window again failed with `FrameArrived timed out: timed out waiting on channel`. No screenshot-based input followed. Automated helpers and source review do not establish visible tab layout, native scrolling/highlighting or real hotkey execution. Do not mark those PASS without observation.
 
