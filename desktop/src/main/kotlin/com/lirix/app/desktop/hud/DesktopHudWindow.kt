@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.window.WindowDraggableArea
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -93,12 +94,10 @@ fun DesktopHudWindow(
                 Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     if (!settings.locked) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("Перетащите оверлей", color = colors.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f).pointerInput(window) {
-                                    detectDragGestures { change, drag ->
-                                        change.consume(); window.setLocation(window.x + drag.x.toInt(), window.y + drag.y.toInt())
-                                    }
-                                }.padding(vertical = 8.dp))
+                            WindowDraggableArea(modifier = Modifier.weight(1f)) {
+                                Text("Перетащите оверлей", color = colors.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
+                            }
                             TextButton(onClick = { onSettingsChange(settings.copy(textScale = settings.textScale - .1f)) }, contentPadding = PaddingValues(6.dp)) { Text("А−", color = colors.textPrimary) }
                             TextButton(onClick = { onSettingsChange(settings.copy(textScale = settings.textScale + .1f)) }, contentPadding = PaddingValues(6.dp)) { Text("А+", color = colors.textPrimary) }
                             TextButton(onClick = { onSettingsChange(settings.copy(locked = true)) }, contentPadding = PaddingValues(6.dp)) { Text("Закрепить", color = colors.accentPrimary) }

@@ -191,3 +191,12 @@
 - Approved scope: .sdd/specs/media-ui/desktop_feature_parity.md. Codex implements directly per existing instruction.
 - First dependency: persistent desktop library/session recording; then feature UI and shared-engine integrations.
 
+## HUD drag regression — 2026-10-17
+
+- User report: dragging the desktop overlay sends it outside the screen.
+- Status: IN_PROGRESS. Coordinator assigned architecture/specification to `hud_drag_architect`; product fix and independent review follow the specification.
+- Architecture/specification gate passed: `.sdd/specs/media-ui/hud_drag_fix.md` v1; implementation card `.sdd/tasks/HUD-DRAG-001.md` assigned to `hud_drag_coder`.
+- Implementation and independent static review PASS; `:desktop:compileKotlin :desktop:test` PASS (42 tests, zero failures/errors/skips). Native gate NOT RUN after two capture timeouts. Separate local validation image: `desktop/build/hud-drag-fixed-20261017/Lirix/Lirix.exe`; no running app was terminated or overwritten. See `.sdd/reports/HUD_DRAG_VALIDATION.md`.
+- Acceptance: ordinary and repeated dragging track the pointer without runaway movement; header buttons remain clickable; geometry survives hide/reopen; existing reset remains available. Check Windows scaling and secondary monitor origins when the runtime permits.
+- User cannot currently perform manual checks. Do not make manual acceptance a prerequisite for implementation or automated regression checks.
+
