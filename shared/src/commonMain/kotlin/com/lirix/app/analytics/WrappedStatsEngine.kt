@@ -144,7 +144,8 @@ object WrappedStatsEngine {
         sessions: List<MusicListeningSessionEntity>,
         timeframe: AnalyticsTimeframe = AnalyticsTimeframe.ALL_TIME,
         referenceTimestampMs: Long = System.currentTimeMillis(),
-        livePlayback: LivePlaybackSnapshot? = null
+        livePlayback: LivePlaybackSnapshot? = null,
+        includeLiveSessionEstimate: Boolean = true
     ): WrappedStats {
         if (tracks.isEmpty() && sessions.isEmpty()) {
             return WrappedStats(
@@ -191,7 +192,7 @@ object WrappedStatsEngine {
         val topTracks: List<TopTrackItem>
         val topObsession: TopObsessionItem?
 
-        val activeSession: MusicListeningSessionEntity? = if (livePlayback != null && livePlayback.isPlaying) {
+        val activeSession: MusicListeningSessionEntity? = if (!includeLiveSessionEstimate) null else if (livePlayback != null && livePlayback.isPlaying) {
             val liveTrackKey = MusicTrackParser.computeTrackKey(livePlayback.title, livePlayback.artist, livePlayback.album)
             filteredSessions.lastOrNull { s ->
                 !s.isCompleted && (s.trackKey == liveTrackKey || s.sourcePackage == livePlayback.packageName)

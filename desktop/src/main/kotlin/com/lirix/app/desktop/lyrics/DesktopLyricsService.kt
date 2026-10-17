@@ -10,6 +10,10 @@ import com.lirix.app.platform.logInfo
 import com.lirix.app.platform.logWarn
 import com.lirix.app.ui.player.LrcLine
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
+import com.lirix.app.desktop.library.DesktopLibraryRepository
+import com.lirix.app.storage.LyricsRejectionEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,11 +46,13 @@ data class DesktopLyricsState(
     val chords: String? = null,
     val source: String? = null,
     val hasLyrics: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val syncedLyricsLrc: String? = null
 )
 
 class DesktopLyricsService(
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val repository: DesktopLibraryRepository? = null
 ) {
     private val _lyricsState = MutableStateFlow(DesktopLyricsState())
     val lyricsState: StateFlow<DesktopLyricsState> = _lyricsState.asStateFlow()
@@ -63,7 +69,7 @@ class DesktopLyricsService(
         }
     }
 
-    fun onTrackChanged(rawTitle: String?, rawArtist: String?, album: String? = null) {
+    fun onTrackChanged(rawTitle: String?, rawArtist: String?, album: String? = null, forceRefresh: Boolean = false) {
         val title = rawTitle?.trim().orEmpty()
         val artist = rawArtist?.trim().orEmpty()
 
@@ -80,11 +86,13 @@ class DesktopLyricsService(
         val cleanArtist = if (parsed.artist.isNotBlank() && parsed.artist != "Unknown Artist") parsed.artist else artist
 
         val trackKey = MusicTrackParser.computeTrackKey(cleanTitle, cleanArtist, album.orEmpty())
-        if (trackKey == currentTrackKey && _lyricsState.value.hasLyrics) {
+        if (!forceRefresh && trackKey == currentTrackKey && _lyricsState.value.hasLyrics) {
             return
         }
 
+        activeJob?.cancel()
         currentTrackKey = trackKey
+        if (forceRefresh) memoryCache.remove(trackKey)
 
         // Check memory cache
         memoryCache[trackKey]?.let { cached ->
@@ -103,11 +111,33 @@ class DesktopLyricsService(
 
         activeJob = scope.launch(Dispatchers.IO) {
             try {
+                val saved = repository?.savedLyrics(trackKey)
+                val rejected = repository?.database?.lyricsDao()?.getRejectedSourceIds(trackKey).orEmpty().toSet()
+                if (saved != null && saved.provider == "USER") {
+                    val state = stateFromSaved(trackKey, cleanTitle, cleanArtist, saved.plainLyrics, saved.syncedLyricsLrc, saved.chordsAmDm, "Сохранено вами")
+                    coroutineContext.ensureActive()
+                    if (currentTrackKey == trackKey) _lyricsState.value = state
+                    return@launch
+                }
+                for (rule in repository?.database?.lyricsDao()?.getActiveRules().orEmpty()) {
+                    if ("rule:${rule.id}" in rejected) continue
+                    val text = try { DesktopCustomSources.resolve(rule, cleanArtist, cleanTitle) }
+                        catch (e: CancellationException) { throw e } catch (_: Exception) { null }
+                    if (!text.isNullOrBlank()) {
+                        coroutineContext.ensureActive()
+                        if (currentTrackKey != trackKey) return@launch
+                        val state = stateFromSaved(trackKey, cleanTitle, cleanArtist, text, null, null, "rule:${rule.id}")
+                        repository?.saveLyrics(trackKey, text, null, null, "rule:${rule.id}")
+                        _lyricsState.value = state
+                        return@launch
+                    }
+                }
                 // Check disk cache first
-                val fromDisk = loadFromDiskCache(trackKey, cleanTitle, cleanArtist)
+                val fromDisk = if (!forceRefresh && rejected.isEmpty()) loadFromDiskCache(trackKey, cleanTitle, cleanArtist) else null
                 if (fromDisk != null) {
                     memoryCache[trackKey] = fromDisk
-                    _lyricsState.value = fromDisk
+                    coroutineContext.ensureActive()
+                    if (currentTrackKey == trackKey) _lyricsState.value = fromDisk
                     logInfo(TAG, "Loaded lyrics from disk cache for $cleanArtist - $cleanTitle")
                     return@launch
                 }
@@ -123,7 +153,7 @@ class DesktopLyricsService(
                 var foundChords: String? = null
 
                 // 1. Query LrcLib
-                for (pair in searchPairs) {
+                for (pair in searchPairs.takeIf { "builtin:lrclib" !in rejected }.orEmpty()) {
                     val (art, tit) = pair
                     val lrcLibResult = fetchFromLrcLib(art, tit)
                     if (lrcLibResult != null) {
@@ -136,7 +166,7 @@ class DesktopLyricsService(
                 }
 
                 // If direct / search pairs didn't hit, try raw search query on LrcLib
-                if (foundLrc == null && foundPlain == null) {
+                if (foundLrc == null && foundPlain == null && "builtin:lrclib" !in rejected) {
                     val rawQueries = listOf(
                         "$cleanArtist $cleanTitle",
                         title,
@@ -157,7 +187,7 @@ class DesktopLyricsService(
 
                 // 2. Query Chords (AmDm.ru & MyChords.net)
                 val knownLyricsForVerification = foundLrc ?: foundPlain
-                for (pair in searchPairs) {
+                for (pair in searchPairs.takeIf { "builtin:amdm" !in rejected }.orEmpty()) {
                     val (art, tit) = pair
                     if (art.isNotBlank() && tit.isNotBlank()) {
                         val chordsHit = fetchChords(art, tit, knownLyricsForVerification)
@@ -174,7 +204,7 @@ class DesktopLyricsService(
                 }
 
                 // 3. Fallback Scrapers (Genius / Textpesni) if still no lyrics
-                if (foundLrc == null && foundPlain == null) {
+                if (foundLrc == null && foundPlain == null && "builtin:web" !in rejected) {
                     for (pair in searchPairs) {
                         val (art, tit) = pair
                         val scrapedText = fetchFallbackLyrics(art, tit)
@@ -189,11 +219,6 @@ class DesktopLyricsService(
                 val parsedLrcLines = if (!foundLrc.isNullOrBlank()) {
                     LrcSyncEngine.parseLrcLinesStrict(foundLrc).map {
                         LrcLine(it.timestampMs, it.text)
-                    }
-                } else if (!foundPlain.isNullOrBlank()) {
-                    // Create simulated line items for clean viewing
-                    foundPlain.lines().filter { it.isNotBlank() }.mapIndexed { idx, line ->
-                        LrcLine(idx * 5000L, line)
                     }
                 } else {
                     emptyList()
@@ -211,16 +236,22 @@ class DesktopLyricsService(
                     chords = foundChords,
                     source = foundSource,
                     hasLyrics = hasContent,
-                    errorMessage = if (!hasContent) "Текст не найден в открытых базах" else null
+                    errorMessage = if (!hasContent) "Текст не найден в открытых базах" else null,
+                    syncedLyricsLrc = foundLrc
                 )
 
+                coroutineContext.ensureActive()
+                if (currentTrackKey != trackKey) return@launch
                 if (hasContent) {
                     memoryCache[trackKey] = resultState
                     saveToDiskCache(trackKey, foundLrc, foundPlain, foundChords, foundSource)
+                    repository?.saveLyrics(trackKey, foundPlain, foundLrc, foundChords, foundSource ?: "NONE")
                 }
 
                 _lyricsState.value = resultState
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                if (currentTrackKey != trackKey) return@launch
                 logError(TAG, "Error fetching lyrics for $title", e)
                 _lyricsState.value = DesktopLyricsState(
                     isLoading = false,
@@ -233,6 +264,36 @@ class DesktopLyricsService(
             }
         }
     }
+
+    suspend fun saveUserLyrics(key: String, title: String, artist: String, plain: String?, lrc: String?, chords: String?) {
+        repository?.saveLyrics(key, plain, lrc, chords)
+        val state = stateFromSaved(key, title, artist, plain, lrc, chords, "Сохранено вами")
+        memoryCache[key] = state
+        if (currentTrackKey == key) {
+            activeJob?.cancel()
+            _lyricsState.value = state
+        }
+    }
+
+    fun rejectCurrentSource(title: String, artist: String, album: String) {
+        val state = _lyricsState.value
+        val id = when {
+            state.source?.startsWith("rule:") == true -> state.source!!
+            state.source?.startsWith("LrcLib") == true -> "builtin:lrclib"
+            state.source?.contains("AmDm") == true -> "builtin:amdm"
+            else -> "builtin:web"
+        }
+        scope.launch {
+            withContext(Dispatchers.IO) { repository?.database?.lyricsDao()?.insertRejection(LyricsRejectionEntity(state.trackKey, id)) }
+            onTrackChanged(title, artist, album, forceRefresh = true)
+        }
+    }
+
+    private fun stateFromSaved(key: String, title: String, artist: String, plain: String?, lrc: String?, chords: String?, source: String) =
+        DesktopLyricsState(trackKey = key, displayTitle = title, displayArtist = artist,
+            lrcLines = lrc?.let { LrcSyncEngine.parseLrcLinesStrict(it).map { line -> LrcLine(line.timestampMs, line.text) } }.orEmpty(),
+            plainLyrics = plain, chords = chords, source = source,
+            hasLyrics = !plain.isNullOrBlank() || !lrc.isNullOrBlank() || !chords.isNullOrBlank(), syncedLyricsLrc = lrc)
 
     private fun buildSearchCandidates(
         rawTitle: String,
@@ -658,8 +719,6 @@ class DesktopLyricsService(
 
             val lrcLines = if (!lrc.isNullOrBlank()) {
                 LrcSyncEngine.parseLrcLinesStrict(lrc).map { LrcLine(it.timestampMs, it.text) }
-            } else if (!plain.isNullOrBlank()) {
-                plain.lines().filter { it.isNotBlank() }.mapIndexed { idx, line -> LrcLine(idx * 5000L, line) }
             } else {
                 emptyList()
             }
@@ -673,7 +732,8 @@ class DesktopLyricsService(
                 plainLyrics = plain,
                 chords = chords,
                 source = source,
-                hasLyrics = lrcLines.isNotEmpty() || plain != null || chords != null
+                hasLyrics = lrcLines.isNotEmpty() || plain != null || chords != null,
+                syncedLyricsLrc = lrc
             )
         } catch (_: Exception) {
             return null

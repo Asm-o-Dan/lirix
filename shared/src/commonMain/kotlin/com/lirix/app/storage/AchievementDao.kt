@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface AchievementDao {
+    @Query("SELECT * FROM achievements ORDER BY id ASC")
+    suspend fun getAllAchievements(): List<AchievementEntity>
 
     @Query("SELECT * FROM achievements ORDER BY isUnlocked DESC, id ASC")
     fun observeAchievements(): Flow<List<AchievementEntity>>

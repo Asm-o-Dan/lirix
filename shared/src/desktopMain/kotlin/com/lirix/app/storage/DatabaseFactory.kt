@@ -16,7 +16,6 @@ fun getDesktopDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
         name = dbFile.absolutePath
     )
         .setDriver(BundledSQLiteDriver())
-        .fallbackToDestructiveMigration(dropAllTables = true)
 }
 
 fun createDesktopDatabase(): AppDatabase {

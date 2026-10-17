@@ -23,6 +23,17 @@ import com.lirix.app.desktop.system.GlobalHotkeysManager
 import com.lirix.app.desktop.system.LirixTray
 import com.lirix.app.desktop.system.WindowsTitleBarDarkTheme
 import com.lirix.app.desktop.ui.DesktopDeckScreen
+import com.lirix.app.desktop.ui.DesktopWorkspace
+import com.lirix.app.desktop.hud.HudSettingsStore
+import com.lirix.app.desktop.library.DesktopLibraryRepository
+import com.lirix.app.desktop.system.DesktopAction
+import com.lirix.app.platform.JvmPreferencesThemeStore
+import com.lirix.app.storage.createDesktopDatabase
+import kotlinx.coroutines.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.input.key.*
+import java.awt.Dimension
 import com.lirix.app.desktop.ui.components.DesktopCompactWidget
 import com.lirix.app.desktop.ui.theme.DesktopFonts
 import com.lirix.app.ui.theme.AppThemeType
@@ -35,16 +46,53 @@ fun main() = application {
     val ingressProvider = remember { DesktopGsmtcIngressProvider() }
     val audioMeterService = remember { DesktopAudioMeterService(ingressProvider.bridgeProcessManager, coroutineScope) }
     val discordRpc = remember { DiscordRpcManager() }
-    val lyricsService = remember { DesktopLyricsService(coroutineScope) }
+    val database = remember { createDesktopDatabase() }
+    val repository = remember { DesktopLibraryRepository(database, coroutineScope) }
+    val lyricsService = remember { DesktopLyricsService(coroutineScope, repository) }
 
     var isMainWindowVisible by remember { mutableStateOf(true) }
     var isHudVisible by remember { mutableStateOf(false) }
-    var selectedTheme by remember { mutableStateOf(AppThemeType.GRAPHITE_CHALK) }
+    val themeStore = remember { JvmPreferencesThemeStore() }
+    val selectedTheme by themeStore.selectedTheme.collectAsState()
+    val hudStore = remember { HudSettingsStore() }
+    val hudSettings by hudStore.state.collectAsState()
+    var helpVisible by remember { mutableStateOf(false) }
+    var isCompactMode by remember { mutableStateOf(false) }
 
-    val windowState = rememberWindowState(size = DpSize(1100.dp, 720.dp))
+    val windowState = rememberWindowState(size = DpSize(1280.dp, 820.dp))
     val playback by ingressProvider.currentPlayback.collectAsState()
     val audioLevels by audioMeterService.audioLevels.collectAsState()
     val lyricsState by lyricsService.lyricsState.collectAsState()
+    val latestPlayback by rememberUpdatedState(playback)
+    val hotkeysManager = remember {
+        fun action(block: () -> Unit): () -> Unit = { coroutineScope.launch(Dispatchers.Main) { block() }; Unit }
+        GlobalHotkeysManager(
+            onToggleHud = action { isHudVisible = !isHudVisible },
+            onTogglePlayPause = action { ingressProvider.playPause() },
+            onSkipNext = action { ingressProvider.skipNext() },
+            onSkipPrevious = action { ingressProvider.skipPrevious() },
+            extraActions = mapOf(
+                DesktopAction.HUD_EDIT to action { hudStore.update(hudStore.state.value.copy(locked = if (isHudVisible) !hudStore.state.value.locked else false)); isHudVisible = true },
+                DesktopAction.SEEK_BACK to action { ingressProvider.seekTo(((latestPlayback?.currentPositionMs() ?: 0) - 5000).coerceAtLeast(0)) },
+                DesktopAction.SEEK_FORWARD to action { ingressProvider.seekTo((latestPlayback?.currentPositionMs() ?: 0) + 5000) },
+                DesktopAction.SHOW_MAIN to action { isMainWindowVisible = true; isCompactMode = false; windowState.isMinimized = false },
+                DesktopAction.MINI_PLAYER to action { isMainWindowVisible = true; isCompactMode = !isCompactMode },
+                DesktopAction.HELP to action { isMainWindowVisible = true; isCompactMode = false; windowState.isMinimized = false; helpVisible = true },
+                DesktopAction.HUD_LARGER to action { hudStore.update(hudStore.state.value.copy(textScale = hudStore.state.value.textScale + .1f)) },
+                DesktopAction.HUD_SMALLER to action { hudStore.update(hudStore.state.value.copy(textScale = hudStore.state.value.textScale - .1f)) },
+                DesktopAction.HUD_RESET to action { hudStore.reset(); isHudVisible = true }
+            )
+        )
+    }
+    val hotkeyFailures by hotkeysManager.registrationFailures.collectAsState()
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            try { repository.record(ingressProvider.currentPlayback.value) }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { com.lirix.app.platform.logError("DesktopLibrary", "Не удалось записать прослушивание", e) }
+            delay(1000)
+        }
+    }
 
     // Trigger reactive lyrics and chords fetching whenever active track changes
     LaunchedEffect(playback?.title, playback?.artist, playback?.album) {
@@ -56,12 +104,7 @@ fun main() = application {
         discordRpc.start()
         val connectServer = com.lirix.app.desktop.cast.DesktopConnectServer.getInstance().apply { start() }
 
-        val hotkeysManager = GlobalHotkeysManager(
-            onToggleHud = { isHudVisible = !isHudVisible },
-            onTogglePlayPause = { ingressProvider.playPause() },
-            onSkipNext = { ingressProvider.skipNext() },
-            onSkipPrevious = { ingressProvider.skipPrevious() }
-        ).apply { start() }
+        hotkeysManager.start()
 
         onDispose {
             connectServer.stop()
@@ -88,14 +131,12 @@ fun main() = application {
         trackTitle = playback?.title
     )
 
-    var isCompactMode by remember { mutableStateOf(false) }
-
     // Dynamically adjust window size when toggling between Studio Deck and Compact Widget
     LaunchedEffect(isCompactMode) {
         if (isCompactMode) {
             windowState.size = DpSize(480.dp, 145.dp)
         } else {
-            windowState.size = DpSize(1100.dp, 720.dp)
+            windowState.size = DpSize(1280.dp, 820.dp)
         }
     }
 
@@ -110,6 +151,7 @@ fun main() = application {
             resizable = !isCompactMode
         ) {
             // Apply native Win32 dark title bar based on current theme
+            LaunchedEffect(isCompactMode) { window.minimumSize = if (isCompactMode) Dimension(420, 145) else Dimension(980, 680) }
             LaunchedEffect(selectedTheme) {
                 WindowsTitleBarDarkTheme.apply(window, selectedTheme.isDark)
             }
@@ -128,20 +170,15 @@ fun main() = application {
                         onExpandToStudio = { isCompactMode = false }
                     )
                 } else {
-                    DesktopDeckScreen(
-                        playback = playback,
-                        ingressProvider = ingressProvider,
-                        selectedTheme = selectedTheme,
-                        onThemeSelected = { newTheme ->
-                            selectedTheme = newTheme
-                        },
-                        lyricsState = lyricsState,
-                        isHudVisible = isHudVisible,
-                        onToggleHud = { isHudVisible = !isHudVisible },
-                        isCompactMode = false,
-                        onToggleCompactMode = { isCompactMode = true },
-                        audioLevels = audioLevels
-                    )
+                    MaterialTheme(colorScheme = if (currentTokens.isDark) darkColorScheme(primary = currentTokens.accentPrimary,
+                        background = currentTokens.appBackground, surface = currentTokens.surfaceCard, onSurface = currentTokens.textPrimary)
+                    else lightColorScheme(primary = currentTokens.accentPrimary, background = currentTokens.appBackground,
+                        surface = currentTokens.surfaceCard, onSurface = currentTokens.textPrimary)) {
+                        DesktopWorkspace(repository, lyricsService, playback, ingressProvider, lyricsState,
+                            selectedTheme, themeStore::setTheme, isHudVisible, { isHudVisible = !isHudVisible },
+                            hudSettings, hudStore::update, { hudStore.update(hudSettings.copy(locked = false)); isHudVisible = true },
+                            { isCompactMode = true }, audioLevels, helpVisible, { helpVisible = it }, hotkeyFailures)
+                    }
                 }
             }
         }
@@ -157,7 +194,11 @@ fun main() = application {
             visible = isHudVisible,
             onCloseRequest = { isHudVisible = false },
             playback = playback,
-            lyricsLines = lyricsState.lrcLines
+            lyricsLines = lyricsState.lrcLines,
+            settings = hudSettings,
+            onSettingsChange = hudStore::update,
+            syncOffsetMs = com.lirix.app.desktop.ui.components.DesktopSyncOffsetStore.getOffsetMs(),
+            onHelp = { helpVisible = true; isMainWindowVisible = true }
         )
     }
 }

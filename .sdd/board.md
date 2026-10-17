@@ -185,3 +185,9 @@
 
 - Device smoke PASS: user confirmed audible Android→Windows audio, sustained one minute and stop/start. CR-CON-PCM-03 closes the simulated selection route. Release gate now awaits final packaging/tests.
 
+
+## Desktop feature parity — 2026-10-17
+- IN_PROGRESS: user requests all Android features on Windows. Baseline9ef5bba/v1.4.0; branch codex/desktop-feature-parity.
+- Approved scope: .sdd/specs/media-ui/desktop_feature_parity.md. Codex implements directly per existing instruction.
+- First dependency: persistent desktop library/session recording; then feature UI and shared-engine integrations.
+

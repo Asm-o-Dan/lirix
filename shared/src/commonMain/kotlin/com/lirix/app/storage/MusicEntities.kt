@@ -1,5 +1,6 @@
 package com.lirix.app.storage
 
+import kotlinx.serialization.Serializable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -18,6 +19,7 @@ typealias MusicListeningSessionEntity = ListeningSessionEntity
         Index(value = ["lastPlayedAt"])
     ]
 )
+@Serializable
 data class TrackEntity(
     @PrimaryKey
     val trackKey: String,
@@ -46,6 +48,7 @@ data class TrackEntity(
         Index(value = ["startTimeMs"])
     ]
 )
+@Serializable
 data class ListeningSessionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -65,6 +68,7 @@ data class ListeningSessionEntity(
  * provider  — source identifier: "LRCLIB" | "AMDM" | "USER" | "NONE"
  */
 @Entity(tableName = "lyrics_cache")
+@Serializable
 data class LyricsCacheEntity(
     @PrimaryKey
     val trackKey: String,
@@ -85,6 +89,7 @@ data class LyricsCacheEntity(
  * maxProgress — threshold at which the achievement unlocks
  */
 @Entity(tableName = "achievements")
+@Serializable
 data class AchievementEntity(
     @PrimaryKey
     val id: String,
@@ -115,6 +120,7 @@ data class AchievementEntity(
         Index(value = ["sourceId"])
     ]
 )
+@Serializable
 data class LyricsRejectionEntity(
     val trackKey: String,
     val sourceId: String,
@@ -145,6 +151,7 @@ data class LyricsRejectionEntity(
         Index(value = ["priority"])
     ]
 )
+@Serializable
 data class CustomLyricsRuleEntity(
     @PrimaryKey
     val id: String,

@@ -1,15 +1,18 @@
 package com.lirix.app.storage.blacklist
 
+import kotlinx.serialization.Serializable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+@Serializable
 enum class BlacklistRuleType {
     TITLE,
     ARTIST,
     PACKAGE_NAME
 }
 
+@Serializable
 enum class BlacklistMatchMode {
     CONTAINS_IGNORE_CASE,
     EXACT,
@@ -23,6 +26,7 @@ enum class BlacklistMatchMode {
         Index(value = ["ruleType"])
     ]
 )
+@Serializable
 data class BlacklistRuleEntity(
     @PrimaryKey
     val id: String,

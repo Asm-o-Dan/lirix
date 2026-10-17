@@ -14,6 +14,9 @@ dependencies {
     implementation(libs.jna)
     implementation(libs.jna.platform)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.room.runtime)
+    implementation(libs.sqlite.bundled)
+    implementation("org.jsoup:jsoup:1.23.2")
     implementation("com.google.zxing:core:3.5.3")
     testImplementation(libs.junit)
 }

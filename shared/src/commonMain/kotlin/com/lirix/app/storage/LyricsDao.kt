@@ -13,6 +13,14 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface LyricsDao {
+    @Query("SELECT * FROM lyrics_cache")
+    suspend fun getAllLyrics(): List<LyricsCacheEntity>
+
+    @Query("SELECT * FROM lyrics_rejections")
+    suspend fun getAllRejections(): List<LyricsRejectionEntity>
+
+    @Query("SELECT * FROM custom_lyrics_rules ORDER BY priority ASC, createdAt DESC")
+    suspend fun getAllRules(): List<CustomLyricsRuleEntity>
 
     @Query("SELECT * FROM lyrics_cache WHERE trackKey = :trackKey LIMIT 1")
     suspend fun getLyrics(trackKey: String): LyricsCacheEntity?

@@ -4,6 +4,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -86,7 +89,8 @@ fun DesktopDeckScreen(
     isCompactMode: Boolean = false,
     onToggleCompactMode: () -> Unit = {},
     audioLevels: AudioLevels? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    connectRequestVersion: Int = 0
 ) {
     val colors = LirixThemeTokens.colors
     val typography = LocalLirixTypography.current
@@ -112,6 +116,9 @@ fun DesktopDeckScreen(
     val effectiveLyricsPositionMs = (currentPositionMs - syncOffsetMs).coerceAtLeast(0L)
 
     var isConnectDialogOpen by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(connectRequestVersion) {
+        if (connectRequestVersion > 0) isConnectDialogOpen = true
+    }
     var activeConnectDevice by remember { mutableStateOf<TrustedDevice?>(null) }
     val trustedStore = remember { com.lirix.app.desktop.cast.DesktopConnectServer.getInstance().trustedStore }
 
@@ -400,6 +407,13 @@ fun DesktopDeckScreen(
                                                     color = colors.textMuted
                                                 )
                                             }
+                                        }
+                                    }
+                                    lyricsState.lrcLines.isEmpty() && !lyricsState.plainLyrics.isNullOrBlank() -> {
+                                        SelectionContainer {
+                                            Text(lyricsState.plainLyrics, color = colors.textPrimary,
+                                                style = typography.lyricsNear,
+                                                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp))
                                         }
                                     }
                                     lyricsState.lrcLines.isEmpty() -> {
