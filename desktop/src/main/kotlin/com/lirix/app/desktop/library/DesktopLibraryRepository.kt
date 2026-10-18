@@ -88,8 +88,10 @@ class DesktopLibraryRepository(val database: AppDatabase, private val scope: Cor
     suspend fun saveLyrics(key: String, plain: String?, lrc: String?, chords: String?, provider: String = "USER") =
         withContext(Dispatchers.IO) { mutex.withLock {
             val old = database.lyricsDao().getLyrics(key)
-            database.lyricsDao().saveLyrics(LyricsCacheEntity(key, plain, lrc, chords, old?.userNotes, provider))
-            music.updateLyrics(key, plain, lrc)
+            val effective = if (old?.provider == "USER" && provider != "USER") old
+                else LyricsCacheEntity(key, plain, lrc, chords, old?.userNotes, provider)
+            database.lyricsDao().saveLyrics(effective)
+            music.updateLyrics(key, effective.plainLyrics, effective.syncedLyricsLrc)
         } }
 
     suspend fun savedLyrics(key: String) = withContext(Dispatchers.IO) { database.lyricsDao().getLyrics(key) }

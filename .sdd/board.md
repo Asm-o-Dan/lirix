@@ -210,3 +210,10 @@
 - Implementation and independent review PASS. Final desktop 51 tests PASS; shared 173 existing tests PASS/up-to-date. Standard fresh distributable created and project jar hashes verified. Native acceptance NOT RUN (capture timeout); current running copies retain old UI. Evidence: `.sdd/reports/DESKTOP_KARAOKE_VALIDATION.md`. No release publication.
 - User smoke PASS, 2026-10-17: «работает караоке». Core desktop karaoke accepted by user; detailed native edge cases and broader feature parity remain separate checks.
 
+## Desktop readiness — 2026-10-18
+
+- Audits complete (source-based): architecture, QA and UI/UX reports; consolidated `.sdd/reports/DESKTOP_READINESS_PLAN.md`.
+- DSK-READY-001–005 implemented, 11 real service/Room regression tests; full desktop 62 + shared 173 PASS (shared UP-TO-DATE), independent source review no blockers. Native offline acceptance pending.
+- Next bounded UI corrections: honest library filters/empty-selection states and six-theme selector; dirty notes must survive navigation before selection changes ship. Broader draft-close protection and merge workflow remain open.
+- Isolated DB/cache audit launch succeeded via safe alternative; screenshots still timed out. No visual PASS or release readiness declared.
+

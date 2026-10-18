@@ -14,6 +14,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import com.lirix.app.desktop.library.DesktopLibraryRepository
 import com.lirix.app.storage.LyricsRejectionEntity
+import com.lirix.app.storage.LyricsCacheEntity
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,7 +54,11 @@ data class DesktopLyricsState(
 
 class DesktopLyricsService(
     private val scope: CoroutineScope,
-    private val repository: DesktopLibraryRepository? = null
+    private val repository: DesktopLibraryRepository? = null,
+    private val cacheDirectory: File? = null,
+    private val savedLookup: (suspend (String) -> LyricsCacheEntity?)? = null,
+    private val persistLyrics: (suspend (String, String?, String?, String?, String) -> Unit)? = null,
+    private val automaticLookup: (suspend (String, String, String, String, Set<String>) -> DesktopLyricsState)? = null
 ) {
     private val _lyricsState = MutableStateFlow(DesktopLyricsState())
     val lyricsState: StateFlow<DesktopLyricsState> = _lyricsState.asStateFlow()
@@ -62,6 +68,7 @@ class DesktopLyricsService(
     private var currentTrackKey: String = ""
 
     private val diskCacheDir: File by lazy {
+        cacheDirectory?.let { return@lazy it.apply { mkdirs() } }
         val base = System.getenv("LOCALAPPDATA")?.takeIf { it.isNotBlank() }
             ?: (System.getProperty("user.home") + File.separator + ".lirix")
         File(base, "Lirix" + File.separator + "cache" + File.separator + "lyrics").apply {
@@ -72,221 +79,248 @@ class DesktopLyricsService(
     fun onTrackChanged(rawTitle: String?, rawArtist: String?, album: String? = null, forceRefresh: Boolean = false) {
         val title = rawTitle?.trim().orEmpty()
         val artist = rawArtist?.trim().orEmpty()
-
         if (title.isBlank()) {
             activeJob?.cancel()
-            _lyricsState.value = DesktopLyricsState()
             currentTrackKey = ""
+            _lyricsState.value = DesktopLyricsState()
             return
         }
-
-        // Clean and detect candidate artist/title (e.g. for YouTube titles "Artist - Track")
         val parsed = MusicTrackParser.parseTrackMetadata(title, artist, title, artist)
-        val cleanTitle = if (parsed.title.isNotBlank()) parsed.title else title
-        val cleanArtist = if (parsed.artist.isNotBlank() && parsed.artist != "Unknown Artist") parsed.artist else artist
-
+        val cleanTitle = parsed.title.ifBlank { title }
+        val cleanArtist = parsed.artist.takeIf { it.isNotBlank() && it != "Unknown Artist" } ?: artist
         val trackKey = MusicTrackParser.computeTrackKey(cleanTitle, cleanArtist, album.orEmpty())
-        if (!forceRefresh && trackKey == currentTrackKey && _lyricsState.value.hasLyrics) {
-            return
-        }
+        if (!forceRefresh && trackKey == currentTrackKey && _lyricsState.value.hasLyrics) return
 
         activeJob?.cancel()
         currentTrackKey = trackKey
         if (forceRefresh) memoryCache.remove(trackKey)
-
-        // Check memory cache
-        memoryCache[trackKey]?.let { cached ->
-            logInfo(TAG, "Loaded lyrics from memory cache for $cleanArtist - $cleanTitle")
-            _lyricsState.value = cached
-            return
-        }
-
-        activeJob?.cancel()
-        _lyricsState.value = DesktopLyricsState(
-            isLoading = true,
-            trackKey = trackKey,
-            displayTitle = cleanTitle,
-            displayArtist = cleanArtist
-        )
-
+        _lyricsState.value = DesktopLyricsState(isLoading = true, trackKey = trackKey,
+            displayTitle = cleanTitle, displayArtist = cleanArtist)
         activeJob = scope.launch(Dispatchers.IO) {
+            fun isCurrent(): Boolean {
+                coroutineContext.ensureActive()
+                return currentTrackKey == trackKey
+            }
+            fun savedState(saved: LyricsCacheEntity) = stateFromSaved(trackKey, cleanTitle, cleanArtist,
+                saved.plainLyrics, saved.syncedLyricsLrc, saved.chordsAmDm,
+                if (saved.provider == "USER") "Сохранено вами" else saved.provider)
             try {
-                val saved = repository?.savedLyrics(trackKey)
-                val rejected = repository?.database?.lyricsDao()?.getRejectedSourceIds(trackKey).orEmpty().toSet()
-                if (saved != null && saved.provider == "USER") {
-                    val state = stateFromSaved(trackKey, cleanTitle, cleanArtist, saved.plainLyrics, saved.syncedLyricsLrc, saved.chordsAmDm, "Сохранено вами")
-                    coroutineContext.ensureActive()
-                    if (currentTrackKey == trackKey) _lyricsState.value = state
+                val saved = savedLookup?.invoke(trackKey) ?: repository?.savedLyrics(trackKey)
+                val rejected = repository?.database?.lyricsDao()?.getRejectedSourceIds(trackKey)
+                    .orEmpty().map(::canonicalSourceId).toSet()
+                if (!isCurrent()) return@launch
+                // Explicit user edits, including clearing, always win over automatic results.
+                if (saved?.provider == "USER" || (!forceRefresh && saved != null &&
+                    isUsableAutomatic(savedState(saved), rejected))) {
+                    _lyricsState.value = savedState(saved!!)
                     return@launch
                 }
+                if (!forceRefresh) {
+                    memoryCache[trackKey]?.takeIf { isUsableAutomatic(it, rejected) }?.let {
+                        if (isCurrent()) _lyricsState.value = it
+                        return@launch
+                    }
+                }
+
+                // Save first; a cancelled/stale write must never populate a later cache hit.
+                suspend fun acceptAutomatic(candidate: DesktopLyricsState) {
+                    if (!isCurrent()) return
+                    var effective = candidate.copy(trackKey = trackKey, displayTitle = cleanTitle,
+                        displayArtist = cleanArtist, isLoading = false)
+                    if (candidate.hasLyrics) {
+                        writeLyrics(trackKey, candidate.plainLyrics, candidate.syncedLyricsLrc,
+                            candidate.chords, candidate.source ?: "NONE")
+                        if (!isCurrent()) return
+                        // The repository also protects USER against other automatic callers.
+                        val stored = repository?.savedLyrics(trackKey)
+                        if (!isCurrent()) return
+                        if (stored?.provider == "USER") effective = savedState(stored)
+                        memoryCache[trackKey] = effective
+                        if (stored?.provider != "USER") saveToDiskCache(trackKey, effective.syncedLyricsLrc,
+                            effective.plainLyrics, effective.chords, effective.source)
+                    }
+                    if (isCurrent()) _lyricsState.value = effective
+                }
+
                 for (rule in repository?.database?.lyricsDao()?.getActiveRules().orEmpty()) {
+                    if (!isCurrent()) return@launch
                     if ("rule:${rule.id}" in rejected) continue
                     val text = try { DesktopCustomSources.resolve(rule, cleanArtist, cleanTitle) }
                         catch (e: CancellationException) { throw e } catch (_: Exception) { null }
                     if (!text.isNullOrBlank()) {
-                        coroutineContext.ensureActive()
-                        if (currentTrackKey != trackKey) return@launch
-                        val state = stateFromSaved(trackKey, cleanTitle, cleanArtist, text, null, null, "rule:${rule.id}")
-                        repository?.saveLyrics(trackKey, text, null, null, "rule:${rule.id}")
-                        _lyricsState.value = state
+                        acceptAutomatic(stateFromSaved(trackKey, cleanTitle, cleanArtist, text, null, null, "rule:${rule.id}"))
                         return@launch
                     }
                 }
-                // Check disk cache first
-                val fromDisk = if (!forceRefresh && rejected.isEmpty()) loadFromDiskCache(trackKey, cleanTitle, cleanArtist) else null
+                val fromDisk = if (!forceRefresh) loadFromDiskCache(trackKey, cleanTitle, cleanArtist)
+                    ?.takeIf { isUsableAutomatic(it, rejected) } else null
                 if (fromDisk != null) {
+                    if (!isCurrent()) return@launch
                     memoryCache[trackKey] = fromDisk
-                    coroutineContext.ensureActive()
-                    if (currentTrackKey == trackKey) _lyricsState.value = fromDisk
-                    logInfo(TAG, "Loaded lyrics from disk cache for $cleanArtist - $cleanTitle")
+                    _lyricsState.value = fromDisk
                     return@launch
                 }
-
-                logInfo(TAG, "Searching online lyrics for: '$cleanArtist' - '$cleanTitle' (raw title: '$title')")
-
-                // Generate smart search pairs
-                val searchPairs = buildSearchCandidates(title, artist, cleanTitle, cleanArtist)
-
-                var foundLrc: String? = null
-                var foundPlain: String? = null
-                var foundSource: String? = null
-                var foundChords: String? = null
-
-                // 1. Query LrcLib
-                for (pair in searchPairs.takeIf { "builtin:lrclib" !in rejected }.orEmpty()) {
-                    val (art, tit) = pair
-                    val lrcLibResult = fetchFromLrcLib(art, tit)
-                    if (lrcLibResult != null) {
-                        foundLrc = lrcLibResult.syncedLyrics
-                        foundPlain = lrcLibResult.plainLyrics
-                        foundSource = "LrcLib"
-                        logInfo(TAG, "LrcLib match found using '$art' - '$tit'")
-                        break
-                    }
-                }
-
-                // If direct / search pairs didn't hit, try raw search query on LrcLib
-                if (foundLrc == null && foundPlain == null && "builtin:lrclib" !in rejected) {
-                    val rawQueries = listOf(
-                        "$cleanArtist $cleanTitle",
-                        title,
-                        title.replace(Regex("""\s*[-—–]\s*"""), " ")
-                    ).distinct()
-
-                    for (query in rawQueries) {
-                        val searchHit = searchLrcLibByQuery(query)
-                        if (searchHit != null) {
-                            foundLrc = searchHit.syncedLyrics
-                            foundPlain = searchHit.plainLyrics
-                            foundSource = "LrcLib (Search)"
-                            logInfo(TAG, "LrcLib search hit with query '$query'")
-                            break
-                        }
-                    }
-                }
-
-                // 2. Query Chords (AmDm.ru & MyChords.net)
-                val knownLyricsForVerification = foundLrc ?: foundPlain
-                for (pair in searchPairs.takeIf { "builtin:amdm" !in rejected }.orEmpty()) {
-                    val (art, tit) = pair
-                    if (art.isNotBlank() && tit.isNotBlank()) {
-                        val chordsHit = fetchChords(art, tit, knownLyricsForVerification)
-                        if (chordsHit != null) {
-                            foundChords = chordsHit
-                            if (foundPlain == null && foundLrc == null) {
-                                foundPlain = chordsHit
-                                foundSource = "AmDm / MyChords"
-                            }
-                            logInfo(TAG, "Chords found for '$art' - '$tit'")
-                            break
-                        }
-                    }
-                }
-
-                // 3. Fallback Scrapers (Genius / Textpesni) if still no lyrics
-                if (foundLrc == null && foundPlain == null && "builtin:web" !in rejected) {
-                    for (pair in searchPairs) {
-                        val (art, tit) = pair
-                        val scrapedText = fetchFallbackLyrics(art, tit)
-                        if (!scrapedText.isNullOrBlank()) {
-                            foundPlain = scrapedText
-                            foundSource = "Web Scraper"
-                            break
-                        }
-                    }
-                }
-
-                val parsedLrcLines = if (!foundLrc.isNullOrBlank()) {
-                    LrcSyncEngine.parseLrcLinesStrict(foundLrc).map {
-                        LrcLine(it.timestampMs, it.text)
-                    }
-                } else {
-                    emptyList()
-                }
-
-                val hasContent = parsedLrcLines.isNotEmpty() || !foundPlain.isNullOrBlank() || !foundChords.isNullOrBlank()
-
-                val resultState = DesktopLyricsState(
-                    isLoading = false,
-                    trackKey = trackKey,
-                    displayTitle = cleanTitle,
-                    displayArtist = cleanArtist,
-                    lrcLines = parsedLrcLines,
-                    plainLyrics = foundPlain,
-                    chords = foundChords,
-                    source = foundSource,
-                    hasLyrics = hasContent,
-                    errorMessage = if (!hasContent) "Текст не найден в открытых базах" else null,
-                    syncedLyricsLrc = foundLrc
-                )
-
-                coroutineContext.ensureActive()
-                if (currentTrackKey != trackKey) return@launch
-                if (hasContent) {
-                    memoryCache[trackKey] = resultState
-                    saveToDiskCache(trackKey, foundLrc, foundPlain, foundChords, foundSource)
-                    repository?.saveLyrics(trackKey, foundPlain, foundLrc, foundChords, foundSource ?: "NONE")
-                }
-
-                _lyricsState.value = resultState
+                if (!isCurrent()) return@launch
+                val found = automaticLookup?.invoke(title, artist, cleanTitle, cleanArtist, rejected)
+                    ?: lookupAutomatic(title, artist, cleanTitle, cleanArtist, rejected)
+                if (!isCurrent()) return@launch
+                // Normalize injected and production results through the same parser/content check.
+                val normalized = stateFromSaved(trackKey, cleanTitle, cleanArtist, found.plainLyrics,
+                    found.syncedLyricsLrc, found.chords, found.source ?: "NONE")
+                    .copy(errorMessage = found.errorMessage)
+                val result = if (isUsableAutomatic(normalized, rejected)) normalized else
+                    DesktopLyricsState(trackKey = trackKey, displayTitle = cleanTitle, displayArtist = cleanArtist,
+                        errorMessage = found.errorMessage ?: "Текст не найден в открытых базах")
+                acceptAutomatic(result)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                if (currentTrackKey != trackKey) return@launch
+                if (!isCurrent()) return@launch
                 logError(TAG, "Error fetching lyrics for $title", e)
-                _lyricsState.value = DesktopLyricsState(
-                    isLoading = false,
-                    trackKey = trackKey,
-                    displayTitle = cleanTitle,
-                    displayArtist = cleanArtist,
-                    hasLyrics = false,
-                    errorMessage = "Ошибка поиска текста: ${e.message}"
-                )
+                _lyricsState.value = DesktopLyricsState(trackKey = trackKey, displayTitle = cleanTitle,
+                    displayArtist = cleanArtist, errorMessage = "Ошибка поиска текста: ${e.message}")
             }
         }
     }
 
     suspend fun saveUserLyrics(key: String, title: String, artist: String, plain: String?, lrc: String?, chords: String?) {
-        repository?.saveLyrics(key, plain, lrc, chords)
+        val lookupToCancel = activeJob.takeIf { currentTrackKey == key }
+        lookupToCancel?.cancelAndJoin()
+        writeLyrics(key, plain, lrc, chords, "USER")
         val state = stateFromSaved(key, title, artist, plain, lrc, chords, "Сохранено вами")
         memoryCache[key] = state
-        if (currentTrackKey == key) {
-            activeJob?.cancel()
-            _lyricsState.value = state
-        }
+        if (currentTrackKey == key) _lyricsState.value = state
+    }
+
+    private suspend fun writeLyrics(key: String, plain: String?, lrc: String?, chords: String?, provider: String) {
+        if (persistLyrics != null) persistLyrics.invoke(key, plain, lrc, chords, provider)
+        else repository?.saveLyrics(key, plain, lrc, chords, provider)
     }
 
     fun rejectCurrentSource(title: String, artist: String, album: String) {
         val state = _lyricsState.value
-        val id = when {
-            state.source?.startsWith("rule:") == true -> state.source!!
-            state.source?.startsWith("LrcLib") == true -> "builtin:lrclib"
-            state.source?.contains("AmDm") == true -> "builtin:amdm"
-            else -> "builtin:web"
-        }
+        val id = canonicalSourceId(state.source.orEmpty())
+        if (id.isBlank() || id == "USER" || id == "NONE" || state.trackKey.isBlank()) return
+        memoryCache.remove(state.trackKey)
         scope.launch {
             withContext(Dispatchers.IO) { repository?.database?.lyricsDao()?.insertRejection(LyricsRejectionEntity(state.trackKey, id)) }
-            onTrackChanged(title, artist, album, forceRefresh = true)
+            if (currentTrackKey == state.trackKey) onTrackChanged(title, artist, album, forceRefresh = true)
         }
+    }
+
+    private fun canonicalSourceId(source: String): String {
+        val name = source.trim()
+        return when {
+            name.startsWith("rule:") -> name
+            name.equals("USER", true) || name == "Сохранено вами" -> "USER"
+            name.startsWith("LrcLib", true) || name.equals("builtin:lrclib", true) -> "builtin:lrclib"
+            name.equals("AMDM", true) || name.contains("AmDm", true) || name.contains("MyChords", true) -> "builtin:amdm"
+            name.equals("Web Scraper", true) || name.equals("builtin:web", true) -> "builtin:web"
+            else -> name
+        }
+    }
+
+    private fun isUsableAutomatic(state: DesktopLyricsState, rejected: Set<String>): Boolean {
+        val provider = canonicalSourceId(state.source.orEmpty())
+        return state.hasLyrics && provider.isNotBlank() && !provider.equals("NONE", true) && provider !in rejected
+    }
+
+    private suspend fun lookupAutomatic(title: String, artist: String, cleanTitle: String, cleanArtist: String, rejected: Set<String>): DesktopLyricsState {
+        // Generate smart search pairs
+        val searchPairs = buildSearchCandidates(title, artist, cleanTitle, cleanArtist)
+
+        var foundLrc: String? = null
+        var foundPlain: String? = null
+        var foundSource: String? = null
+        var foundChords: String? = null
+
+        // 1. Query LrcLib
+        for (pair in searchPairs.takeIf { "builtin:lrclib" !in rejected }.orEmpty()) {
+            val (art, tit) = pair
+            val lrcLibResult = fetchFromLrcLib(art, tit)
+            if (lrcLibResult != null) {
+                foundLrc = lrcLibResult.syncedLyrics
+                foundPlain = lrcLibResult.plainLyrics
+                foundSource = "LrcLib"
+                logInfo(TAG, "LrcLib match found using '$art' - '$tit'")
+                break
+            }
+        }
+
+        // If direct / search pairs didn't hit, try raw search query on LrcLib
+        if (foundLrc == null && foundPlain == null && "builtin:lrclib" !in rejected) {
+            val rawQueries = listOf(
+                "$cleanArtist $cleanTitle",
+                title,
+                title.replace(Regex("""\s*[-—–]\s*"""), " ")
+            ).distinct()
+
+            for (query in rawQueries) {
+                val searchHit = searchLrcLibByQuery(query)
+                if (searchHit != null) {
+                    foundLrc = searchHit.syncedLyrics
+                    foundPlain = searchHit.plainLyrics
+                    foundSource = "LrcLib (Search)"
+                    logInfo(TAG, "LrcLib search hit with query '$query'")
+                    break
+                }
+            }
+        }
+
+        // 2. Query Chords (AmDm.ru & MyChords.net)
+        val knownLyricsForVerification = foundLrc ?: foundPlain
+        for (pair in searchPairs.takeIf { "builtin:amdm" !in rejected }.orEmpty()) {
+            val (art, tit) = pair
+            if (art.isNotBlank() && tit.isNotBlank()) {
+                val chordsHit = fetchChords(art, tit, knownLyricsForVerification)
+                if (chordsHit != null) {
+                    foundChords = chordsHit
+                    if (foundPlain == null && foundLrc == null) {
+                        foundPlain = chordsHit
+                        foundSource = "AmDm / MyChords"
+                    }
+                    logInfo(TAG, "Chords found for '$art' - '$tit'")
+                    break
+                }
+            }
+        }
+
+        // 3. Fallback Scrapers (Genius / Textpesni) if still no lyrics
+        if (foundLrc == null && foundPlain == null && "builtin:web" !in rejected) {
+            for (pair in searchPairs) {
+                val (art, tit) = pair
+                val scrapedText = fetchFallbackLyrics(art, tit)
+                if (!scrapedText.isNullOrBlank()) {
+                    foundPlain = scrapedText
+                    foundSource = "Web Scraper"
+                    break
+                }
+            }
+        }
+
+        val parsedLrcLines = if (!foundLrc.isNullOrBlank()) {
+            LrcSyncEngine.parseLrcLinesStrict(foundLrc).map {
+                LrcLine(it.timestampMs, it.text)
+            }
+        } else {
+            emptyList()
+        }
+
+        val hasContent = parsedLrcLines.isNotEmpty() || !foundPlain.isNullOrBlank() || !foundChords.isNullOrBlank()
+
+        return DesktopLyricsState(
+            isLoading = false,
+            trackKey = "",
+            displayTitle = cleanTitle,
+            displayArtist = cleanArtist,
+            lrcLines = parsedLrcLines,
+            plainLyrics = foundPlain,
+            chords = foundChords,
+            source = foundSource,
+            hasLyrics = hasContent,
+            errorMessage = if (!hasContent) "Текст не найден в открытых базах" else null,
+            syncedLyricsLrc = foundLrc
+        )
+
     }
 
     private fun stateFromSaved(key: String, title: String, artist: String, plain: String?, lrc: String?, chords: String?, source: String) =
