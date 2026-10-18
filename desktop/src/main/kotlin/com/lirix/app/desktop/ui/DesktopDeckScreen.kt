@@ -73,6 +73,7 @@ import com.lirix.app.desktop.ui.components.DesktopTransportBar
 import com.lirix.app.ingestion.LivePlaybackSnapshot
 import com.lirix.app.platform.MediaIngressProvider
 import com.lirix.app.ui.player.ChordsTabContent
+import com.lirix.app.ui.components.ThemeSelectionDialog
 import com.lirix.app.ui.theme.AppThemeType
 import com.lirix.app.ui.theme.LirixThemeTokens
 import com.lirix.app.ui.theme.LocalLirixTypography
@@ -105,6 +106,7 @@ fun DesktopDeckScreen(
     val colors = LirixThemeTokens.colors
     val typography = LocalLirixTypography.current
     var selectedRightTab by remember { mutableStateOf(DesktopLyricsMode.KARAOKE) }
+    var showThemeSelector by remember { mutableStateOf(false) }
 
     // Safely load local album thumbnail bitmap if available from bridge
     val albumArtBitmap = remember(playback?.albumArtUri) {
@@ -163,14 +165,7 @@ fun DesktopDeckScreen(
                 isCompactMode = isCompactMode,
                 onToggleCompactMode = onToggleCompactMode,
                 selectedTheme = selectedTheme,
-                onToggleTheme = {
-                    val nextTheme = if (selectedTheme.isDark) {
-                        AppThemeType.PAPER_INK
-                    } else {
-                        AppThemeType.GRAPHITE_CHALK
-                    }
-                    onThemeSelected(nextTheme)
-                },
+                onToggleTheme = { showThemeSelector = true },
                 hasActiveConnectDevice = activeConnectDevice != null,
                 activeConnectDeviceName = activeConnectDevice?.deviceName,
                 onOpenConnect = { isConnectDialogOpen = true }
@@ -454,6 +449,7 @@ fun DesktopDeckScreen(
         // ==========================================
         // Lirix Connect Popover / Modal Dialog (§5.2, §5.3, TASK-CON-UI-08)
         // ==========================================
+        if (showThemeSelector) ThemeSelectionDialog(selectedTheme, onThemeSelected) { showThemeSelector = false }
         if (isConnectDialogOpen) {
             DesktopConnectDialog(
                 onDismissRequest = { isConnectDialogOpen = false },

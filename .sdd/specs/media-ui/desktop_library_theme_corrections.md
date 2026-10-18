@@ -2,6 +2,8 @@
 
 Version1, 18 October2026. Design/source audit D-04/D-05; visual gate PENDING. No schema migration, playback change, new archive flow or broad layout redesign.
 
+Coordinator status: APPROVED for DESK-UX-101–105 on 2026-10-18. QA first confirmed absent view-state APIs with a compile failure; no behavioral RED claimed. Product executor desktop_library_ux_coder; independent source review and actual preview inspection are separate gates. Hoisted notes drafts are incremental protection, not complete application-exit draft recovery.
+
 ## Data truth
 
 `TrackEntity` has plainLyrics/syncedLyrics/isFavorite; chords exist only in `LyricsCacheEntity.chordsAmDm`, not in the current library track flow. Every persisted plain/LRC text is already local. Consequently current «Офлайн» and «С текстом / аккордами» cannot honestly be different filters. This batch exposes four filters: «Все», «Избранное», «Караоке», «С сохранённым текстом». Remove duplicate «Офлайн» and unsupported chord promise. Add small explanation under the filter: «Сохранённые тексты доступны без интернета. Аудиофайлы здесь не хранятся». Do not add cache observers solely to preserve an ambiguous label.
@@ -36,5 +38,13 @@ Pure viewstate tests: emptyDB, trimquery, case-insensitive textsearch, favorite-
 Integrationmanual: search misses with DBnonempty → NO_MATCHES and no stale details; reset restoresall restrictions in oneaction. Search matchingothertrackselectsconsistentdetails and never controls music. Draft A survives selectingB/filteringAout/leavingLibrary; failedsave keepsdraft. Each6themes: openDeckselector→dismiss leavesenumunchanged; chooseanother→sidebar/settings agree→restart samechosenenum. No build/test result alone passes visualgate. Actualwindow/screenshots still required when capture available.
 
 ## Next sprint: minimal dirty-draft architecture
+
+### Implementation callsite contract, 18 October 2026
+
+`DesktopWorkspace` public signature is unchanged. It owns `remember { mutableStateMapOf<String, String>() }` for notes drafts, outside the selected page. `LaunchedEffect(tracks)` removes an entry only when the emitted persisted track has identical notes. Editing, selection and navigation never write notes to the database; Save retains the existing explicit `repository.editNotes` call. Errors and newer edits made during a save retain their drafts.
+
+Private `DesktopLibraryPanel` replaces its `picked: TrackEntity?` argument with `selectedKey: String?` and derives the detail track from the tested view state. It receives `notesDrafts: Map<String, String>` and `onNotesDraft: (String, String) -> Unit` after the existing edit/poster callbacks. No external callsites exist. Filter and artist state stay panel-local; the query and notes drafts stay workspace-owned.
+
+`DesktopTopBar` retains its public `onToggleTheme: () -> Unit` parameter for source compatibility; its meaning is opening the selector. `DesktopDeckScreen` owns `showThemeSelector`, routes this callback to opening it, and passes the original `onThemeSelected` persistence callback directly to the shared six-theme dialog. No persistence occurs on opening or dismissal.
 
 Do not bundle all edit surfaces into this bounded fix. Introduce desktop-only draft owner per document, immutable baseline + working copy + save phase + pending navigation. Suggested `data class DesktopDraft<T>(val identity:String,val baseline:T,val value:T,val saving:Boolean=false,val error:String?=null)` with equality-baseddirty; `enum class DraftCloseDecision { SAVE, DISCARD, KEEP_EDITING }`; `suspend fun requestDraftClose(...)` resolves only after successfulsave/discard. UI close requests all route through one guard; loading must complete before establishing baseline, then must never overwrite dirtyworkingcopy. On failedsave pendingnavigation is cancelled and error remains inline. Save disables duplicate activation. Guard used for windowX, cancel, song selection, page navigation; no confirmation for pristine drafts. Track/editor/LRC document identity frozen duringsave; switchingplayback doesnotrebind editeddocument. Draft map fallback above is safe incremental protection, not completeexitprotection. Separate spec+cards needed for all callsites and applicationExit; no assertion of completion in thisbatch.

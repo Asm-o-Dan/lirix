@@ -19,9 +19,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DevicesOther
-import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.ViewCompact
 import androidx.compose.material3.Icon
@@ -50,7 +49,7 @@ import com.lirix.app.ui.theme.LocalLirixTypography
  * 1. Clean brand title: "Lirix Studio" (no caps, no emoji).
  * 2. Human-readable source status: "Нет активного плеера" / "Играет в Яндекс Музыке / Spotify".
  * 3. Vector Material Icons (no emojis).
- * 4. TopBar Theme Toggle: Graphite & Chalk (Dark) <-> Paper & Ink (Light).
+ * 4. Theme selector for all six persisted themes.
  * 5. Lirix Connect (DevicesOther) button with active badge & tooltip.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -166,21 +165,20 @@ fun DesktopTopBar(
                 onClick = onOpenConnect
             )
 
-            // Theme Switcher (Moon / Sun)
-            IconButton(
-                onClick = onToggleTheme,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(colors.surfaceCard)
-                    .border(1.dp, colors.borderSubtle, CircleShape)
-            ) {
-                Icon(
-                    imageVector = if (selectedTheme.isDark) Icons.Filled.LightMode else Icons.Filled.DarkMode,
-                    contentDescription = if (selectedTheme.isDark) "Светлая тема (Paper & Ink)" else "Тёмная тема (Graphite & Chalk)",
-                    tint = if (selectedTheme.isDark) LirixThemeTokens.Chalk else LirixThemeTokens.Ink,
-                    modifier = Modifier.size(16.dp)
-                )
+            val themeLabel = "Тема оформления: ${selectedTheme.title}"
+            TooltipArea(tooltip = {
+                Surface(color = colors.surfaceElevated, shape = RoundedCornerShape(6.dp), border = BorderStroke(1.dp, colors.borderSubtle)) {
+                    Text("$themeLabel\nВыбрать одну из шести тем", color = colors.textPrimary, fontSize = 11.sp, modifier = Modifier.padding(8.dp))
+                }
+            }, delayMillis = 300) {
+                IconButton(
+                    onClick = onToggleTheme,
+                    modifier = Modifier.size(32.dp).clip(CircleShape).background(colors.surfaceCard)
+                        .border(1.dp, colors.borderSubtle, CircleShape)
+                ) {
+                    Icon(Icons.Filled.Palette, contentDescription = themeLabel,
+                        tint = colors.textPrimary, modifier = Modifier.size(16.dp))
+                }
             }
 
             // HUD Toggle Button

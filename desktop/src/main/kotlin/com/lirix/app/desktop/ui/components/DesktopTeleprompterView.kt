@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,10 +43,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lirix.app.ui.player.LrcLine
-import com.lirix.app.ui.theme.ContrastClampHelper
+import com.lirix.app.desktop.ui.theme.desktopReadableForeground
 import com.lirix.app.ui.theme.LirixThemeTokens
 import com.lirix.app.ui.theme.LocalLirixTypography
 import com.lirix.app.ui.theme.toSentenceCase
@@ -58,7 +61,7 @@ import kotlin.math.abs
  *
  * Key Architectural Rules:
  * 1. Geometry: Left-aligned bookish ragged right edge poetry layout, max width 640 dp.
- * 2. 40% Viewport Height Anchor: Active sung line is locked at 40% height with spring autoscroll.
+ * 2. Reading anchor: 40% for short lines, raised as needed to keep wrapped active text visible.
  * 3. Focus Marker: 3 dp vertical Accent bar strictly on the active line, 8 dp from text.
  * 4. Zero Layout Shift (ZLS): Fixed 44 dp slot reserved to the left of the marker with vector Play icon.
  * 5. Anti-Slop: Vector icons, no emojis, honest contrast >= 4.5:1.
@@ -77,8 +80,8 @@ fun DesktopTeleprompterView(
     val typography = LocalLirixTypography.current
 
     val rawAccent = accentColor ?: colors.accentPrimary
-    val effectiveAccent = remember(rawAccent, isDark) {
-        ContrastClampHelper.clampAccentContrast(rawAccent, isDark)
+    val effectiveAccent = remember(rawAccent, isDark, colors) {
+        desktopReadableForeground(rawAccent, listOf(colors.appBackground, colors.surfaceCard, colors.surfaceElevated))
     }
 
     // Binary search / find the active line index for current timestamp
@@ -94,7 +97,7 @@ fun DesktopTeleprompterView(
             Text(
                 text = "Ничего не играет. Запустите музыку в любом плеере",
                 style = typography.lyricsFar,
-                color = if (isDark) LirixThemeTokens.Mist else LirixThemeTokens.Pencil
+                color = colors.textSecondary
             )
         }
         return
@@ -103,13 +106,17 @@ fun DesktopTeleprompterView(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val viewportHeight = maxHeight
         val lazyListState = rememberLazyListState()
+        val density = LocalDensity.current
+        var activeRowHeightPx by remember(lines, activeLineIndex) { mutableIntStateOf(0) }
 
-        // 40% top padding locks the active line at 40% viewport height
-        val topPadding = viewportHeight * 0.40f
+        // Keep the reading anchor for short lines; lift wrapped lines until they fit.
+        val topPadding = with(density) {
+            desktopPrompterAnchorPx(viewportHeight.roundToPx(), activeRowHeightPx, 16.dp.roundToPx()).toDp()
+        }
         val bottomPadding = viewportHeight * 0.60f
 
-        // Smoothly animate active line to 40% height anchor
-        LaunchedEffect(activeLineIndex) {
+        // Follow the active line and repeat positioning when its measured height changes.
+        LaunchedEffect(lines, activeLineIndex, topPadding) {
             if (activeLineIndex in lines.indices) {
                 lazyListState.animateScrollToItem(
                     index = activeLineIndex,
@@ -143,8 +150,8 @@ fun DesktopTeleprompterView(
                         isActive = isActive,
                         distance = distance,
                         effectiveAccent = effectiveAccent,
-                        isDark = isDark,
-                        onSeekRequested = { onSeekRequested(line.timestampMs) }
+                        onSeekRequested = { onSeekRequested(line.timestampMs) },
+                        modifier = if (isActive) Modifier.onSizeChanged { activeRowHeightPx = it.height } else Modifier
                     )
                 }
             }
@@ -159,11 +166,11 @@ private fun TeleprompterLineRow(
     isActive: Boolean,
     distance: Int,
     effectiveAccent: Color,
-    isDark: Boolean,
     onSeekRequested: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val typography = LocalLirixTypography.current
+    val colors = LirixThemeTokens.colors
     var isHovered by remember { mutableStateOf(false) }
 
     // Hover fade animation
@@ -176,14 +183,13 @@ private fun TeleprompterLineRow(
     // Type scale & colors according to distance from active line
     val (textStyle, textColor) = when {
         isActive -> {
-            typography.lyricsActive to (if (isDark) LirixThemeTokens.Chalk else LirixThemeTokens.Ink)
+            typography.lyricsActive to colors.karaokeActive
         }
         distance == 1 -> {
-            typography.lyricsNear to (if (isDark) LirixThemeTokens.Mist else LirixThemeTokens.Pencil)
+            typography.lyricsNear to colors.karaokeInactive
         }
         else -> {
-            val baseColor = if (isDark) LirixThemeTokens.Mist else LirixThemeTokens.Pencil
-            typography.lyricsFar to baseColor
+            typography.lyricsFar to colors.textMuted
         }
     }
 
@@ -208,10 +214,10 @@ private fun TeleprompterLineRow(
             if (hoverAlpha > 0.02f) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
-                    color = (if (isDark) LirixThemeTokens.Slate else LirixThemeTokens.Vellum).copy(alpha = hoverAlpha),
+                    color = colors.surfaceElevated.copy(alpha = hoverAlpha),
                     border = BorderStroke(
                         1.dp,
-                        (if (isDark) LirixThemeTokens.Hairline else LirixThemeTokens.HairlineLight).copy(alpha = hoverAlpha)
+                        colors.borderSubtle.copy(alpha = hoverAlpha)
                     ),
                     modifier = Modifier
                         .fillMaxSize()

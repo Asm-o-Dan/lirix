@@ -793,3 +793,7 @@ AmDm.ru является ценным источником, однако мно�
 - Scope includes removing the unnecessary Dispatchers.Main override in the captured Compose hotkey scope, addressing observed missing-dispatcher runtime errors without a new dependency.
 - QA owns regression tests before implementation; coder owns product changes; independent review and native acceptance are separate gates. Current release stays immutable.
 - CR-KARAOKE-PREFS-01: independent review found tests mutating the actual user preference node. Approved QA's proposal for an injected Preferences-backed offset store retaining the singleton API, key and default; tests use in-memory AbstractPreferences. QA specifies and owns fixture/tests, coder owns the backing implementation. Require a fresh passing run after isolation; the preceding successful run is not final acceptance.
+
+## Direct implementation authorization — 2026-10-18
+- User explicitly answered «Да, пиши код сам» to temporary role change after executor usage limits. Root may now read and write product/test code for the current desktop-readiness work; this supersedes the coordinator-only restriction for this scope. Existing executor assignments continue without overlapping file edits.
+- Root owns adaptive teleprompter geometry and draft protection; executor owns the already approved desktop palette/library action-row batch. Build ownership remains exclusive.

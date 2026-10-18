@@ -216,4 +216,11 @@
 - DSK-READY-001–005 implemented, 11 real service/Room regression tests; full desktop 62 + shared 173 PASS (shared UP-TO-DATE), independent source review no blockers. Native offline acceptance pending.
 - Next bounded UI corrections: honest library filters/empty-selection states and six-theme selector; dirty notes must survive navigation before selection changes ship. Broader draft-close protection and merge workflow remain open.
 - Isolated DB/cache audit launch succeeded via safe alternative; screenshots still timed out. No visual PASS or release readiness declared.
+- DESK-UX-101–105 APPROVED/IN_PROGRESS: honest library states/filters/selection, ephemeral note drafts retained across navigation, exact six-theme selector. QA 8 pure view-state tests written; initial RED missing-API compile only. Product executor desktop_library_ux_coder.
+- Static visual audit alternative APPROVED: actual Compose ImageComposeScene CPU previews with real composables/fixtures, no new dependency/Main/native integration startup. Native focus/hotkeys/HUD/audio remain separate. Preview executor offline_lyrics_reviewer (role changed from completed offline review).
 
+- DESK-UX-101–105 and DESK-VIS-201–205: automated checks PASS, desktop 81/shared 173; 61 detached preview frames produced. Native acceptance remains open.
+
+## Live desktop playback regressions — 2026-10-18
+- IN_PROGRESS: user reports YouTube seeks successfully from a karaoke line while Lirix timer remains behind; artwork also remains from the previous track.
+- Architect playback_sync_architect owns diagnosis, strict specification and delegated regression/fix/review. Preserve existing UI batch and published release.

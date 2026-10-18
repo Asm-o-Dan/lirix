@@ -36,8 +36,8 @@ import androidx.compose.ui.input.key.*
 import java.awt.Dimension
 import com.lirix.app.desktop.ui.components.DesktopCompactWidget
 import com.lirix.app.desktop.ui.theme.DesktopFonts
+import com.lirix.app.desktop.ui.theme.buildDesktopThemePalette
 import com.lirix.app.ui.theme.AppThemeType
-import com.lirix.app.ui.theme.ColorPalettes
 import com.lirix.app.ui.theme.LocalLirixColors
 import com.lirix.app.ui.theme.LocalLirixTypography
 
@@ -142,6 +142,7 @@ fun main() = application {
     }
 
     val desktopTypography = remember { DesktopFonts.createPrompterTypography() }
+    val desktopPalette = remember(selectedTheme) { buildDesktopThemePalette(selectedTheme) }
 
     // Main Window (Studio Deck or Compact Player Widget)
     if (isMainWindowVisible) {
@@ -157,24 +158,19 @@ fun main() = application {
                 WindowsTitleBarDarkTheme.apply(window, selectedTheme.isDark)
             }
 
-            val currentTokens = ColorPalettes.getTokens(selectedTheme)
-
             CompositionLocalProvider(
-                LocalLirixColors provides currentTokens,
+                LocalLirixColors provides desktopPalette.tokens,
                 LocalLirixTypography provides desktopTypography
             ) {
-                if (isCompactMode) {
-                    DesktopCompactWidget(
-                        playback = playback,
-                        ingressProvider = ingressProvider,
-                        lyricsState = lyricsState,
-                        onExpandToStudio = { isCompactMode = false }
-                    )
-                } else {
-                    MaterialTheme(colorScheme = if (currentTokens.isDark) darkColorScheme(primary = currentTokens.accentPrimary,
-                        background = currentTokens.appBackground, surface = currentTokens.surfaceCard, onSurface = currentTokens.textPrimary)
-                    else lightColorScheme(primary = currentTokens.accentPrimary, background = currentTokens.appBackground,
-                        surface = currentTokens.surfaceCard, onSurface = currentTokens.textPrimary)) {
+                MaterialTheme(colorScheme = desktopPalette.material) {
+                    if (isCompactMode) {
+                        DesktopCompactWidget(
+                            playback = playback,
+                            ingressProvider = ingressProvider,
+                            lyricsState = lyricsState,
+                            onExpandToStudio = { isCompactMode = false }
+                        )
+                    } else {
                         DesktopWorkspace(repository, lyricsService, playback, ingressProvider, lyricsState,
                             selectedTheme, themeStore::setTheme, isHudVisible, { isHudVisible = !isHudVisible },
                             hudSettings, hudStore::update, { hudStore.update(hudSettings.copy(locked = false)); isHudVisible = true },
@@ -186,20 +182,21 @@ fun main() = application {
     }
 
     // Floating Click-Through Karaoke HUD Window
-    val hudTokens = ColorPalettes.getTokens(selectedTheme)
     CompositionLocalProvider(
-        LocalLirixColors provides hudTokens,
+        LocalLirixColors provides desktopPalette.tokens,
         LocalLirixTypography provides desktopTypography
     ) {
-        DesktopHudWindow(
-            visible = isHudVisible,
-            onCloseRequest = { isHudVisible = false },
-            playback = playback,
-            lyricsLines = lyricsState.lrcLines,
-            settings = hudSettings,
-            onSettingsChange = hudStore::update,
-            syncOffsetMs = syncOffsetMs,
-            onHelp = { helpVisible = true; isMainWindowVisible = true }
-        )
+        MaterialTheme(colorScheme = desktopPalette.material) {
+            DesktopHudWindow(
+                visible = isHudVisible,
+                onCloseRequest = { isHudVisible = false },
+                playback = playback,
+                lyricsLines = lyricsState.lrcLines,
+                settings = hudSettings,
+                onSettingsChange = hudStore::update,
+                syncOffsetMs = syncOffsetMs,
+                onHelp = { helpVisible = true; isMainWindowVisible = true }
+            )
+        }
     }
 }

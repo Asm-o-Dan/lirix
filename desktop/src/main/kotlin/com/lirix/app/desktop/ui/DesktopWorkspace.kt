@@ -20,6 +20,9 @@ import com.lirix.app.analytics.*
 import com.lirix.app.desktop.hud.HudSettings
 import com.lirix.app.desktop.ingress.AudioLevels
 import com.lirix.app.desktop.library.DesktopLibraryRepository
+import com.lirix.app.desktop.library.DesktopLibraryFilter
+import com.lirix.app.desktop.library.DesktopLibraryEmpty
+import com.lirix.app.desktop.library.buildDesktopLibraryViewState
 import com.lirix.app.desktop.lyrics.DesktopLyricsService
 import com.lirix.app.desktop.lyrics.DesktopLyricsState
 import com.lirix.app.desktop.share.*
@@ -53,6 +56,12 @@ fun DesktopWorkspace(
     val error by repository.error.collectAsState()
     var page by remember { mutableIntStateOf(0) }
     var selectedKey by remember { mutableStateOf<String?>(null) }
+    val notesDrafts = remember { mutableStateMapOf<String, String>() }
+    LaunchedEffect(tracks) {
+        tracks.forEach { track ->
+            if (notesDrafts[track.trackKey] == track.userNotes) notesDrafts.remove(track.trackKey)
+        }
+    }
     var query by remember { mutableStateOf("") }
     var themeDialog by remember { mutableStateOf(false) }
     var editor by remember { mutableStateOf<TrackEntity?>(null) }
@@ -64,7 +73,6 @@ fun DesktopWorkspace(
     val searchFocus = remember { FocusRequester() }
     val currentKey = playback?.let(repository::keyFor)
     val currentTrack = tracks.firstOrNull { it.trackKey == currentKey }
-    val picked = tracks.firstOrNull { it.trackKey == selectedKey } ?: tracks.firstOrNull()
     fun editCurrent() { currentTrack?.let { editor = it } }
     fun exportCurrent() { currentTrack?.let { exportTrack = it } }
     Row(Modifier.fillMaxSize().background(colors.appBackground).onPreviewKeyEvent { event ->
@@ -111,9 +119,10 @@ fun DesktopWorkspace(
                         onToggleCompactMode = onMini, audioLevels = audioLevels, modifier = Modifier.weight(1f), connectRequestVersion = connectRequest,
                         onOpenTapSync = { syncTrack = currentTrack }, canTapSync = currentTrack != null)
                 }
-                1 -> DesktopLibraryPanel(tracks, sessions, picked, query, { query = it }, searchFocus,
+                1 -> DesktopLibraryPanel(tracks, sessions, selectedKey, query, { query = it }, searchFocus,
                     onSelect = { selectedKey = it.trackKey }, onFavorite = { t -> repository.favorite(t.trackKey, !t.isFavorite) },
-                    onNotes = { t, notes -> repository.editNotes(t.trackKey, notes) }, onEdit = { editor = it }, onPoster = { exportTrack = it })
+                    onNotes = { t, notes -> repository.editNotes(t.trackKey, notes) }, onEdit = { editor = it }, onPoster = { exportTrack = it },
+                    notesDrafts = notesDrafts, onNotesDraft = { key, value -> notesDrafts[key] = value })
                 2 -> DesktopWrappedPanel(tracks, sessions, achievements) { stats, period, format, section ->
                     scope.launch {
                         try {
@@ -152,26 +161,41 @@ fun DesktopWorkspace(
 }
 
 @Composable
-private fun DesktopLibraryPanel(tracks: List<TrackEntity>, sessions: List<ListeningSessionEntity>, picked: TrackEntity?, query: String,
+@OptIn(ExperimentalLayoutApi::class)
+private fun DesktopLibraryPanel(tracks: List<TrackEntity>, sessions: List<ListeningSessionEntity>, selectedKey: String?, query: String,
     onQuery: (String) -> Unit, focus: FocusRequester, onSelect: (TrackEntity) -> Unit, onFavorite: (TrackEntity) -> Unit,
-    onNotes: (TrackEntity, String) -> Unit, onEdit: (TrackEntity) -> Unit, onPoster: (TrackEntity) -> Unit) {
+    onNotes: (TrackEntity, String) -> Unit, onEdit: (TrackEntity) -> Unit, onPoster: (TrackEntity) -> Unit,
+    notesDrafts: Map<String, String>, onNotesDraft: (String, String) -> Unit) {
     val c = LirixThemeTokens.colors
-    var filter by remember { mutableStateOf("Все") }
+    var filter by remember { mutableStateOf(DesktopLibraryFilter.ALL) }
     var artistMode by remember { mutableStateOf(false) }
     var artistFilter by remember { mutableStateOf<String?>(null) }
-    val filtered = remember(tracks, query, filter, artistFilter) { tracks.filter {
-        (when(filter) { "Избранное" -> it.isFavorite; "Караоке" -> !it.syncedLyrics.isNullOrBlank(); "С текстом / аккордами", "Офлайн" -> !it.plainLyrics.isNullOrBlank() || !it.syncedLyrics.isNullOrBlank(); else -> true }) &&
-            (artistFilter == null || it.artist == artistFilter) &&
-            (it.title + " " + it.artist + " " + it.album + " " + it.plainLyrics.orEmpty()).contains(query, true)
-    } }
+    val state = remember(tracks, query, filter, artistFilter, selectedKey) {
+        buildDesktopLibraryViewState(tracks, query, filter, artistFilter, selectedKey)
+    }
+    val filtered = state.visibleTracks
+    val picked = state.selectedTrack
     Row(Modifier.fillMaxSize().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
         Column(Modifier.width(320.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Медиатека", color = c.textPrimary, fontSize = 24.sp)
-            OutlinedTextField(query, onQuery, label = { Text("Название, артист, альбом") }, singleLine = true, modifier = Modifier.fillMaxWidth().focusRequester(focus))
-            ChoiceDropdown("Показать", filter, listOf("Все", "Избранное", "Караоке", "С текстом / аккордами", "Офлайн")) { filter = it }
+            OutlinedTextField(query, onQuery, label = { Text("Поиск по названию, артисту, альбому и тексту") }, singleLine = true, modifier = Modifier.fillMaxWidth().focusRequester(focus))
+            ChoiceDropdown("Показать", filter.label, DesktopLibraryFilter.entries.map { it.label }) { label -> filter = DesktopLibraryFilter.entries.first { it.label == label } }
+            Text("Сохранённые тексты доступны без интернета. Аудиофайлы здесь не хранятся", color = c.textMuted, fontSize = 12.sp)
             Row { FilterChip(!artistMode, { artistMode = false; artistFilter = null }, label = { Text("Треки") }); Spacer(Modifier.width(8.dp)); FilterChip(artistMode, { artistMode = true; artistFilter = null }, label = { Text("Артисты") }) }
             artistFilter?.let { TextButton(onClick = { artistFilter = null; artistMode = true }) { Text("← Все артисты") } }
-            if (filtered.isEmpty()) Text("Здесь появятся прослушанные на ПК треки", color = c.textMuted)
+            Text(artistFilter?.let { "$it · Треков: ${filtered.size}" } ?: "Треков: ${filtered.size}", color = c.textSecondary)
+            when (state.empty) {
+                DesktopLibraryEmpty.NO_HISTORY -> {
+                    Text("В медиатеке пока нет треков", color = c.textPrimary)
+                    Text("Включите музыку в плеере ПК — Lirix добавит прослушанное в историю", color = c.textMuted)
+                }
+                DesktopLibraryEmpty.NO_MATCHES -> {
+                    Text("Ничего не найдено", color = c.textPrimary)
+                    Text("Измените запрос или сбросьте фильтры", color = c.textMuted)
+                    TextButton(onClick = { onQuery(""); filter = DesktopLibraryFilter.ALL; artistFilter = null; artistMode = false }) { Text("Сбросить поиск и фильтры") }
+                }
+                DesktopLibraryEmpty.NONE -> Unit
+            }
             LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (artistMode) items(filtered.groupBy { it.artist }.toList(), key = { it.first }) { (artist, songs) ->
                     Surface(onClick = { artistFilter = artist; artistMode = false }, color = c.surfaceCard, modifier = Modifier.fillMaxWidth()) {
@@ -187,20 +211,20 @@ private fun DesktopLibraryPanel(tracks: List<TrackEntity>, sessions: List<Listen
         }
         if (picked != null) Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(picked.title, color = c.textPrimary, fontSize = 26.sp); Text(picked.artist, color = c.textSecondary)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { onFavorite(picked) }) { Text(if (picked.isFavorite) "Убрать из избранного" else "В избранное") }
-                TextButton(onClick = { onEdit(picked) }) { Text("Редактировать текст") }
-                TextButton(onClick = { onPoster(picked) }) { Text("Постер") }
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { onFavorite(picked) }) { Text(if (picked.isFavorite) "Убрать из избранного" else "В избранное", maxLines = 1, softWrap = false) }
+                TextButton(onClick = { onEdit(picked) }) { Text("Редактировать текст", maxLines = 1, softWrap = false) }
+                TextButton(onClick = { onPoster(picked) }) { Text("Постер", maxLines = 1, softWrap = false) }
             }
-            var notes by remember(picked.trackKey, picked.userNotes) { mutableStateOf(picked.userNotes) }
-            OutlinedTextField(notes, { notes = it }, label = { Text("Заметки к песне") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+            val notes = notesDrafts[picked.trackKey] ?: picked.userNotes
+            OutlinedTextField(notes, { onNotesDraft(picked.trackKey, it) }, label = { Text("Заметки к песне") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
             Button(onClick = { onNotes(picked, notes) }, enabled = notes != picked.userNotes) { Text("Сохранить заметки") }
             SelectionContainer { Text(picked.plainLyrics ?: picked.syncedLyrics ?: "Текст пока не сохранён", color = c.textPrimary, fontSize = 17.sp) }
             Text("История прослушиваний", color = c.textPrimary, fontSize = 18.sp)
             sessions.asReversed().filter { it.trackKey == picked.trackKey }.take(30).forEach { s ->
                 Text("${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(s.startTimeMs))} · ${s.durationMs / 1000} сек", color = c.textSecondary)
             }
-        }
+        } else Text("Выберите трек из списка", color = c.textMuted, modifier = Modifier.weight(1f))
     }
 }
 
