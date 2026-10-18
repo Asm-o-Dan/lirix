@@ -797,3 +797,9 @@ AmDm.ru является ценным источником, однако мно�
 ## Direct implementation authorization — 2026-10-18
 - User explicitly answered «Да, пиши код сам» to temporary role change after executor usage limits. Root may now read and write product/test code for the current desktop-readiness work; this supersedes the coordinator-only restriction for this scope. Existing executor assignments continue without overlapping file edits.
 - Root owns adaptive teleprompter geometry and draft protection; executor owns the already approved desktop palette/library action-row batch. Build ownership remains exclusive.
+
+## Desktop seek and artwork correction — 2026-10-18
+- User reported accepted YouTube seek with stale Lirix clock and stale track artwork. Approved strict native correction .sdd/specs/media-core/desktop_playback_sync_fix.md and seven function cards.
+- Accepted seeks reanchor only on success; reconcile newer source snapshots with monotonic interpolation and guard stale session callbacks. Undated sources use an explicit 1500 ms grace and remain best effort without source ordering metadata.
+- New artwork files use immutable content hashes in persistent LocalAppData cache; retain history references. Existing old mutable-file history cannot be reconstructed. Reference-aware aggregate cache collection is deferred.
+- Native AOT executable must be rebuilt and its SHA256 checked in the packaged app; a JVM-only build does not deliver this fix. Existing running processes are preserved; live browser acceptance is separate from automated verification.

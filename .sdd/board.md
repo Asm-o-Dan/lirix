@@ -224,3 +224,5 @@
 ## Live desktop playback regressions — 2026-10-18
 - IN_PROGRESS: user reports YouTube seeks successfully from a karaoke line while Lirix timer remains behind; artwork also remains from the previous track.
 - Architect playback_sync_architect owns diagnosis, strict specification and delegated regression/fix/review. Preserve existing UI batch and published release.
+- SYNC-WIN-001–007: implementation and independent source review PASS; 24 native regression/protocol tests PASS. Fresh NativeAOT bridge published separately; desktop/shared checks and packaging IN_PROGRESS. Live browser acceptance pending.
+- SYNC-WIN-001–008: implementation/review/package PASS, 24 native + 81 desktop + 173 shared tests without failures (JVM final run UP-TO-DATE). Fresh NativeAOT bridge included through corrected resource staging; published/resource/packaged SHA256 match. See DESKTOP_PLAYBACK_SYNC_BUILD.md. Physical browser seek/artwork acceptance pending; no release publication.

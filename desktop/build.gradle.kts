@@ -21,6 +21,23 @@ dependencies {
     testImplementation(libs.junit)
 }
 
+// Compose native resources must live in a platform directory under the root.
+val bridgeResourcesRoot = layout.buildDirectory.dir("generated/bridgeResources")
+val prepareBridgeResources by tasks.registering(Sync::class) {
+    inputs.file(layout.projectDirectory.file("resources/lirix-media-bridge.exe"))
+    from(layout.projectDirectory.file("resources/lirix-media-bridge.exe"))
+    into(bridgeResourcesRoot.map { it.dir("windows") })
+    doFirst {
+        check(layout.projectDirectory.file("resources/lirix-media-bridge.exe").asFile.isFile) {
+            "Missing native media bridge: resources/lirix-media-bridge.exe"
+        }
+    }
+}
+
+tasks.matching { it.name == "prepareAppResources" }.configureEach {
+    dependsOn(prepareBridgeResources)
+}
+
 compose.desktop {
     application {
         mainClass = "com.lirix.app.desktop.MainKt"
@@ -40,7 +57,7 @@ compose.desktop {
             vendor = "Lirix Team"
             copyright = "© 2026 Lirix Team"
 
-            appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
+            appResourcesRootDir.set(bridgeResourcesRoot)
 
             windows {
                 menu = true

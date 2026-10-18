@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Windows.Media.Control;
 using Windows.Storage.Streams;
@@ -8,20 +7,23 @@ namespace LirixMediaBridge;
 
 public sealed class GsmtcWatcher : IDisposable
 {
-    private static readonly object _stdoutLock = new();
+    private readonly object _stateLock = new();
+    private TimelineAnchor _clock = new();
+    private readonly GenerationGate _metadataRevision = new();
+    private readonly GenerationGate _seekRevision = new();
+    private readonly GenerationGate _managerRevision = new();
+    private bool _disposed;
+    private long _publishedRevision;
+    private bool _selectionPending;
+    private static long NowMs => (long)(Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
 
     private GlobalSystemMediaTransportControlsSessionManager? _manager;
     private GlobalSystemMediaTransportControlsSession? _currentSession;
     private readonly SemaphoreSlim _sessionLock = new(1, 1);
 
     private readonly Timer _timelineTimer;
-    private long _baselinePositionMs;
-    private long _lastPositionTimestamp;
     private long _durationMs;
     private bool _isPlaying;
-
-    private string? _lastTrackKey;
-    private string? _cachedThumbnailPath;
 
     public GsmtcWatcher()
     {
@@ -53,11 +55,13 @@ public sealed class GsmtcWatcher : IDisposable
 
     private void OnManagerCurrentSessionChanged(GlobalSystemMediaTransportControlsSessionManager sender, CurrentSessionChangedEventArgs args)
     {
+        lock (_stateLock) { _selectionPending = true; _managerRevision.Next(); _metadataRevision.Next(); _seekRevision.Next(); }
         _ = RefreshSessionAsync();
     }
 
     private void OnManagerSessionsChanged(GlobalSystemMediaTransportControlsSessionManager sender, SessionsChangedEventArgs args)
     {
+        lock (_stateLock) { _selectionPending = true; _managerRevision.Next(); _metadataRevision.Next(); _seekRevision.Next(); }
         _ = RefreshSessionAsync();
     }
 
@@ -72,6 +76,12 @@ public sealed class GsmtcWatcher : IDisposable
                 return;
             }
 
+            long managerRevision;
+            lock (_stateLock)
+            {
+                if (_disposed) return;
+                managerRevision = _managerRevision.Current;
+            }
             var newSession = _manager.GetCurrentSession();
             if (newSession == null)
             {
@@ -79,31 +89,54 @@ public sealed class GsmtcWatcher : IDisposable
                 newSession = sessions.Count > 0 ? sessions[0] : null;
             }
 
-            // Unsubscribe old session
-            if (_currentSession != null)
+            if (newSession != null && ReferenceEquals(newSession, _currentSession))
             {
-                try
+                lock (_stateLock)
                 {
-                    _currentSession.MediaPropertiesChanged -= OnMediaPropertiesChanged;
-                    _currentSession.PlaybackInfoChanged -= OnPlaybackInfoChanged;
-                    _currentSession.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
+                    if (_disposed || !_managerRevision.IsCurrent(managerRevision)) return;
+                    _selectionPending = false;
                 }
-                catch { }
-            }
-
-            _currentSession = newSession;
-
-            if (_currentSession == null)
-            {
-                _isPlaying = false;
-                _timelineTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                SendClosed();
+                await EmitFullSessionStateAsync();
                 return;
             }
 
-            _currentSession.MediaPropertiesChanged += OnMediaPropertiesChanged;
-            _currentSession.PlaybackInfoChanged += OnPlaybackInfoChanged;
-            _currentSession.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
+            lock (_stateLock)
+            {
+                if (_disposed || !_managerRevision.IsCurrent(managerRevision)) return;
+                // Unsubscribe old session
+                if (_currentSession != null)
+                {
+                    try
+                    {
+                        _currentSession.MediaPropertiesChanged -= OnMediaPropertiesChanged;
+                        _currentSession.PlaybackInfoChanged -= OnPlaybackInfoChanged;
+                        _currentSession.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
+                    }
+                    catch { }
+                }
+
+                _currentSession = newSession;
+                _selectionPending = false;
+                _metadataRevision.Next();
+                _seekRevision.Next();
+                _clock = new TimelineAnchor();
+                _isPlaying = false;
+                _durationMs = 0;
+                _publishedRevision = 0;
+
+                if (_currentSession == null)
+                {
+                    _isPlaying = false;
+                    _timelineTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                    SendClosed();
+                    return;
+                }
+
+                _currentSession.MediaPropertiesChanged += OnMediaPropertiesChanged;
+                _currentSession.PlaybackInfoChanged += OnPlaybackInfoChanged;
+                _currentSession.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
+
+            }
 
             await EmitFullSessionStateAsync();
         }
@@ -119,27 +152,34 @@ public sealed class GsmtcWatcher : IDisposable
 
     private void OnMediaPropertiesChanged(GlobalSystemMediaTransportControlsSession sender, MediaPropertiesChangedEventArgs args)
     {
-        _ = EmitFullSessionStateAsync();
+        if (ReferenceEquals(sender, _currentSession)) _ = EmitFullSessionStateAsync();
     }
 
     private void OnPlaybackInfoChanged(GlobalSystemMediaTransportControlsSession sender, PlaybackInfoChangedEventArgs args)
     {
-        _ = EmitFullSessionStateAsync();
+        if (ReferenceEquals(sender, _currentSession))
+        {
+            _ = UpdateTimelineAsync();
+            _ = EmitFullSessionStateAsync();
+        }
     }
 
     private void OnTimelinePropertiesChanged(GlobalSystemMediaTransportControlsSession sender, TimelinePropertiesChangedEventArgs args)
     {
-        _ = UpdateTimelineAsync();
+        if (ReferenceEquals(sender, _currentSession)) _ = UpdateTimelineAsync();
     }
 
     private async Task EmitFullSessionStateAsync()
     {
-        var session = _currentSession;
-        if (session == null)
+        GlobalSystemMediaTransportControlsSession? session;
+        long revision;
+        lock (_stateLock)
         {
-            SendClosed();
-            return;
+            if (_selectionPending || _disposed) return;
+            session = _currentSession;
+            revision = _metadataRevision.Next();
         }
+        if (session == null) return;
 
         try
         {
@@ -154,59 +194,36 @@ public sealed class GsmtcWatcher : IDisposable
 
             var status = playbackInfo?.PlaybackStatus ?? GlobalSystemMediaTransportControlsSessionPlaybackStatus.Closed;
             var isPlaying = status == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
-            _isPlaying = isPlaying;
+            var thumbPath = mediaProps?.Thumbnail == null ? null : await SaveThumbnailAsync(mediaProps.Thumbnail);
 
-            long posMs = 0;
-            long durMs = 0;
-            if (timeline != null)
+            lock (_stateLock)
             {
-                posMs = (long)timeline.Position.TotalMilliseconds;
-                durMs = (long)timeline.EndTime.TotalMilliseconds;
-            }
+                if (_disposed || _selectionPending || !_metadataRevision.IsCurrent(revision) || !ReferenceEquals(session, _currentSession)) return;
+                // Read again after thumbnail I/O: a seek may have happened meanwhile.
+                playbackInfo = session.GetPlaybackInfo();
+                timeline = session.GetTimelineProperties();
+                isPlaying = playbackInfo?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+                ObserveTimeline(timeline, isPlaying);
+                var posMs = _clock.Position(NowMs);
+                var durMs = _durationMs;
 
-            _baselinePositionMs = posMs;
-            _lastPositionTimestamp = Stopwatch.GetTimestamp();
-            _durationMs = durMs;
-
-            // Thumbnail caching
-            string? thumbPath = null;
-            if (mediaProps?.Thumbnail != null)
-            {
-                var trackKey = $"{appName}|{title}|{artist}";
-                if (trackKey == _lastTrackKey && !string.IsNullOrEmpty(_cachedThumbnailPath) && File.Exists(_cachedThumbnailPath))
+                var sessionMsg = new SessionMessage
                 {
-                    thumbPath = _cachedThumbnailPath;
-                }
-                else
-                {
-                    thumbPath = await SaveThumbnailAsync(mediaProps.Thumbnail);
-                    _lastTrackKey = trackKey;
-                    _cachedThumbnailPath = thumbPath;
-                }
-            }
+                    App = appName,
+                    Title = title,
+                    Artist = artist,
+                    Album = album,
+                    DurationMs = durMs,
+                    PositionMs = posMs,
+                    IsPlaying = isPlaying,
+                    ThumbnailPath = thumbPath
+                };
 
-            var sessionMsg = new SessionMessage
-            {
-                App = appName,
-                Title = title,
-                Artist = artist,
-                Album = album,
-                DurationMs = durMs,
-                PositionMs = posMs,
-                IsPlaying = isPlaying,
-                ThumbnailPath = thumbPath
-            };
+                SendJson(sessionMsg, BridgeJsonContext.Relaxed.SessionMessage);
+                _publishedRevision = revision;
 
-            SendJson(sessionMsg, BridgeJsonContext.Relaxed.SessionMessage);
-
-            // Configure periodic timer for timeline extrapolation while playing
-            if (_isPlaying && durMs > 0)
-            {
+                // Keep polling when paused: not all sources emit seek events.
                 _timelineTimer.Change(1000, 1000);
-            }
-            else
-            {
-                _timelineTimer.Change(Timeout.Infinite, Timeout.Infinite);
             }
         }
         catch (Exception)
@@ -215,43 +232,37 @@ public sealed class GsmtcWatcher : IDisposable
         }
     }
 
+    private void ObserveTimeline(GlobalSystemMediaTransportControlsSessionTimelineProperties? timeline, bool playing)
+    {
+        _isPlaying = playing;
+        if (timeline != null)
+        {
+            _durationMs = Math.Max(0, (long)timeline.EndTime.TotalMilliseconds);
+            _clock.Observe((long)timeline.Position.TotalMilliseconds, _durationMs,
+                timeline.LastUpdatedTime, playing, DateTimeOffset.UtcNow, NowMs);
+        }
+        _timelineTimer.Change(1000, 1000);
+    }
+
     private Task UpdateTimelineAsync()
     {
-        var session = _currentSession;
-        if (session == null) return Task.CompletedTask;
-
-        try
+        lock (_stateLock)
         {
-            var timeline = session.GetTimelineProperties();
-            if (timeline != null)
+            var session = _currentSession;
+            if (_disposed || _selectionPending || session == null) return Task.CompletedTask;
+            try
             {
-                var posMs = (long)timeline.Position.TotalMilliseconds;
-                _baselinePositionMs = posMs;
-                _lastPositionTimestamp = Stopwatch.GetTimestamp();
-                _durationMs = (long)timeline.EndTime.TotalMilliseconds;
-
-                SendJson(new TimelineMessage { PositionMs = posMs }, BridgeJsonContext.Relaxed.TimelineMessage);
+                var playing = session.GetPlaybackInfo()?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+                ObserveTimeline(session.GetTimelineProperties(), playing);
+                if (_metadataRevision.IsCurrent(_publishedRevision))
+                    SendJson(new TimelineMessage { PositionMs = _clock.Position(NowMs) }, BridgeJsonContext.Relaxed.TimelineMessage);
             }
+            catch { }
         }
-        catch { }
-
         return Task.CompletedTask;
     }
 
-    private void OnTimelineTimerTick(object? state)
-    {
-        if (!_isPlaying || _currentSession == null || _durationMs <= 0) return;
-
-        try
-        {
-            var elapsedMs = (long)((Stopwatch.GetTimestamp() - _lastPositionTimestamp) * 1000.0 / Stopwatch.Frequency);
-            var estimatedPos = _baselinePositionMs + elapsedMs;
-            if (estimatedPos > _durationMs) estimatedPos = _durationMs;
-
-            SendJson(new TimelineMessage { PositionMs = estimatedPos }, BridgeJsonContext.Relaxed.TimelineMessage);
-        }
-        catch { }
-    }
+    private void OnTimelineTimerTick(object? state) => _ = UpdateTimelineAsync();
 
     public async Task ExecuteCommandAsync(CommandMessage cmd)
     {
@@ -274,8 +285,23 @@ public sealed class GsmtcWatcher : IDisposable
                 case "seek":
                     if (cmd.PositionMs.HasValue)
                     {
-                        var ticks = TimeSpan.FromMilliseconds(cmd.PositionMs.Value).Ticks;
-                        await session.TryChangePlaybackPositionAsync(ticks);
+                        var seekRevision = _seekRevision.Next();
+                        long target;
+                        lock (_stateLock)
+                        {
+                            target = Math.Clamp(cmd.PositionMs.Value, 0,
+                                _durationMs > 0 ? _durationMs : TimeSpan.MaxValue.Ticks / TimeSpan.TicksPerMillisecond);
+                        }
+                        var ticks = target * TimeSpan.TicksPerMillisecond;
+                        var accepted = await session.TryChangePlaybackPositionAsync(ticks);
+                        lock (_stateLock)
+                        {
+                            if (!_disposed && !_selectionPending && ReferenceEquals(session, _currentSession) && _seekRevision.IsCurrent(seekRevision) && accepted)
+                            {
+                                _clock.ApplySeek(true, target, NowMs, DateTimeOffset.UtcNow);
+                                SendJson(new TimelineMessage { PositionMs = _clock.Position(NowMs) }, BridgeJsonContext.Relaxed.TimelineMessage);
+                            }
+                        }
                     }
                     break;
                 case "skipnext":
@@ -298,18 +324,12 @@ public sealed class GsmtcWatcher : IDisposable
             using var stream = await thumbnailRef.OpenReadAsync();
             if (stream == null || stream.Size == 0) return null;
 
-            var tempPath = Path.Combine(Path.GetTempPath(), "lirix_thumb.png");
+            if (stream.Size > 16 * 1024 * 1024) return null;
             using var reader = new DataReader(stream.GetInputStreamAt(0));
             await reader.LoadAsync((uint)stream.Size);
-
             byte[] buffer = new byte[stream.Size];
             reader.ReadBytes(buffer);
-
-            using var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-            await fileStream.WriteAsync(buffer);
-            await fileStream.FlushAsync();
-
-            return tempPath;
+            return await ThumbnailStore.SaveAsync(buffer, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lirix", "cache", "thumbnails"));
         }
         catch
         {
@@ -343,6 +363,12 @@ public sealed class GsmtcWatcher : IDisposable
 
     public void Dispose()
     {
+        lock (_stateLock)
+        {
+            _disposed = true;
+            _metadataRevision.Next();
+            _seekRevision.Next();
+        }
         _timelineTimer.Dispose();
 
         if (_currentSession != null)
