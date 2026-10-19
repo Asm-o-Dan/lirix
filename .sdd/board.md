@@ -243,3 +243,6 @@
 - IN_PROGRESS: user clarified automatic parsing/discovery is the goal. Added catalog discovery + exact page validation, active-track coordinator, automatic save, protected manual selection and explicit ambiguous candidates. Manual import remains fallback. No subagents. Contract song_translations_automatic_v2.md.
 
 - Automatic translations v2 IMPLEMENTED/AUTOMATED PASS:108 desktop +173 shared +198 Android tests passed;1 unrelated optional workspace generator skipped. No-click reader test, real Room protection and live metadata-only discovery Joseph/Hellraiser/Hurricane PASS. Fresh PC/APK and packaged hashes verified. Physical acceptance pending. See SONG_TRANSLATIONS_AUTOMATIC_V2.md.
+
+## LyricsTranslate multilingual discovery — 2026-10-19
+- Brief ready: .sdd/LYRICSTRANSLATE_MULTILINGUAL_BRIEF.md. Primary search and sample translation page inspected; no native parser or integration claimed. Architecture/product gate pending role authorization under latest user-supplied AGENTS.md. No agents launched.

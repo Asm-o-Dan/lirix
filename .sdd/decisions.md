@@ -813,3 +813,6 @@ AmDm.ru является ценным источником, однако мно�
 
 ## Translation automation correction — 2026-10-19
 - User rejected manual URL workflow as primary. Discovery now follows real Amalgama catalog links using current-track metadata; only a uniquely verified match auto-saves. Ambiguous versions require choice. Existing saved variants are never replaced by an automatic lookup. No paid/external search API.
+
+## LyricsTranslate intake — 2026-10-19
+- User approved next step after multilingual source research. Target selection must be independent of UI locale. Preserve translator variants and source warnings; no inferred line pairing/timing. Brief records observed evidence and unresolved HTTP/parser contract. Latest explicit coordinator restriction applies pending clarified direct execution authorization.
