@@ -803,3 +803,6 @@ AmDm.ru является ценным источником, однако мно�
 - Accepted seeks reanchor only on success; reconcile newer source snapshots with monotonic interpolation and guard stale session callbacks. Undated sources use an explicit 1500 ms grace and remain best effort without source ordering metadata.
 - New artwork files use immutable content hashes in persistent LocalAppData cache; retain history references. Existing old mutable-file history cannot be reconstructed. Reference-aware aggregate cache collection is deferred.
 - Native AOT executable must be rebuilt and its SHA256 checked in the packaged app; a JVM-only build does not deliver this fix. Existing running processes are preserved; live browser acceptance is separate from automated verification.
+
+## Direct execution — 2026-10-19
+- User: «если запускать субагентов дорого, делай сам». Root implements this bounded readiness batch directly; no subagents launched. Draft retention is session-scoped, not disk crash recovery.

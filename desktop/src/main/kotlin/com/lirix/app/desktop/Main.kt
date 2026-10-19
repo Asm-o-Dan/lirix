@@ -24,6 +24,7 @@ import com.lirix.app.desktop.system.LirixTray
 import com.lirix.app.desktop.system.WindowsTitleBarDarkTheme
 import com.lirix.app.desktop.ui.DesktopDeckScreen
 import com.lirix.app.desktop.ui.DesktopWorkspace
+import com.lirix.app.desktop.ui.DesktopDraftStore
 import com.lirix.app.desktop.hud.HudSettingsStore
 import com.lirix.app.desktop.library.DesktopLibraryRepository
 import com.lirix.app.desktop.system.DesktopAction
@@ -58,6 +59,12 @@ fun main() = application {
     val hudSettings by hudStore.state.collectAsState()
     var helpVisible by remember { mutableStateOf(false) }
     var isCompactMode by remember { mutableStateOf(false) }
+    val drafts = remember { DesktopDraftStore() }
+    var confirmExit by remember { mutableStateOf(false) }
+    val libraryTracks by repository.tracks.collectAsState()
+    LaunchedEffect(libraryTracks) {
+        libraryTracks.forEach { track -> if (drafts.notes[track.trackKey] == track.userNotes) drafts.notes.remove(track.trackKey) }
+    }
 
     val windowState = rememberWindowState(size = DpSize(1280.dp, 820.dp))
     val playback by ingressProvider.currentPlayback.collectAsState()
@@ -127,7 +134,7 @@ fun main() = application {
         onToggleHud = { isHudVisible = !isHudVisible },
         onTogglePlayPause = { ingressProvider.playPause() },
         onSkipNext = { ingressProvider.skipNext() },
-        onExit = ::exitApplication,
+        onExit = { if (drafts.hasUnsavedChanges) { confirmExit = true; isMainWindowVisible = true; isCompactMode = false } else exitApplication() },
         isPlaying = playback?.isPlaying == true,
         trackTitle = playback?.title
     )
@@ -174,7 +181,7 @@ fun main() = application {
                         DesktopWorkspace(repository, lyricsService, playback, ingressProvider, lyricsState,
                             selectedTheme, themeStore::setTheme, isHudVisible, { isHudVisible = !isHudVisible },
                             hudSettings, hudStore::update, { hudStore.update(hudSettings.copy(locked = false)); isHudVisible = true },
-                            { isCompactMode = true }, audioLevels, helpVisible, { helpVisible = it }, hotkeyFailures)
+                            { isCompactMode = true }, audioLevels, helpVisible, { helpVisible = it }, hotkeyFailures, drafts)
                     }
                 }
             }
@@ -187,6 +194,11 @@ fun main() = application {
         LocalLirixTypography provides desktopTypography
     ) {
         MaterialTheme(colorScheme = desktopPalette.material) {
+            if (confirmExit) com.lirix.app.desktop.ui.DesktopFeatureDialog("Несохранённые изменения", { confirmExit = false }) {
+                Text("Остались несохранённые правки текста, разметки или заметок. Вернитесь в редактор или медиатеку, чтобы сохранить их.")
+                TextButton(onClick = { confirmExit = false }) { Text("Вернуться к работе") }
+                TextButton(onClick = ::exitApplication) { Text("Выйти без сохранения") }
+            }
             DesktopHudWindow(
                 visible = isHudVisible,
                 onCloseRequest = { isHudVisible = false },

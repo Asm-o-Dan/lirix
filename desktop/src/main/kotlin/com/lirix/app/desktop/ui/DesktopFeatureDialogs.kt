@@ -51,27 +51,43 @@ internal fun DesktopHotkeyHelp(failures: List<String>, onDismiss: () -> Unit) = 
 }
 
 @Composable
-internal fun DesktopLyricsEditor(track: TrackEntity, repository: DesktopLibraryRepository, onDismiss: () -> Unit,
-    onSave: (String?, String?, String?) -> Unit) = DesktopFeatureDialog("Текст — ${track.title}", onDismiss) {
+internal fun DesktopLyricsEditor(track: TrackEntity, repository: DesktopLibraryRepository, draft: DesktopLyricsDraft, onDismiss: () -> Unit,
+    onSave: suspend (String?, String?, String?) -> Unit) {
+    val content = draft.content
+    var confirmClose by remember { mutableStateOf(false) }
+    val requestClose = { if (!content.saving) { if (content.dirty) confirmClose = true else onDismiss() }; Unit }
+    DesktopFeatureDialog("Текст — ${track.title}", requestClose) {
     val c = LirixThemeTokens.colors
     val scope = rememberCoroutineScope()
-    var plain by remember(track.trackKey) { mutableStateOf(track.plainLyrics.orEmpty()) }
-    var lrc by remember(track.trackKey) { mutableStateOf(track.syncedLyrics.orEmpty()) }
-    var chords by remember(track.trackKey) { mutableStateOf("") }
+    val plain = content.value.plain
+    val lrc = content.value.lrc
+    val chords = content.value.chords
     var tab by remember { mutableIntStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(track.trackKey) { chords = repository.savedLyrics(track.trackKey)?.chordsAmDm.orEmpty() }
+    var loadAttempt by remember { mutableIntStateOf(0) }
+    LaunchedEffect(track.trackKey, loadAttempt) {
+        if (!draft.chordsLoaded) try { draft.loadChords(repository.savedLyrics(track.trackKey)?.chordsAmDm.orEmpty()); error = null }
+        catch (e: CancellationException) { throw e } catch (e: Exception) { error = "Не удалось загрузить аккорды: ${e.message}" }
+    }
+    fun updateText(target: Int, text: String) {
+        content.value = when (target) { 0 -> content.value.copy(plain = text); 1 -> content.value.copy(lrc = text); else -> content.value.copy(chords = text) }
+    }
+    val canSave = draft.chordsLoaded && !content.saving && (lrc.isBlank() || LrcSyncEngine.parseLrcLinesStrict(lrc).isNotEmpty())
+    fun save() { if (canSave) scope.launch { if (content.save { onSave(it.plain.ifBlank { null }, it.lrc.ifBlank { null }, it.chords.ifBlank { null }) }) onDismiss() } }
     Text(track.title, color = c.textPrimary, fontSize = 24.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("Текст", "LRC / караоке", "Аккорды").forEachIndexed { index, title -> FilterChip(tab == index, { tab = index }, label = { Text(title) }) } }
-    OutlinedTextField(when(tab) { 0 -> plain; 1 -> lrc; else -> chords }, { when(tab) { 0 -> plain = it; 1 -> lrc = it; else -> chords = it } },
+    OutlinedTextField(when(tab) { 0 -> plain; 1 -> lrc; else -> chords }, { updateText(tab, it) }, enabled = !content.saving && (tab != 2 || draft.chordsLoaded),
         modifier = Modifier.fillMaxWidth().weight(1f), label = { Text(if (tab == 1) "[00:12.34] Строка песни" else "Текст") })
     error?.let { Text(it, color = c.accentPrimary) }
+    content.error?.let { Text("Ошибка сохранения: $it", color = c.accentPrimary) }
+    if (!draft.chordsLoaded) TextButton(onClick = { loadAttempt++ }) { Text("Загрузить аккорды повторно") }
+    if (lrc.isNotBlank() && !canSave && !content.saving && draft.chordsLoaded) Text("LRC не содержит корректных временных меток", color = c.accentPrimary)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedButton(onClick = { scope.launch {
+        OutlinedButton(enabled = !content.saving && (tab != 2 || draft.chordsLoaded), onClick = { val targetTab = tab; scope.launch {
             try {
-                val file = withContext(Dispatchers.IO) { DesktopFiles.choose("Импортировать текст или LRC", if (tab == 1) "lrc" else "txt", false) } ?: return@launch
+                val file = withContext(Dispatchers.IO) { DesktopFiles.choose("Импортировать текст или LRC", if (targetTab == 1) "lrc" else "txt", false) } ?: return@launch
                 val text = withContext(Dispatchers.IO) { require(file.length() <= 2_000_000) { "Файл слишком большой" }; file.readText() }
-                when(tab) { 0 -> plain = text; 1 -> lrc = text; else -> chords = text }
+                if (!content.saving) updateText(targetTab, text)
             } catch (e: CancellationException) { throw e } catch (e: Exception) { error = e.message }
         } }) { Text("Импорт файла") }
         OutlinedButton(onClick = { scope.launch {
@@ -82,27 +98,32 @@ internal fun DesktopLyricsEditor(track: TrackEntity, repository: DesktopLibraryR
             } catch (e: CancellationException) { throw e } catch (e: Exception) { error = e.message }
         } }) { Text("Экспорт файла") }
         Spacer(Modifier.weight(1f))
-        TextButton(onClick = onDismiss) { Text("Отмена") }
-        Button(onClick = {
-            if (lrc.isNotBlank() && LrcSyncEngine.parseLrcLinesStrict(lrc).isEmpty()) error = "LRC не содержит корректных временных меток"
-            else onSave(plain.ifBlank { null }, lrc.ifBlank { null }, chords.ifBlank { null })
-        }) { Text("Сохранить") }
+        TextButton(enabled = !content.saving, onClick = requestClose) { Text("Отмена") }
+        Button(enabled = canSave, onClick = ::save) { Text(if (content.saving) "Сохраняем…" else "Сохранить") }
+    }
+    if (confirmClose) DesktopDraftCloseConfirmation(content.saving, canSave, { confirmClose = false }, onDismiss, ::save)
     }
 }
 
 @Composable
 internal fun DesktopTapSyncDialog(track: TrackEntity, playback: LivePlaybackSnapshot?, ingress: MediaIngressProvider,
-    onDismiss: () -> Unit, onSave: (String) -> Unit) = DesktopFeatureDialog("Tap-to-Sync — ${track.title}", onDismiss) {
+    draft: DesktopDraft<List<com.lirix.app.feature.lyrics.SyncLineItem>>, onDismiss: () -> Unit, onSave: suspend (String) -> Unit) {
+    var confirmClose by remember { mutableStateOf(false) }
+    val requestClose = { if (!draft.saving) { if (draft.dirty) confirmClose = true else onDismiss() }; Unit }
+    DesktopFeatureDialog("Tap-to-Sync — ${track.title}", requestClose) {
     val c = LirixThemeTokens.colors
-    var lines by remember(track.trackKey) { mutableStateOf(LrcSyncEngine.parsePlainToSyncLines(track.plainLyrics ?: track.syncedLyrics?.let { LrcSyncEngine.parseLrcLinesStrict(it).joinToString("\n") { line -> line.text } }.orEmpty())) }
-    var index by remember { mutableIntStateOf(0) }
+    var lines by draft::value
+    val scope = rememberCoroutineScope()
+    val canSave = !draft.saving && lines.isNotEmpty() && lines.all { it.timestampMs != null } && LrcSyncEngine.isMonotonic(lines)
+    fun save() { if (canSave) scope.launch { if (draft.save { onSave(LrcSyncEngine.buildLrcString(it)) }) onDismiss() } }
+    var index by remember(track.trackKey) { mutableIntStateOf(lines.indexOfFirst { it.timestampMs == null }.let { if (it < 0) lines.size else it }) }
     var position by remember { mutableLongStateOf(0) }
     var preview by remember { mutableStateOf(false) }
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
     LaunchedEffect(playback) { while (isActive) { position = playback?.currentPositionMs() ?: 0; delay(40) } }
     LaunchedEffect(index) { if (lines.isNotEmpty()) list.animateScrollToItem(index.coerceAtMost(lines.lastIndex)) }
-    fun stamp() { if (playback != null && index in lines.indices) { lines = LrcSyncEngine.recordTimestamp(lines, index, playback.currentPositionMs()); index++ } }
-    fun undo() { val (updated, target) = LrcSyncEngine.undoTimestamp(lines, index); lines = updated; index = target }
+    fun stamp() { if (!draft.saving && playback != null && index in lines.indices) { lines = LrcSyncEngine.recordTimestamp(lines, index, playback.currentPositionMs()); index++ } }
+    fun undo() { if (!draft.saving) { val (updated, target) = LrcSyncEngine.undoTimestamp(lines, index); lines = updated; index = target } }
     Column(Modifier.fillMaxSize().onPreviewKeyEvent { e ->
         if (e.type != KeyEventType.KeyDown || preview) false
         else when { e.isCtrlPressed && e.key == Key.Z -> { undo(); true }; (e.key == Key.Spacebar || e.key == Key.Enter) && !e.isCtrlPressed -> { stamp(); true }; else -> false }
@@ -124,8 +145,8 @@ internal fun DesktopTapSyncDialog(track: TrackEntity, playback: LivePlaybackSnap
                 Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { index = i }) { Text(line.timestampMs?.let(LrcSyncEngine::formatTimeLabel) ?: "—:—") }
                     Text(line.text, color = if (i == index) c.accentPrimary else c.textPrimary, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { lines = LrcSyncEngine.adjustTimestamp(lines, i, -100) }, enabled = line.timestampMs != null) { Text("−0.1") }
-                    TextButton(onClick = { lines = LrcSyncEngine.adjustTimestamp(lines, i, 100) }, enabled = line.timestampMs != null) { Text("+0.1") }
+                    TextButton(onClick = { lines = LrcSyncEngine.adjustTimestamp(lines, i, -100) }, enabled = !draft.saving && line.timestampMs != null) { Text("−0.1") }
+                    TextButton(onClick = { lines = LrcSyncEngine.adjustTimestamp(lines, i, 100) }, enabled = !draft.saving && line.timestampMs != null) { Text("+0.1") }
                 }
             } }
         }
@@ -133,10 +154,21 @@ internal fun DesktopTapSyncDialog(track: TrackEntity, playback: LivePlaybackSnap
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = ::stamp, enabled = playback != null && index in lines.indices) { Text("Начало строки · ${index.coerceAtMost(lines.size)}/${lines.size}") }
             OutlinedButton(onClick = ::undo, enabled = lines.any { it.timestampMs != null }) { Text("Отменить") }
-            Spacer(Modifier.weight(1f)); TextButton(onClick = onDismiss) { Text("Закрыть") }
-            Button(onClick = { onSave(LrcSyncEngine.buildLrcString(lines)) }, enabled = lines.isNotEmpty() && lines.all { it.timestampMs != null } && LrcSyncEngine.isMonotonic(lines)) { Text("Сохранить LRC") }
+            Spacer(Modifier.weight(1f)); TextButton(enabled = !draft.saving, onClick = requestClose) { Text("Закрыть") }
+            Button(onClick = ::save, enabled = canSave) { Text(if (draft.saving) "Сохраняем…" else "Сохранить LRC") }
         }
+        draft.error?.let { Text("Ошибка сохранения: $it", color = c.accentPrimary) }
     }
+    if (confirmClose) DesktopDraftCloseConfirmation(draft.saving, canSave, { confirmClose = false }, onDismiss, ::save)
+    }
+}
+
+@Composable
+private fun DesktopDraftCloseConfirmation(busy: Boolean, canSave: Boolean, onCancel: () -> Unit, onDiscard: () -> Unit, onSave: () -> Unit) {
+    AlertDialog(onDismissRequest = { if (!busy) onCancel() }, title = { Text("Сохранить изменения?") },
+        text = { Text("В редакторе остались несохранённые правки.") },
+        confirmButton = { TextButton(enabled = canSave, onClick = { onCancel(); onSave() }) { Text("Сохранить") } },
+        dismissButton = { Row { TextButton(enabled = !busy, onClick = onCancel) { Text("Продолжить редактирование") }; TextButton(enabled = !busy, onClick = onDiscard) { Text("Не сохранять") } } })
 }
 
 @Composable

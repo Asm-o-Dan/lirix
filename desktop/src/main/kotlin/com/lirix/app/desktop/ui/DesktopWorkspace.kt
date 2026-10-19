@@ -45,7 +45,8 @@ fun DesktopWorkspace(
     selectedTheme: AppThemeType, onTheme: (AppThemeType) -> Unit,
     hudVisible: Boolean, onToggleHud: () -> Unit, hudSettings: HudSettings, onHudSettings: (HudSettings) -> Unit,
     onEditHud: () -> Unit, onMini: () -> Unit, audioLevels: AudioLevels?,
-    helpVisible: Boolean, onHelp: (Boolean) -> Unit, hotkeyFailures: List<String>
+    helpVisible: Boolean, onHelp: (Boolean) -> Unit, hotkeyFailures: List<String>,
+    drafts: DesktopDraftStore = remember { DesktopDraftStore() }
 ) {
     val colors = LirixThemeTokens.colors
     val scope = rememberCoroutineScope()
@@ -56,7 +57,7 @@ fun DesktopWorkspace(
     val error by repository.error.collectAsState()
     var page by remember { mutableIntStateOf(0) }
     var selectedKey by remember { mutableStateOf<String?>(null) }
-    val notesDrafts = remember { mutableStateMapOf<String, String>() }
+    val notesDrafts = drafts.notes
     LaunchedEffect(tracks) {
         tracks.forEach { track ->
             if (notesDrafts[track.trackKey] == track.userNotes) notesDrafts.remove(track.trackKey)
@@ -102,6 +103,17 @@ fun DesktopWorkspace(
             TextButton(onClick = { onHelp(true) }, modifier = Modifier.fillMaxWidth()) { Text("Клавиши · F1") }
         }
         Column(Modifier.weight(1f).fillMaxHeight()) {
+            val pendingLyrics = tracks.filter { drafts.lyrics[it.trackKey]?.content?.dirty == true }
+            val pendingSync = tracks.filter { drafts.sync[it.trackKey]?.dirty == true }
+            val pendingNotes = tracks.filter { drafts.notes.containsKey(it.trackKey) }
+            if (pendingLyrics.isNotEmpty() || pendingSync.isNotEmpty() || pendingNotes.isNotEmpty()) {
+                Column(Modifier.fillMaxWidth().heightIn(max = 150.dp).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp)) {
+                    Text("Несохранённые черновики", color = colors.textSecondary)
+                    pendingLyrics.forEach { track -> TextButton(onClick = { editor = track }) { Text("Текст: ${track.title}", maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+                    pendingSync.forEach { track -> TextButton(onClick = { syncTrack = track }) { Text("Разметка: ${track.title}", maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+                    pendingNotes.forEach { track -> TextButton(onClick = { page = 1; selectedKey = track.trackKey; query = "" }) { Text("Заметки: ${track.title}", maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+                }
+            }
             if (error != null || message != null) Row(Modifier.fillMaxWidth().background(colors.surfaceElevated).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(error ?: message.orEmpty(), color = colors.textPrimary, modifier = Modifier.weight(1f))
                 TextButton(onClick = { repository.clearError(); message = null }) { Text("Закрыть") }
@@ -122,7 +134,10 @@ fun DesktopWorkspace(
                 1 -> DesktopLibraryPanel(tracks, sessions, selectedKey, query, { query = it }, searchFocus,
                     onSelect = { selectedKey = it.trackKey }, onFavorite = { t -> repository.favorite(t.trackKey, !t.isFavorite) },
                     onNotes = { t, notes -> repository.editNotes(t.trackKey, notes) }, onEdit = { editor = it }, onPoster = { exportTrack = it },
-                    notesDrafts = notesDrafts, onNotesDraft = { key, value -> notesDrafts[key] = value })
+                    notesDrafts = notesDrafts, onNotesDraft = { key, value ->
+                        if (tracks.firstOrNull { it.trackKey == key }?.userNotes == value) notesDrafts.remove(key)
+                        else notesDrafts[key] = value
+                    })
                 2 -> DesktopWrappedPanel(tracks, sessions, achievements) { stats, period, format, section ->
                     scope.launch {
                         try {
@@ -137,20 +152,12 @@ fun DesktopWorkspace(
         }
     }
     if (themeDialog) ThemeSelectionDialog(selectedTheme, onTheme) { themeDialog = false }
-    editor?.let { track -> DesktopLyricsEditor(track, repository, onDismiss = { editor = null }) { plain, lrc, chords ->
-        scope.launch {
-            try { lyricsService.saveUserLyrics(track.trackKey, track.title, track.artist, plain, lrc, chords); editor = null }
-            catch (e: CancellationException) { throw e } catch (e: Exception) { message = "Ошибка сохранения: ${e.message}" }
-        }
+    editor?.let { track -> DesktopLyricsEditor(track, repository, drafts.lyricsFor(track), onDismiss = { drafts.lyrics.remove(track.trackKey); editor = null }) { plain, lrc, chords ->
+        lyricsService.saveUserLyrics(track.trackKey, track.title, track.artist, plain, lrc, chords)
     } }
-    syncTrack?.let { track -> DesktopTapSyncDialog(track, playback?.takeIf { currentKey == track.trackKey }, ingress, onDismiss = { syncTrack = null }) { lrc ->
-        scope.launch {
-            try {
+    syncTrack?.let { track -> DesktopTapSyncDialog(track, playback?.takeIf { currentKey == track.trackKey }, ingress, drafts.syncFor(track), onDismiss = { drafts.sync.remove(track.trackKey); syncTrack = null }) { lrc ->
                 val cached = repository.savedLyrics(track.trackKey)
                 lyricsService.saveUserLyrics(track.trackKey, track.title, track.artist, track.plainLyrics, lrc, cached?.chordsAmDm)
-                syncTrack = null
-            } catch (e: CancellationException) { throw e } catch (e: Exception) { message = "Ошибка сохранения LRC: ${e.message}" }
-        }
     } }
     exportTrack?.let { track -> DesktopPosterDialog(track, colors, onDismiss = { exportTrack = null }) { text -> message = text } }
     if (helpVisible) DesktopHotkeyHelp(hotkeyFailures) { onHelp(false) }

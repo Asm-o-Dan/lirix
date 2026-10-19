@@ -226,3 +226,10 @@
 - Architect playback_sync_architect owns diagnosis, strict specification and delegated regression/fix/review. Preserve existing UI batch and published release.
 - SYNC-WIN-001–007: implementation and independent source review PASS; 24 native regression/protocol tests PASS. Fresh NativeAOT bridge published separately; desktop/shared checks and packaging IN_PROGRESS. Live browser acceptance pending.
 - SYNC-WIN-001–008: implementation/review/package PASS, 24 native + 81 desktop + 173 shared tests without failures (JVM final run UP-TO-DATE). Fresh NativeAOT bridge included through corrected resource staging; published/resource/packaged SHA256 match. See DESKTOP_PLAYBACK_SYNC_BUILD.md. Physical browser seek/artwork acceptance pending; no release publication.
+
+## Draft safety — 2026-10-19
+- IN_PROGRESS: direct implementation authorized; session-scoped drafts, guarded dialog/app exit and retryable saves. Spec desktop_draft_safety.md. No subagents.
+
+- Priority update: user reminded about song translations. After the bounded draft-safety patch, the next feature is Russian translation import/preview/offline display from Amalgama, before database-merge UI. Design exists; translation implementation is not yet shipped.
+
+- Draft safety IMPLEMENTED/AUTOMATED PASS: 87 desktop tests and 173 shared tests without failures, fresh distributable and packaged hash checks PASS. Session retention only; native dialog/tray checks pending. Next priority: translations.
