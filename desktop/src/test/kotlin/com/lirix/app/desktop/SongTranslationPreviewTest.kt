@@ -15,6 +15,8 @@ import com.lirix.app.desktop.ui.theme.buildDesktopThemePalette
 import com.lirix.app.translations.*
 import com.lirix.app.ui.theme.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.CompletableDeferred
+import java.util.concurrent.atomic.AtomicInteger
 import org.jetbrains.skia.EncodedImageFormat
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
@@ -112,5 +114,62 @@ class SongTranslationPreviewTest {
         assertEquals("Джозеф", doc.translatedTitle)
         assertTrue(doc.blocks.size >= 60)
         println("User-provided source parsed: ${doc.blocks.size} paired rows; metadata verified. Lyrics not printed.")
+    }
+
+    @Test fun automaticTranslationAppearsAndPersistsWithoutClicksOrUrlEntry() {
+        assumeTrue(System.getenv("LIRIX_RENDER_TRANSLATIONS") == "1")
+        val output = File(System.getenv("LIRIX_TRANSLATION_PREVIEW_DIR") ?: "build/translation-previews").absoluteFile
+        check(output.mkdirs() || output.isDirectory)
+        val document = SongTranslation("https://www.amalgama-lab.com/songs/a/artist/example.html", "Example", "Artist", "Пример", "Тестовый автор",
+            listOf(TranslationBlock("Synthetic original line", "Автоматически найденный русский перевод без ввода ссылки")))
+        for ((width, height) in listOf(360 to 740, 900 to 720)) {
+            val dao = MemoryDao()
+            val release = CompletableDeferred<Unit>()
+            val calls = AtomicInteger()
+            val automatic = AutomaticSongTranslations(dao, { _, _, _ -> calls.incrementAndGet(); release.await(); TranslationSearchResult.Found(document) })
+            val palette = buildDesktopThemePalette(AppThemeType.PAPER_INK)
+            val scene = ImageComposeScene(width, height, Density(1f)) {
+                CompositionLocalProvider(LocalLirixColors provides palette.tokens,
+                    LocalLirixTypography provides DesktopFonts.createPrompterTypography(),
+                    LocalUriHandler provides object : UriHandler { override fun openUri(uri: String) { error("No browser in preview") } }) {
+                    MaterialTheme(colorScheme = palette.material) { Surface(color = palette.tokens.appBackground) {
+                        TranslationPanel("key", "Artist — Example", "Synthetic original line", dao,
+                            { error("Automatic flow must not request a manual URL") }, automatic = automatic, title = "Example", artist = "Artist")
+                    } }
+                }
+            }
+            var nanos = 0L
+            fun nodes(): List<SemanticsNode> {
+                val field = ImageComposeScene::class.java.getDeclaredField("scene").apply { isAccessible = true }
+                val canvas = field.get(scene)
+                val ownerField = canvas.javaClass.getDeclaredField("mainOwner").apply { isAccessible = true }
+                val owner = ownerField.get(canvas)
+                val semantics = owner.javaClass.getMethod("getSemanticsOwner").invoke(owner) as SemanticsOwner
+                fun flatten(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::flatten)
+                return flatten(semantics.rootSemanticsNode)
+            }
+            fun settle(expected: String) {
+                repeat(240) { index ->
+                    scene.render(nanos).close(); nanos += 16_666_667; Thread.sleep(1)
+                    if (index >= 60 && nodes().any { node -> node.config.getOrElse(SemanticsProperties.Text) { emptyList() }.any { it.text.contains(expected) } }) return
+                }
+                error("Automatic state missing: $expected")
+            }
+            fun capture(label: String) {
+                val image = scene.render(nanos); nanos += 16_666_667
+                try { val data = checkNotNull(image.encodeToData(EncodedImageFormat.PNG)); try {
+                    output.resolve("${width}x$height-$label.png").writeBytes(data.bytes)
+                } finally { data.close() } } finally { image.close() }
+            }
+            try {
+                settle("Ищем перевод на Amalgama"); capture("automatic-searching")
+                assertTrue(dao.rows.value.isEmpty())
+                release.complete(Unit)
+                settle("Автоматически найденный русский перевод"); capture("automatic-ready")
+                assertEquals(1, calls.get())
+                assertEquals(document, TranslationDocuments.decode(dao.rows.value.single().documentJson))
+                assertFalse(nodes().any { it.config.contains(SemanticsActions.SetText) })
+            } finally { release.complete(Unit); scene.close() }
+        }
     }
 }

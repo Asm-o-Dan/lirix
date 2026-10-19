@@ -29,6 +29,12 @@ interface SongTranslationDao {
     suspend fun get(trackKey: String): List<SongTranslationEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun save(entity: SongTranslationEntity)
+    @Transaction
+    suspend fun saveAutomaticIfEmpty(entity: SongTranslationEntity): Boolean {
+        if (get(entity.trackKey).isNotEmpty()) return false
+        save(entity)
+        return true
+    }
 }
 
 object TranslationDocuments {

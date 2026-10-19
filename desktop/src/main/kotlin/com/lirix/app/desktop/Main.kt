@@ -50,6 +50,8 @@ fun main() = application {
     val database = remember { createDesktopDatabase() }
     val repository = remember { DesktopLibraryRepository(database, coroutineScope) }
     val lyricsService = remember { DesktopLyricsService(coroutineScope, repository) }
+    val translationProvider = remember { com.lirix.app.translations.AmalgamaTranslationProvider() }
+    val automaticTranslations = remember { com.lirix.app.translations.AutomaticSongTranslations(database.songTranslationDao(), translationProvider::find) }
 
     var isMainWindowVisible by remember { mutableStateOf(true) }
     var isHudVisible by remember { mutableStateOf(false) }
@@ -72,6 +74,11 @@ fun main() = application {
     val lyricsState by lyricsService.lyricsState.collectAsState()
     val syncOffsetMs by com.lirix.app.desktop.ui.components.DesktopSyncOffsetStore.offsetMs.collectAsState()
     val latestPlayback by rememberUpdatedState(playback)
+    val translationKey = playback?.let(repository::keyFor)
+    LaunchedEffect(translationKey, playback?.title, playback?.artist) {
+        val track = playback
+        if (track != null && translationKey != null) automaticTranslations.resolve(translationKey, track.title, track.artist)
+    }
     val hotkeysManager = remember {
         fun action(block: () -> Unit): () -> Unit = { coroutineScope.launch { block() }; Unit }
         GlobalHotkeysManager(
@@ -181,7 +188,7 @@ fun main() = application {
                         DesktopWorkspace(repository, lyricsService, playback, ingressProvider, lyricsState,
                             selectedTheme, themeStore::setTheme, isHudVisible, { isHudVisible = !isHudVisible },
                             hudSettings, hudStore::update, { hudStore.update(hudSettings.copy(locked = false)); isHudVisible = true },
-                            { isCompactMode = true }, audioLevels, helpVisible, { helpVisible = it }, hotkeyFailures, drafts)
+                            { isCompactMode = true }, audioLevels, helpVisible, { helpVisible = it }, hotkeyFailures, drafts, automaticTranslations)
                     }
                 }
             }

@@ -810,3 +810,6 @@ AmDm.ru является ценным источником, однако мно�
 ## Russian translations first increment — 2026-10-19
 - Implement static explicit Amalgama URL import on both platforms before database merge UI. Shared reader/provider/data model, separate Room table and additive v12 migration. Confirmation binds source to a user-selected track; original playback lyrics never overwritten.
 - Preserve source pairs and attribution; no index-based or invented karaoke timing. Latest import default, viewed-variant selection session-local. Archive v1 unchanged and does not yet carry translations. No subagents; direct implementation authorized.
+
+## Translation automation correction — 2026-10-19
+- User rejected manual URL workflow as primary. Discovery now follows real Amalgama catalog links using current-track metadata; only a uniquely verified match auto-saves. Ambiguous versions require choice. Existing saved variants are never replaced by an automatic lookup. No paid/external search API.

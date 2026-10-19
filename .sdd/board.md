@@ -238,3 +238,8 @@
 - IN_PROGRESS: shared Amalgama explicit URL import, preview/confirm, additive Room v12 migration on both platforms, offline Original/Russian/Together UI. Direct implementation by root; original proposal narrowed by song_translations_ru_implementation.md. No automatic search or karaoke subtitle mapping in v1.
 
 - Russian translations v1 IMPLEMENTED/AUTOMATED PASS: desktop 95 passed +1 unrelated opt-in skip, shared173, Android198; actual additive migrations on both platforms PASS. Eight shared-panel renders and live packaged-provider import of supplied URL (70 paired rows) verified. Fresh PC distributable/APK built. Physical acceptance, automatic discovery, bilingual karaoke and archive extension remain open. Evidence SONG_TRANSLATIONS_RU_V1.md.
+
+## Automatic translations correction — 2026-10-19
+- IN_PROGRESS: user clarified automatic parsing/discovery is the goal. Added catalog discovery + exact page validation, active-track coordinator, automatic save, protected manual selection and explicit ambiguous candidates. Manual import remains fallback. No subagents. Contract song_translations_automatic_v2.md.
+
+- Automatic translations v2 IMPLEMENTED/AUTOMATED PASS:108 desktop +173 shared +198 Android tests passed;1 unrelated optional workspace generator skipped. No-click reader test, real Room protection and live metadata-only discovery Joseph/Hellraiser/Hurricane PASS. Fresh PC/APK and packaged hashes verified. Physical acceptance pending. See SONG_TRANSLATIONS_AUTOMATIC_V2.md.

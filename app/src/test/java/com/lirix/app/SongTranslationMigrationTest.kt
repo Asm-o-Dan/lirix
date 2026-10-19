@@ -43,7 +43,9 @@ class SongTranslationMigrationTest {
             try {
                 assertEquals(7, db.musicDao().getTrackByKey("key")!!.playCount)
                 assertEquals("notes", db.musicDao().getTrackByKey("key")!!.userNotes)
-                db.songTranslationDao().save(SongTranslationEntity("key", "ru", translation.sourceUrl, TranslationDocuments.encode(translation), 1))
+                val automaticRow = SongTranslationEntity("key", "ru", translation.sourceUrl, TranslationDocuments.encode(translation), 1)
+                assertTrue(db.songTranslationDao().saveAutomaticIfEmpty(automaticRow))
+                assertFalse(db.songTranslationDao().saveAutomaticIfEmpty(automaticRow.copy(sourceUrl = translation.sourceUrl.replace("example.html", "other.html"))))
             } finally { db.close() }
             db = open()
             try {

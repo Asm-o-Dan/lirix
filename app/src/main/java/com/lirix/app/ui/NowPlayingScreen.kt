@@ -292,6 +292,11 @@ fun NowPlayingScreen(
         }
     }
 
+    val translationProvider = remember { com.lirix.app.translations.AmalgamaTranslationProvider() }
+    val automaticTranslations = remember(db) { com.lirix.app.translations.AutomaticSongTranslations(db.songTranslationDao(), translationProvider::find) }
+    LaunchedEffect(currentTrack?.trackKey, currentTrack?.title, currentTrack?.artist) {
+        currentTrack?.let { automaticTranslations.resolve(it.trackKey, it.title, it.artist) }
+    }
     var syncOffsetMs by remember(currentTrack?.trackKey) {
         mutableLongStateOf(syncOffsetStore.getOffset(currentTrack?.trackKey.orEmpty()))
     }
@@ -957,7 +962,8 @@ fun NowPlayingScreen(
                         onNotesChange = { notesInputText = it },
                         onSaveNotes = saveNotes,
                         onNotesFocusChange = { isNotesFocused = it },
-                        totalTrackDuration = totalTrackDuration
+                        totalTrackDuration = totalTrackDuration,
+                        automaticTranslations = automaticTranslations
                     )
                 }
             }
@@ -1179,7 +1185,8 @@ fun NowPlayingScreen(
                         onNotesChange = { notesInputText = it },
                         onSaveNotes = saveNotes,
                         onNotesFocusChange = { isNotesFocused = it },
-                        totalTrackDuration = totalTrackDuration
+                        totalTrackDuration = totalTrackDuration,
+                        automaticTranslations = automaticTranslations
                     )
                 }
 
@@ -1728,7 +1735,8 @@ private fun RenderTeleprompterContent(
     onNotesChange: (String) -> Unit,
     onSaveNotes: () -> Unit = {},
     onNotesFocusChange: (Boolean) -> Unit = {},
-    totalTrackDuration: Long = 0L
+    totalTrackDuration: Long = 0L,
+    automaticTranslations: com.lirix.app.translations.AutomaticSongTranslations? = null
 ) {
     val tokens = LirixThemeTokens.colors
 
@@ -1864,7 +1872,7 @@ private fun RenderTeleprompterContent(
                 }
                 com.lirix.app.translations.TranslationPanel(currentTrack.trackKey, "${currentTrack.artist} — ${currentTrack.title}",
                     effectivePlain ?: effectiveSynced?.let { LrcSyncEngine.parseLrcLinesStrict(it).joinToString("\n") { line -> line.text } }.orEmpty(),
-                    database.songTranslationDao(), provider::load, Modifier.weight(1f))
+                    database.songTranslationDao(), provider::load, Modifier.weight(1f), automaticTranslations, currentTrack.title, currentTrack.artist)
             }
         }
 

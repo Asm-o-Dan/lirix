@@ -46,7 +46,8 @@ fun DesktopWorkspace(
     hudVisible: Boolean, onToggleHud: () -> Unit, hudSettings: HudSettings, onHudSettings: (HudSettings) -> Unit,
     onEditHud: () -> Unit, onMini: () -> Unit, audioLevels: AudioLevels?,
     helpVisible: Boolean, onHelp: (Boolean) -> Unit, hotkeyFailures: List<String>,
-    drafts: DesktopDraftStore = remember { DesktopDraftStore() }
+    drafts: DesktopDraftStore = remember { DesktopDraftStore() },
+    automaticTranslations: com.lirix.app.translations.AutomaticSongTranslations? = null
 ) {
     val colors = LirixThemeTokens.colors
     val scope = rememberCoroutineScope()
@@ -134,7 +135,8 @@ fun DesktopWorkspace(
                         onOpenTapSync = { syncTrack = currentTrack }, canTapSync = currentTrack != null,
                         textContent = currentTrack?.let { track -> @Composable {
                             com.lirix.app.translations.TranslationPanel(track.trackKey, "${track.artist} — ${track.title}",
-                                com.lirix.app.desktop.ui.components.desktopPlainLyrics(lyrics), repository.database.songTranslationDao(), translationProvider::load)
+                                com.lirix.app.desktop.ui.components.desktopPlainLyrics(lyrics), repository.database.songTranslationDao(), translationProvider::load,
+                                automatic = automaticTranslations, title = track.title, artist = track.artist)
                         } })
                 }
                 1 -> DesktopLibraryPanel(tracks, sessions, selectedKey, query, { query = it }, searchFocus,
@@ -169,7 +171,7 @@ fun DesktopWorkspace(
     translationTrack?.let { track -> DesktopFeatureDialog("Перевод — ${track.title}", { translationTrack = null }) {
         com.lirix.app.translations.TranslationPanel(track.trackKey, "${track.artist} — ${track.title}",
             track.plainLyrics ?: track.syncedLyrics?.let { com.lirix.app.feature.lyrics.LrcSyncEngine.parseLrcLinesStrict(it).joinToString("\n") { line -> line.text } }.orEmpty(),
-            repository.database.songTranslationDao(), translationProvider::load, Modifier.weight(1f))
+            repository.database.songTranslationDao(), translationProvider::load, Modifier.weight(1f), automaticTranslations, track.title, track.artist)
         TextButton(onClick = { translationTrack = null }) { Text("Закрыть") }
     } }
     if (helpVisible) DesktopHotkeyHelp(hotkeyFailures) { onHelp(false) }
