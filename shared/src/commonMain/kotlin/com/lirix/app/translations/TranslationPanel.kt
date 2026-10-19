@@ -147,9 +147,11 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
             document?.let { translation ->
                 Text("${translation.artist} — ${translation.title}", color = c.textPrimary, fontWeight = FontWeight.Bold)
                 if (translation.translatedTitle.isNotBlank()) Text(translation.translatedTitle, color = c.textSecondary)
-                Text("Источник: Amalgama · Перевод: ${translation.translator.ifBlank { "автор не указан" }}", color = c.textSecondary)
+                Text("Источник: ${translation.sourceName} · Перевод: ${translation.translator.ifBlank { "автор не указан" }}", color = c.textSecondary)
+                translation.warnings.forEach { Text(it, color = c.textSecondary) }
                 TextButton(onClick = { runCatching { uri.openUri(translation.sourceUrl) }.onFailure { error = "Не удалось открыть источник" } }) { Text("Открыть источник") }
-                if (mode == 2) Text("Оригинал и перевод со страницы источника. Без синхронизации караоке.", color = c.textMuted, fontSize = 12.sp)
+                if (mode == 2) Text(if (translation.aligned) "Оригинал и перевод со страницы источника. Без синхронизации караоке."
+                    else "Оригинал и перевод отдельными текстами. Соответствие строк не подтверждено.", color = c.textMuted, fontSize = 12.sp)
             }
             if (mode == 0) {
                 SelectionContainer { Text(original.ifBlank { document?.blocks?.joinToString("\n") { it.original }.orEmpty().ifBlank { "Оригинал пока не сохранён" } }, color = c.textPrimary, fontSize = 18.sp) }

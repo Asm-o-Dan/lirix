@@ -816,3 +816,6 @@ AmDm.ru является ценным источником, однако мно�
 
 ## LyricsTranslate intake — 2026-10-19
 - User approved next step after multilingual source research. Target selection must be independent of UI locale. Preserve translator variants and source warnings; no inferred line pairing/timing. Brief records observed evidence and unresolved HTTP/parser contract. Latest explicit coordinator restriction applies pending clarified direct execution authorization.
+
+## Codex role clarification — 2026-10-19
+- User clarified the coordinator-only instructions belong to Antigravity; Codex may implement directly. No repeated role approval required. LyricsTranslate direct HTTP403 is a source access blocker; parser prototype must not be advertised as working automatic discovery.

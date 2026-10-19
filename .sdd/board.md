@@ -246,3 +246,5 @@
 
 ## LyricsTranslate multilingual discovery — 2026-10-19
 - Brief ready: .sdd/LYRICSTRANSLATE_MULTILINGUAL_BRIEF.md. Primary search and sample translation page inspected; no native parser or integration claimed. Architecture/product gate pending role authorization under latest user-supplied AGENTS.md. No agents launched.
+
+- LyricsTranslate prototype: actual browser DOM verified; HTML parser and compatible metadata implemented. Direct HTTP403 prevents live discovery acceptance. Multilingual storage/settings/routing still pending; see reports/LYRICSTRANSLATE_PARSER_PROTOTYPE.md.

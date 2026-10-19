@@ -12,7 +12,9 @@ data class TranslationBlock(val original: String, val translated: String, val se
 @Serializable
 data class SongTranslation(
     val sourceUrl: String, val title: String, val artist: String, val translatedTitle: String,
-    val translator: String, val blocks: List<TranslationBlock>, val language: String = "ru"
+    val translator: String, val blocks: List<TranslationBlock>, val language: String = "ru",
+    val sourceName: String = "Amalgama", val aligned: Boolean = true,
+    val warnings: List<String> = emptyList()
 )
 
 @Entity(tableName = "song_translations", primaryKeys = ["trackKey", "language", "sourceUrl"])
@@ -48,7 +50,7 @@ object TranslationDocuments {
         return json.decodeFromString<SongTranslation>(text).also(::validate)
     }
     private fun validate(document: SongTranslation) {
-        require(document.language == "ru" && document.title.isNotBlank()) { "Некорректные данные перевода" }
+        require(document.language in setOf("ru", "en", "es", "pt", "zh") && document.title.isNotBlank()) { "Некорректные данные перевода" }
         require(document.blocks.size in 1..3000 && document.blocks.any { it.translated.isNotBlank() }) { "В документе нет перевода" }
         require(document.blocks.sumOf { it.original.length + it.translated.length } <= 500_000) { "Слишком большой перевод" }
     }

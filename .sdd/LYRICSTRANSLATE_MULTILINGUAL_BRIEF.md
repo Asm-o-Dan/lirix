@@ -1,6 +1,6 @@
 # LyricsTranslate multilingual provider: implementation brief
 Date: 2026-10-19
-Status: READY FOR ARCHITECTURE; product implementation not started.
+Status: PARSER PROTOTYPE; automatic integration and language selection not implemented.
 
 ## Goal
 Automatically discover existing authored song translations from LyricsTranslate on Android and Windows. Initial target choices: ru, en, es, pt, zh. Translation language is independent of UI locale and original song language. Availability is per song, not guaranteed per language.
@@ -37,4 +37,4 @@ Review existing automatic translation report and current model/provider/coordina
 No machine translation, no invented bilingual timing, no automatic script conversion. Archive/merge format changes require an explicit contract if included; otherwise document the existing export limitation.
 
 ## Current gate
-The latest user-supplied AGENTS.md explicitly restores coordinator-only duties. Root prepared this brief without reading product code or writing a parser. Need direct implementation authorization or an explicitly authorized executor before product work. No agents launched.
+User clarified the coordinator rules belong to Antigravity and authorized Codex to implement directly. No agents launched. Browser DOM inspection succeeded, but direct native HTTPS received HTTP403. Parser prototype is separate from working automatic discovery; see reports/LYRICSTRANSLATE_PARSER_PROTOTYPE.md.
