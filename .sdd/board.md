@@ -233,3 +233,8 @@
 - Priority update: user reminded about song translations. After the bounded draft-safety patch, the next feature is Russian translation import/preview/offline display from Amalgama, before database-merge UI. Design exists; translation implementation is not yet shipped.
 
 - Draft safety IMPLEMENTED/AUTOMATED PASS: 87 desktop tests and 173 shared tests without failures, fresh distributable and packaged hash checks PASS. Session retention only; native dialog/tray checks pending. Next priority: translations.
+
+## Russian translations — 2026-10-19
+- IN_PROGRESS: shared Amalgama explicit URL import, preview/confirm, additive Room v12 migration on both platforms, offline Original/Russian/Together UI. Direct implementation by root; original proposal narrowed by song_translations_ru_implementation.md. No automatic search or karaoke subtitle mapping in v1.
+
+- Russian translations v1 IMPLEMENTED/AUTOMATED PASS: desktop 95 passed +1 unrelated opt-in skip, shared173, Android198; actual additive migrations on both platforms PASS. Eight shared-panel renders and live packaged-provider import of supplied URL (70 paired rows) verified. Fresh PC distributable/APK built. Physical acceptance, automatic discovery, bilingual karaoke and archive extension remain open. Evidence SONG_TRANSLATIONS_RU_V1.md.

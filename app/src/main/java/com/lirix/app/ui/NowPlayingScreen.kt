@@ -1854,22 +1854,17 @@ private fun RenderTeleprompterContent(
         }
 
         NowPlayingMode.LYRICS -> {
-            if (!effectivePlain.isNullOrBlank()) {
-                PlainLyricsReadingView(
-                    lyricsText = effectivePlain,
-                    onStartTapSync = onStartTapSync,
-                    onEditLyrics = onEditLyrics,
-                    fontScale = fontScale,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                EmptyPlayerStateView(
-                    stateType = PlayerEmptyStateType.LYRICS_NOT_FOUND,
-                    trackTitle = currentTrack.title,
-                    trackArtist = currentTrack.artist,
-                    onSearchManual = onOpenTeachMode,
-                    modifier = Modifier.fillMaxSize()
-                )
+            val context = LocalContext.current
+            val database = remember(context) { AppDatabase.getInstance(context) }
+            val provider = remember { com.lirix.app.translations.AmalgamaTranslationProvider() }
+            Column(Modifier.fillMaxSize()) {
+                Row {
+                    TextButton(onClick = onEditLyrics) { Text("Редактировать текст") }
+                    TextButton(onClick = onStartTapSync) { Text("Синхронизация") }
+                }
+                com.lirix.app.translations.TranslationPanel(currentTrack.trackKey, "${currentTrack.artist} — ${currentTrack.title}",
+                    effectivePlain ?: effectiveSynced?.let { LrcSyncEngine.parseLrcLinesStrict(it).joinToString("\n") { line -> line.text } }.orEmpty(),
+                    database.songTranslationDao(), provider::load, Modifier.weight(1f))
             }
         }
 

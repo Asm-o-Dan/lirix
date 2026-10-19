@@ -10,7 +10,7 @@ import com.lirix.app.storage.blacklist.BlacklistRuleEntity
 
 /**
  * Room Multiplatform Database for Music & Lyrics Hub.
- * Version 11: Adds blacklist_rules table and indices for media library filtering.
+ * Version 12: Adds independent offline song translations with an additive migration.
  * Spec: TASK-KMP-06 / SPEC-BLK-01 / ADR-020
  */
 @Database(
@@ -21,9 +21,10 @@ import com.lirix.app.storage.blacklist.BlacklistRuleEntity
         AchievementEntity::class,
         LyricsRejectionEntity::class,
         CustomLyricsRuleEntity::class,
-        BlacklistRuleEntity::class
+        BlacklistRuleEntity::class,
+        com.lirix.app.translations.SongTranslationEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -34,6 +35,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun lyricsDao(): LyricsDao
     abstract fun achievementDao(): AchievementDao
     abstract fun blacklistDao(): BlacklistDao
+    abstract fun songTranslationDao(): com.lirix.app.translations.SongTranslationDao
 
     companion object {
         const val DATABASE_NAME = "event_engine.db"

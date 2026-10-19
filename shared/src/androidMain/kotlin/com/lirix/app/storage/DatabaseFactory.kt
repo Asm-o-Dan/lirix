@@ -6,6 +6,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
+val AppDatabase.Companion.MIGRATION_11_12: Migration
+    get() = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) { db.execSQL(com.lirix.app.translations.CREATE_SONG_TRANSLATIONS) }
+    }
+
 val AppDatabase.Companion.MIGRATION_5_6: Migration
     get() = object : Migration(5, 6) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -246,7 +251,8 @@ fun getAppDatabaseBuilder(context: Context): RoomDatabase.Builder<AppDatabase> {
             AppDatabase.MIGRATION_7_8,
             AppDatabase.MIGRATION_8_9,
             AppDatabase.MIGRATION_9_10,
-            AppDatabase.MIGRATION_10_11
+            AppDatabase.MIGRATION_10_11,
+            AppDatabase.MIGRATION_11_12
         )
         .fallbackToDestructiveMigration(dropAllTables = false)
         .addCallback(object : RoomDatabase.Callback() {

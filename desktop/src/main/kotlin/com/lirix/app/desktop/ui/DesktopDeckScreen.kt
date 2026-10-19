@@ -101,7 +101,8 @@ fun DesktopDeckScreen(
     modifier: Modifier = Modifier,
     connectRequestVersion: Int = 0,
     onOpenTapSync: () -> Unit = {},
-    canTapSync: Boolean = false
+    canTapSync: Boolean = false,
+    textContent: (@Composable () -> Unit)? = null
 ) {
     val colors = LirixThemeTokens.colors
     val typography = LocalLirixTypography.current
@@ -349,8 +350,8 @@ fun DesktopDeckScreen(
                     ) {
                         when (selectedRightTab) {
                             DesktopLyricsMode.TEXT, DesktopLyricsMode.KARAOKE -> {
-                                when (val content = resolveDesktopLyricsContent(selectedRightTab, playback != null, lyricsState)) {
-                                    DesktopLyricsContent.TEXT -> SelectionContainer {
+                                if (selectedRightTab == DesktopLyricsMode.TEXT && textContent != null) textContent() else when (val content = resolveDesktopLyricsContent(selectedRightTab, playback != null, lyricsState)) {
+                                    DesktopLyricsContent.TEXT -> if (textContent != null) textContent() else SelectionContainer {
                                         Text(desktopPlainLyrics(lyricsState), color = colors.textPrimary,
                                             style = typography.lyricsNear,
                                             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp))

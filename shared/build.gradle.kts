@@ -37,6 +37,7 @@ kotlin {
 
         val jvmShared by creating {
             dependsOn(commonMain)
+            dependencies { implementation("org.jsoup:jsoup:1.23.2") }
         }
 
         val androidMain by getting {

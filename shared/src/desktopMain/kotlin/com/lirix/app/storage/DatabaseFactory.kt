@@ -4,6 +4,14 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import java.io.File
+import androidx.room.migration.Migration
+import androidx.sqlite.SQLiteConnection
+import androidx.sqlite.execSQL
+import com.lirix.app.translations.CREATE_SONG_TRANSLATIONS
+
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(connection: SQLiteConnection) { connection.execSQL(CREATE_SONG_TRANSLATIONS) }
+}
 
 fun getDesktopDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
     val appData = System.getenv("APPDATA") ?: System.getProperty("user.home")
@@ -16,6 +24,7 @@ fun getDesktopDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
         name = dbFile.absolutePath
     )
         .setDriver(BundledSQLiteDriver())
+        .addMigrations(MIGRATION_11_12)
 }
 
 fun createDesktopDatabase(): AppDatabase {

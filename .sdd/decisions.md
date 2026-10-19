@@ -806,3 +806,7 @@ AmDm.ru является ценным источником, однако мно�
 
 ## Direct execution — 2026-10-19
 - User: «если запускать субагентов дорого, делай сам». Root implements this bounded readiness batch directly; no subagents launched. Draft retention is session-scoped, not disk crash recovery.
+
+## Russian translations first increment — 2026-10-19
+- Implement static explicit Amalgama URL import on both platforms before database merge UI. Shared reader/provider/data model, separate Room table and additive v12 migration. Confirmation binds source to a user-selected track; original playback lyrics never overwritten.
+- Preserve source pairs and attribution; no index-based or invented karaoke timing. Latest import default, viewed-variant selection session-local. Archive v1 unchanged and does not yet carry translations. No subagents; direct implementation authorized.
