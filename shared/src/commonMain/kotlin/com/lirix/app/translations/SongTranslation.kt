@@ -25,15 +25,15 @@ data class SongTranslationEntity(
 
 @Dao
 interface SongTranslationDao {
-    @Query("SELECT * FROM song_translations WHERE trackKey = :trackKey AND language = 'ru' ORDER BY selectedAt DESC, sourceUrl ASC")
-    fun observe(trackKey: String): Flow<List<SongTranslationEntity>>
-    @Query("SELECT * FROM song_translations WHERE trackKey = :trackKey AND language = 'ru' ORDER BY selectedAt DESC, sourceUrl ASC")
-    suspend fun get(trackKey: String): List<SongTranslationEntity>
+    @Query("SELECT * FROM song_translations WHERE trackKey = :trackKey AND language = :language ORDER BY selectedAt DESC, sourceUrl ASC")
+    fun observe(trackKey: String, language: String = "ru"): Flow<List<SongTranslationEntity>>
+    @Query("SELECT * FROM song_translations WHERE trackKey = :trackKey AND language = :language ORDER BY selectedAt DESC, sourceUrl ASC")
+    suspend fun get(trackKey: String, language: String = "ru"): List<SongTranslationEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun save(entity: SongTranslationEntity)
     @Transaction
     suspend fun saveAutomaticIfEmpty(entity: SongTranslationEntity): Boolean {
-        if (get(entity.trackKey).isNotEmpty()) return false
+        if (get(entity.trackKey, entity.language).isNotEmpty()) return false
         save(entity)
         return true
     }

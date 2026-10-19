@@ -248,3 +248,8 @@
 - Brief ready: .sdd/LYRICSTRANSLATE_MULTILINGUAL_BRIEF.md. Primary search and sample translation page inspected; no native parser or integration claimed. Architecture/product gate pending role authorization under latest user-supplied AGENTS.md. No agents launched.
 
 - LyricsTranslate prototype: actual browser DOM verified; HTML parser and compatible metadata implemented. Direct HTTP403 prevents live discovery acceptance. Multilingual storage/settings/routing still pending; see reports/LYRICSTRANSLATE_PARSER_PROTOTYPE.md.
+
+## Multilingual translations v3 — 2026-10-19
+- IN_PROGRESS: identified HTTP now200 and real POST search verified. LyricsTranslate routing, language-aware DAO/coordinator, persistent target selection and shared reader implemented. Spec song_translations_multilingual_v3.md. Live/test/package validation in progress. No agents.
+
+- Multilingual v3 IMPLEMENTED/AUTOMATED+LIVE PROVIDER PASS:120 desktop +173 shared +198 Android tests passed;2 opt-in checks skipped. Direct five-target search/load and browser-channel metadata fallback verified. Actual narrow/wide panel selection tests and fresh PC/APK packaging pass; jar hashes match. See reports/SONG_TRANSLATIONS_MULTILINGUAL_V3.md. Physical acceptance pending; no release publication.

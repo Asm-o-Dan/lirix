@@ -3,7 +3,7 @@ package com.lirix.app.translations
 import org.jsoup.Jsoup
 import java.net.URI
 
-/** HTML parsing only. HTTP discovery is not enabled until direct source access is verified. */
+/** Parses verified page identity without inferring line alignment. */
 object LyricsTranslateParser {
     private val languages = mapOf("Russian" to "ru", "English" to "en", "Spanish" to "es", "Portuguese" to "pt", "Chinese" to "zh")
 
@@ -11,19 +11,20 @@ object LyricsTranslateParser {
         val uri = URI(input.trim())
         require(uri.scheme == "https" && uri.host in setOf("lyricstranslate.com", "www.lyricstranslate.com") &&
             uri.port == -1 && uri.rawUserInfo == null && uri.rawQuery == null &&
-            uri.rawPath.matches(Regex("/en/[a-zA-Z0-9_-]+\\.html"))) { "Нужна HTTPS-ссылка на перевод LyricsTranslate" }
-        return "https://lyricstranslate.com${uri.rawPath}"
+            uri.path.matches(Regex("/en/[\\p{L}\\p{N}_-]+(?:\\.html(?:-[0-9]+)?)?")) &&
+            uri.path.substringAfterLast('/') !in setOf("songs", "artists", "languages.html", "faq")) { "Нужна HTTPS-ссылка на перевод LyricsTranslate" }
+        return URI("https://lyricstranslate.com${uri.rawPath}").toASCIIString()
     }
 
-    fun parse(bytes: ByteArray, url: String, expectedLanguage: String): SongTranslation {
+    fun parse(bytes: ByteArray, url: String, expectedLanguage: String? = null): SongTranslation {
         require(bytes.size <= 2_000_000) { "Страница слишком большая" }
-        require(expectedLanguage in languages.values) { "Язык перевода не поддерживается" }
+        require(expectedLanguage == null || expectedLanguage in languages.values) { "Язык перевода не поддерживается" }
         val canonical = canonicalUrl(url)
         val dom = Jsoup.parse(bytes.inputStream(), null, canonical)
         val heading = dom.selectFirst("h1")?.text().orEmpty()
         val languageName = Regex(" - ([A-Za-z]+) translation$").find(heading)?.groupValues?.get(1)
         val language = languages[languageName] ?: error("Не удалось подтвердить язык перевода")
-        require(language == expectedLanguage) { "Язык страницы не совпадает с выбранным" }
+        require(expectedLanguage == null || language == expectedLanguage) { "Язык страницы не совпадает с выбранным" }
         val title = dom.selectFirst("[data-panel=original] .translate__title")?.text().orEmpty()
         val artist = dom.selectFirst(".top__artists a.top__tag")?.text().orEmpty()
         require(title.isNotBlank() && artist.isNotBlank()) { "Не удалось подтвердить песню и исполнителя" }

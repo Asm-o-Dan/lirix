@@ -44,6 +44,16 @@ class LyricsTranslateParserTest {
         }
     }
 
+    @Test fun acceptsObservedUnicodeAndModernExtensionlessVariants() {
+        listOf("derni%C3%A8re-danse-last-dance.html", "indila-derniere-danse-english-0", "derni%C3%A8re-danse-last-dance.html-8").forEach {
+            val actual = "https://lyricstranslate.com/en/$it"
+            assertEquals(actual, LyricsTranslateParser.canonicalUrl(actual))
+        }
+        listOf("https://lyricstranslate.com/en/%2e%2e", "https://lyricstranslate.com/en/a%2fb.html").forEach {
+            assertThrows(IllegalArgumentException::class.java) { LyricsTranslateParser.canonicalUrl(it) }
+        }
+    }
+
     @Test fun legacyRussianDocumentsRemainReadable() {
         val old = """{"sourceUrl":"https://example.test","title":"Example","artist":"Artist","translatedTitle":"","translator":"","blocks":[{"original":"One","translated":"Один"}]}"""
         val document = TranslationDocuments.decode(old)

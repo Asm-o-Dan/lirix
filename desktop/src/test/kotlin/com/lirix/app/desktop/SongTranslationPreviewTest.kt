@@ -15,6 +15,7 @@ import com.lirix.app.desktop.ui.theme.buildDesktopThemePalette
 import com.lirix.app.translations.*
 import com.lirix.app.ui.theme.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.CompletableDeferred
 import java.util.concurrent.atomic.AtomicInteger
 import org.jetbrains.skia.EncodedImageFormat
@@ -27,9 +28,9 @@ import java.io.File
 class SongTranslationPreviewTest {
     private class MemoryDao : SongTranslationDao {
         val rows = MutableStateFlow<List<SongTranslationEntity>>(emptyList())
-        override fun observe(trackKey: String) = rows
-        override suspend fun get(trackKey: String) = rows.value
-        override suspend fun save(entity: SongTranslationEntity) { rows.value = listOf(entity) }
+        override fun observe(trackKey: String, language: String) = rows.map { values -> values.filter { it.trackKey == trackKey && it.language == language } }
+        override suspend fun get(trackKey: String, language: String) = rows.value.filter { it.trackKey == trackKey && it.language == language }
+        override suspend fun save(entity: SongTranslationEntity) { rows.value = rows.value.filterNot { it.trackKey == entity.trackKey && it.language == entity.language && it.sourceUrl == entity.sourceUrl } + entity }
     }
 
     @Test fun actualPanelImportConfirmationSaveAndBilingualLayout() {
@@ -87,7 +88,7 @@ class SongTranslationPreviewTest {
             }
             try {
                 settle("Original local lyrics")
-                click("Русский"); settle("Русский перевод пока не добавлен"); capture("empty")
+                click("Русский"); settle("Перевод на выбранный язык пока не добавлен"); capture("empty")
                 click("Добавить перевод"); settle("Перевод для:")
                 val field = nodes().first { it.config.contains(SemanticsActions.SetText) }
                 check(field.config[SemanticsActions.SetText].action!!.invoke(AnnotatedString(document.sourceUrl)))
@@ -126,7 +127,11 @@ class SongTranslationPreviewTest {
             val dao = MemoryDao()
             val release = CompletableDeferred<Unit>()
             val calls = AtomicInteger()
-            val automatic = AutomaticSongTranslations(dao, { _, _, _ -> calls.incrementAndGet(); release.await(); TranslationSearchResult.Found(document) })
+            val automatic = AutomaticSongTranslations(dao, { _, _, _ -> error("legacy search") }, searchLanguage = { _, _, language, _ ->
+                calls.incrementAndGet(); release.await()
+                TranslationSearchResult.Found(if (language == "ru") document else document.copy(language = language, sourceName = "LyricsTranslate", aligned = false,
+                    blocks = listOf(TranslationBlock("Synthetic original", "Traducción sintética en español"))))
+            })
             val palette = buildDesktopThemePalette(AppThemeType.PAPER_INK)
             val scene = ImageComposeScene(width, height, Density(1f)) {
                 CompositionLocalProvider(LocalLirixColors provides palette.tokens,
@@ -162,13 +167,20 @@ class SongTranslationPreviewTest {
                 } finally { data.close() } } finally { image.close() }
             }
             try {
-                settle("Ищем перевод на Amalgama"); capture("automatic-searching")
+                settle("Ищем перевод"); capture("automatic-searching")
                 assertTrue(dao.rows.value.isEmpty())
                 release.complete(Unit)
                 settle("Автоматически найденный русский перевод"); capture("automatic-ready")
                 assertEquals(1, calls.get())
                 assertEquals(document, TranslationDocuments.decode(dao.rows.value.single().documentJson))
                 assertFalse(nodes().any { it.config.contains(SemanticsActions.SetText) })
+                val spanish = nodes().first { node -> node.config.contains(SemanticsActions.OnClick) &&
+                    node.config.getOrElse(SemanticsProperties.Text) { emptyList() }.any { it.text == "Español" } }
+                check(spanish.config[SemanticsActions.OnClick].action!!.invoke())
+                settle("Traducción sintética en español"); capture("automatic-spanish")
+                assertEquals("es", automatic.language.value)
+                assertEquals(setOf("ru", "es"), dao.rows.value.map { it.language }.toSet())
+                assertFalse(nodes().any { node -> node.config.getOrElse(SemanticsProperties.Text) { emptyList() }.any { it.text.contains("Автоматически найденный русский перевод") } })
             } finally { release.complete(Unit); scene.close() }
         }
     }

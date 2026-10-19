@@ -70,7 +70,7 @@ fun DesktopWorkspace(
     var syncTrack by remember { mutableStateOf<TrackEntity?>(null) }
     var exportTrack by remember { mutableStateOf<TrackEntity?>(null) }
     var translationTrack by remember { mutableStateOf<TrackEntity?>(null) }
-    val translationProvider = remember { com.lirix.app.translations.AmalgamaTranslationProvider() }
+    val translationProvider = remember { com.lirix.app.translations.SongTranslationProviders() }
     var message by remember { mutableStateOf<String?>(null) }
     var showSourceTools by remember { mutableStateOf(false) }
     var connectRequest by remember { mutableIntStateOf(0) }

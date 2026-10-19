@@ -22,14 +22,15 @@ import kotlinx.coroutines.*
 fun TranslationPanel(trackKey: String, trackLabel: String, original: String, dao: SongTranslationDao,
                      load: suspend (String) -> SongTranslation, modifier: Modifier = Modifier,
                      automatic: AutomaticSongTranslations? = null, title: String = "", artist: String = "") {
-    key(trackKey) { TranslationPanelContent(trackKey, trackLabel, original, dao, load, modifier, automatic, title, artist) }
+    val language = automatic?.language?.collectAsState()?.value ?: "ru"
+    key(trackKey, language) { TranslationPanelContent(trackKey, trackLabel, original, dao, load, modifier, automatic, title, artist, language) }
 }
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 private fun TranslationPanelContent(trackKey: String, trackLabel: String, original: String, dao: SongTranslationDao,
                                     load: suspend (String) -> SongTranslation, modifier: Modifier,
-                                    automatic: AutomaticSongTranslations?, title: String, artist: String) {
+                                    automatic: AutomaticSongTranslations?, title: String, artist: String, language: String) {
     val c = LirixThemeTokens.colors
     val scope = rememberCoroutineScope()
     val uri = LocalUriHandler.current
@@ -42,10 +43,10 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
     var confirmed by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    val autoState = automatic?.states?.collectAsState()?.value?.get(trackKey)
-    LaunchedEffect(automatic, trackKey, title, artist) { automatic?.resolve(trackKey, title, artist) }
+    val autoState = automatic?.states?.collectAsState()?.value?.get(automatic.stateKey(trackKey, language))
+    LaunchedEffect(automatic, trackKey, title, artist) { automatic?.resolve(trackKey, title, artist, language = language) }
     LaunchedEffect(dao, trackKey) {
-        try { dao.observe(trackKey).collect { saved = it } }
+        try { dao.observe(trackKey, language).collect { saved = it } }
         catch (e: CancellationException) { throw e }
         catch (e: Exception) { error = "Не удалось прочитать сохранённый перевод: ${e.message}" }
     }
@@ -53,8 +54,14 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
     val cached = remember(entity) { entity?.let { runCatching { TranslationDocuments.decode(it.documentJson) }.getOrNull() } }
     val document = preview ?: cached
     Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (automatic != null) Text("Язык перевода", color = c.textSecondary, fontSize = 12.sp)
+        if (automatic != null) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            TranslationLanguages.labels.forEach { (code, label) ->
+                FilterChip(language == code, { automatic.setLanguage(code) }, label = { Text(label) }, enabled = !busy)
+            }
+        }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf("Оригинал", "Русский", "Вместе").forEachIndexed { index, label ->
+            listOf("Оригинал", TranslationLanguages.labels[language] ?: language, "Вместе").forEachIndexed { index, label ->
                 FilterChip(mode == index, { mode = index }, label = { Text(label) })
             }
             TextButton(enabled = !busy, onClick = { importing = !importing; preview = null; confirmed = false }) {
@@ -67,9 +74,9 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                 when (autoState) {
                     AutomaticTranslationState.Searching -> {
                         LinearProgressIndicator(Modifier.fillMaxWidth())
-                        Text("Ищем перевод на Amalgama…", color = c.textSecondary)
+                        Text("Ищем перевод…", color = c.textSecondary)
                     }
-                    AutomaticTranslationState.Missing -> Text("Перевод на Amalgama не найден", color = c.textSecondary)
+                    AutomaticTranslationState.Missing -> Text("Перевод на выбранный язык не найден", color = c.textSecondary)
                     is AutomaticTranslationState.Failed -> Text("Поиск перевода: ${autoState.message}", color = c.textSecondary)
                     is AutomaticTranslationState.Candidates -> {
                         Text("Есть несколько вариантов или отличается версия. Выберите нужную песню:", color = c.textSecondary)
@@ -87,18 +94,18 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                                     catch (e: Exception) { error = e.message ?: "Не удалось загрузить перевод" }
                                     finally { busy = false }
                                 }
-                            }) { Text("${candidate.artist} — ${candidate.title}") }
+                            }) { Text("${candidate.artist} — ${candidate.title}${candidate.translator.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()}") }
                         }
                     }
                     else -> Unit
                 }
                 if (autoState != null && autoState != AutomaticTranslationState.Searching && autoState != AutomaticTranslationState.Ready)
-                    TextButton(enabled = !busy, onClick = { scope.launch { automatic.resolve(trackKey, title, artist, true) } }) { Text("Искать снова") }
+                    TextButton(enabled = !busy, onClick = { scope.launch { automatic.resolve(trackKey, title, artist, true, language) } }) { Text("Искать снова") }
             }
             if (importing) {
                 Text("Перевод для: $trackLabel", color = c.textPrimary)
                 OutlinedTextField(input, { input = it; preview = null; confirmed = false }, enabled = !busy,
-                    label = { Text("Ссылка на песню в Amalgama") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    label = { Text("Ссылка Amalgama или LyricsTranslate") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 Button(enabled = !busy && input.isNotBlank(), onClick = {
                     if (busy || input.isBlank()) return@Button
                     busy = true
@@ -123,6 +130,7 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                 Button(enabled = confirmed && !busy, onClick = {
                     if (!confirmed || busy) return@Button
                     val pending = preview ?: return@Button
+                    if (pending.language != language) { error = "Выберите язык загруженного перевода"; return@Button }
                     busy = true
                     scope.launch {
                     busy = true; error = null
@@ -141,7 +149,7 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                 Text("Сохранённые варианты", color = c.textSecondary)
                 saved.forEach { row ->
                     val variant = remember(row) { runCatching { TranslationDocuments.decode(row.documentJson) }.getOrNull() }
-                    TextButton(onClick = { selectedUrl = row.sourceUrl }) { Text(variant?.let { "${it.title} · ${it.translator.ifBlank { "Amalgama" }}" } ?: row.sourceUrl) }
+                    TextButton(onClick = { selectedUrl = row.sourceUrl }) { Text(variant?.let { "${it.title} · ${it.translator.ifBlank { it.sourceName }}" } ?: row.sourceUrl) }
                 }
             }
             document?.let { translation ->
@@ -156,8 +164,8 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
             if (mode == 0) {
                 SelectionContainer { Text(original.ifBlank { document?.blocks?.joinToString("\n") { it.original }.orEmpty().ifBlank { "Оригинал пока не сохранён" } }, color = c.textPrimary, fontSize = 18.sp) }
             } else if (document == null) {
-                Text("Русский перевод пока не добавлен", color = c.textPrimary)
-                Text(if (automatic == null) "Откройте «Добавить перевод», вставьте ссылку Amalgama и проверьте предпросмотр. Сохранённый перевод будет доступен без интернета."
+                Text("Перевод на выбранный язык пока не добавлен", color = c.textPrimary)
+                Text(if (automatic == null) "Откройте «Добавить перевод», вставьте ссылку источника и проверьте предпросмотр. Сохранённый перевод будет доступен без интернета."
                     else "Перевод ищется по исполнителю и названию. Точное совпадение сохраняется автоматически и будет доступно без интернета.", color = c.textSecondary)
             } else SelectionContainer {
                 BoxWithConstraints(Modifier.fillMaxWidth()) {

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import android.provider.Settings
+import androidx.compose.runtime.collectAsState
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -292,9 +293,16 @@ fun NowPlayingScreen(
         }
     }
 
-    val translationProvider = remember { com.lirix.app.translations.AmalgamaTranslationProvider() }
-    val automaticTranslations = remember(db) { com.lirix.app.translations.AutomaticSongTranslations(db.songTranslationDao(), translationProvider::find) }
-    LaunchedEffect(currentTrack?.trackKey, currentTrack?.title, currentTrack?.artist) {
+    val translationProvider = remember { com.lirix.app.translations.SongTranslationProviders() }
+    val translationPreferences = remember(context) {
+        val storage = context.getSharedPreferences("lirix_translations", Context.MODE_PRIVATE)
+        com.lirix.app.translations.MemoryTranslationLanguagePreferences(storage.getString("target_language", "ru") ?: "ru") {
+            storage.edit().putString("target_language", it).apply()
+        }
+    }
+    val automaticTranslations = remember(db) { com.lirix.app.translations.AutomaticSongTranslations(db.songTranslationDao(), translationProvider::find, preferences = translationPreferences, searchLanguage = translationProvider::findLanguage) }
+    val translationLanguage by automaticTranslations.language.collectAsState()
+    LaunchedEffect(translationLanguage, currentTrack?.trackKey, currentTrack?.title, currentTrack?.artist) {
         currentTrack?.let { automaticTranslations.resolve(it.trackKey, it.title, it.artist) }
     }
     var syncOffsetMs by remember(currentTrack?.trackKey) {
@@ -1864,7 +1872,7 @@ private fun RenderTeleprompterContent(
         NowPlayingMode.LYRICS -> {
             val context = LocalContext.current
             val database = remember(context) { AppDatabase.getInstance(context) }
-            val provider = remember { com.lirix.app.translations.AmalgamaTranslationProvider() }
+            val provider = remember { com.lirix.app.translations.SongTranslationProviders() }
             Column(Modifier.fillMaxSize()) {
                 Row {
                     TextButton(onClick = onEditLyrics) { Text("Редактировать текст") }

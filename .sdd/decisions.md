@@ -819,3 +819,6 @@ AmDm.ru является ценным источником, однако мно�
 
 ## Codex role clarification — 2026-10-19
 - User clarified the coordinator-only instructions belong to Antigravity; Codex may implement directly. No repeated role approval required. LyricsTranslate direct HTTP403 is a source access blocker; parser prototype must not be advertised as working automatic discovery.
+
+## Multilingual provider integration — 2026-10-19
+- Source requests with explicit Lirix identifier currently succeed. Use actual POST form and source links;403/429 remain explicit failures with60s source backoff. Target language is independent of UI locale. Existing schema already includes language in the primary key; DAO queries now honor it. Amalgama remains Russian-first, LyricsTranslate covers fallback and other targets.

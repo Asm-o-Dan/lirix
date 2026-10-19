@@ -23,8 +23,8 @@ class AutomaticTranslationTest {
         listOf(TranslationBlock("Synthetic line", "Искусственная строка")))
     private class MemoryDao : SongTranslationDao {
         val rows = MutableStateFlow<List<SongTranslationEntity>>(emptyList())
-        override fun observe(trackKey: String) = rows
-        override suspend fun get(trackKey: String) = rows.value.filter { it.trackKey == trackKey }
+        override fun observe(trackKey: String, language: String) = rows
+        override suspend fun get(trackKey: String, language: String) = rows.value.filter { it.trackKey == trackKey && it.language == language }
         override suspend fun save(entity: SongTranslationEntity) { rows.value = rows.value.filterNot { it.trackKey == entity.trackKey && it.sourceUrl == entity.sourceUrl } + entity }
     }
     private fun row(key: String = "key", doc: SongTranslation = document()) = SongTranslationEntity(key, "ru", doc.sourceUrl, TranslationDocuments.encode(doc), 1)
