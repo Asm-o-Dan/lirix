@@ -271,3 +271,6 @@
 - Baseline corrections implementation underway: no offset migration, same returned clamped value for UI/storage, centralized inverse seek, negative pre-vocal lyric time retained, stable reader metrics/occurrence keys, portrait Connect dedup. Captured-target transaction and quick-dialog awaited save in integration. Separate read-only QA review started; architect owns builds. Earlier Studio RED is not acceptance evidence for this narrower package.
 
 - Existing karaoke foundations AUTOMATED/REVIEW PASS: Android204 passed; unchanged shared173 cached, unchanged desktop123 passed/2 optional skips up-to-date (500 passed total). Fresh APK built. Report .sdd/reports/KARAOKE_FOUNDATIONS_20261020.md. No physical/visual acceptance: ADB empty. Studio remains DEFERRED; no publication.
+
+## Repository hygiene — 2026-10-20
+- DONE: cleanup PR https://github.com/Asm-o-Dan/lirix/pull/1 merged into main as ea52bc1 after GitHub CI success. Archive docs indexed under docs; APKs, UI/log dumps, unused tunnel binary and private machine helpers untracked with local copies retained. Same cleanup applied to feature branch; orphan local skills gitlink and one-shot scripts untracked here. Published v1.4.0 tag/assets/status unchanged; future prerelease flag derives from tag suffix.
