@@ -10,7 +10,4 @@
     <include domain="sharedpref" path="lirix_ui_prompter_prefs.xml" />
     <include domain="sharedpref" path="lirix_sync_prefs.xml" />
     <include domain="sharedpref" path="media_sync_offsets.xml" />
-    <exclude domain="sharedpref" path="lirix_trusted_devices.xml" />
-    <exclude domain="sharedpref" path="lirix_device_addrs.xml" />
-    <exclude domain="file" path="album_art/" />
 </full-backup-content>

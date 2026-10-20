@@ -14,7 +14,7 @@ is used without a custom agent or manual live-database copying.
 Five backed-up preference stores: `lirix_preferences`, `lirix_translations`,
 `lirix_ui_prompter_prefs`, `lirix_sync_prefs`, `media_sync_offsets`.
 
-Explicitly excluded: `lirix_trusted_devices.xml`, `lirix_device_addrs.xml`,
+Denied by omission from the allowlist: `lirix_trusted_devices.xml`, `lirix_device_addrs.xml`,
 `files/album_art/`. Pairing needs to be performed again after restore; artwork
 is derived and may reload. Only nine explicit paths are included per transport.
 No default wildcard includes, broad root exclusions, future credential stores,
@@ -37,7 +37,7 @@ BUILD SUCCESSFUL, 2m 6s. Fresh Android unit results: **209 tests, 0 failures,
 desktop tests were UP-TO-DATE, not re-executed. Independent source review PASS.
 
 Policy tests inspect actual manifest/resources, compare all four transport /
-API policy sections, verify DB-sidecar coverage, deny secrets and unknown data,
+API policy sections, verify effective DB-sidecar coverage, deny secrets and unknown data,
 check physical include/exclude overlap, API-specific encryption, and inventory
 the current Android app/shared preference names.
 
@@ -45,11 +45,27 @@ Actual APK `aapt dump xmltree` confirms allowBackup=true, fullBackupContent
 resource 0x7f0f0000 and dataExtractionRules resource 0x7f0f0001. APK list contains
 base and v28 backup_rules plus data_extraction_rules. Binary v28 policy has nine
 clientSideEncryption flags. Binary modern policy has cloud encryption flag true,
-separate device-transfer and the expected database and excluded device paths.
+separate device-transfer and the expected database paths. The earlier debug APK
+also contained redundant explicit exclusions; release lint subsequently rejected
+those out-of-allowlist rules. They have been removed without expanding backup
+eligibility. The earlier debug build did not run lintVitalRelease and was not
+sufficient release validation. Focused policy tests now check effective physical
+path eligibility, rather than requiring redundant exclude elements.
+
+Release-lint correction verification on Android version 1.5.1/code 19:
+`gradlew.bat :app:testDebugUnitTest --tests '*AndroidBackupPolicyTest'
+:app:lintVitalRelease --offline --no-daemon --no-configuration-cache
+--max-workers=2` completed **BUILD SUCCESSFUL in 1m 15s**. All five focused
+policy tests passed; lintVitalAnalyzeRelease, lintVitalReportRelease and
+lintVitalRelease completed successfully without suppressions or a baseline.
+Independent review of this final delta passed. The exact nine-path eligibility
+scope and API encryption predicates are unchanged. Final signed release APK
+assembly and publication remain owned by the parent release task.
 
 Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
 SHA256: `32d874e6b7d2ad05423d3e7986efb1858dbc21ce995f59bb2d970de1f5f1628a`.
-The existing signed `build/release150` artifact was not touched and does not
+This hash describes the earlier debug-validation artifact before the release-lint
+correction, not a final release candidate. The existing signed `build/release150` artifact was not touched and does not
 contain this new implementation.
 
 ## Operational limits

@@ -52,6 +52,7 @@ class AndroidBackupPolicyTest {
             val excluded = policy.entries("exclude")
             assertTrue(excluded.all { it.path.isNotBlank() && it.path != "." && !it.path.startsWith("/") })
             expected.forEach { included ->
+                assertTrue("Expected backup denied: $included", policy.permits(included))
                 val physical = physicalPath(included)
                 assertTrue("Included data shadowed by exclusion: $included", excluded.none {
                     val denied = physicalPath(it)
@@ -70,6 +71,15 @@ class AndroidBackupPolicyTest {
         else -> "${entry.domain}/${entry.path}"
     }
 
+    private fun Element.permits(entry: Entry): Boolean {
+        val candidate = physicalPath(entry)
+        fun matches(rule: Entry): Boolean {
+            val path = physicalPath(rule).removeSuffix("/.")
+            return candidate == path || candidate.startsWith("$path/") || path == "."
+        }
+        return entries("include").any(::matches) && entries("exclude").none(::matches)
+    }
+
     @Test fun secretsCachesUnknownFilesAndOtherDatabasesAreDenied() {
         val forbidden = devicePrefs.map { Entry("sharedpref", "$it.xml") } + listOf(
             Entry("sharedpref", "future_credentials.xml"), Entry("database", "future_keys.db"),
@@ -78,10 +88,11 @@ class AndroidBackupPolicyTest {
             Entry("external", "music.mp3"), Entry("device_sharedpref", "identity.xml")
         )
         policies().forEach { policy ->
-            val allowed = policy.entries("include")
-            forbidden.forEach { entry -> assertFalse("Unexpected backup of $entry", entry in allowed) }
-            assertTrue(policy.entries("exclude").containsAll(devicePrefs.map { Entry("sharedpref", "$it.xml") }))
-            assertTrue(Entry("file", "album_art") in policy.entries("exclude"))
+            forbidden.forEach { entry -> assertFalse("Unexpected backup of $entry", policy.permits(entry)) }
+            userPrefs.forEach { name -> assertTrue(policy.permits(Entry("sharedpref", "$name.xml"))) }
+            assertTrue(policy.permits(Entry("database", "event_engine.db")))
+            // Exact includes already deny everything else; redundant out-of-scope exclusions fail release lint.
+            assertTrue(policy.entries("exclude").isEmpty())
         }
     }
 

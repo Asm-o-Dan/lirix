@@ -284,3 +284,7 @@
 - IN_PROGRESS. User requested system backup and instructed execution. Intake .sdd/intake/ANDROID_SYSTEM_BACKUP.md. Architect/implementer android_system_backup owns manifest/XML allowlist, SQLite consistency and Android verification. Include library/settings; exclude Connect trust/addresses and derived artwork/cache. No PC changes or destructive phone test. Existing1.4 migration and already-created1.5tag are separate constraints; publication remains pending.
 
 - IMPLEMENTED / AUTOMATED+SOURCE REVIEW PASS. Android209 tests pass incl5policy tests; shared173 unchanged up-to-date. DebugAPKassembled with actualmanifestresources checked (allowBackuptrue, bothpolicyreferences, API28encryptedvariant, moderncloud+D2D). Separate reviewerbackup_policy_reviewPASS. No device/cloud roundtrip performed. Old1.4signaturemigration still unresolved; originalv1.5tag/APK not overwritten. Publicationversion clarification requested.
+
+## Android release 1.5.1 — 2026-10-20
+- User explicitly selected Android1.5.1 to include systembackup without movingexisting1.5.0tag. Version19, samepermanentprivatekey; Androidonly, Windowsjobs/publicationexcluded. Build/signature/metadata/assetchecks required beforeupload. NoPCsourcechanges.
+- Final releasegatePASS:209Androidtests executed,173shared unchanged up-to-date; signedassembleRelease and lintVitalRelease succeed after removinginvalidredundantXMLexclusions. Effectivebackupallowlist unchanged; independentdelta reviewPASS. Sourcefreeze and commit precede finalartifactmetadata refresh/upload.

@@ -9,7 +9,7 @@
 <p align="center">
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
-  <img alt="Version 1.5.0" src="https://img.shields.io/badge/Version-1.5.0-blue">
+  <img alt="Version 1.5.1" src="https://img.shields.io/badge/Version-1.5.1-blue">
   <img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-blue.svg">
   <img alt="Privacy: no telemetry" src="https://img.shields.io/badge/privacy-no%20telemetry-A855F7">
   <img alt="APK Size" src="https://img.shields.io/badge/APK%20Size-~19%20MB-success">
@@ -97,7 +97,7 @@ Compiled APK path: `app/build/outputs/apk/release/app-release-unsigned.apk` (or 
 6. **Приватность и оффлайн**: без рекламы, без аккаунта Lirix и без сетевой телеметрии. Данные хранятся локально. Если пользователь включил системное резервное копирование Android, ОС может сохранить базу и настройки у выбранного провайдера копирования; доверие Connect и кэш исключены. Срок создания и возможность восстановления копии зависят от Android.
 
 ### Установка:
-1. Скачайте свежий APK из раздела [Releases](https://github.com/Asm-o-Dan/lirix/releases/tag/v1.5.0).
+1. Скачайте свежий APK из раздела [Releases](https://github.com/Asm-o-Dan/lirix/releases/tag/v1.5.1).
 2. Разрешите доступ к уведомлениям: **Настройки → Приложения → Специальный доступ → Доступ к уведомлениям → Lirix**.
 3. Запустите музыку в любом плеере — откройте Lirix и текст подтянется автоматически.
 
@@ -111,7 +111,7 @@ Lirix is licensed under the [GNU General Public License v3.0](LICENSE).
 
 Automatic translation discovery supports Russian, English, Spanish, Portuguese and Chinese through Amalgama and LyricsTranslate. Saved translations remain available offline.
 
-Перед переустановкой APK с другой подписью сохраните важные данные. В [заметках к Android 1.5.0](.sdd/releases/v1.5.0.md) описано ограничение обновления с опубликованной 1.4.0.
+Перед переустановкой APK с другой подписью сохраните важные данные. В [заметках к Android 1.5.1](.sdd/releases/v1.5.1.md) описано ограничение обновления с опубликованной 1.4.0.
 
 ## Project documentation
 

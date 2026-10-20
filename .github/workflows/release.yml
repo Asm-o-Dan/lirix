@@ -28,7 +28,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Configure permanent release signing
-        if: github.ref_name != 'v1.5.0'
+        if: github.ref_name != 'v1.5.0' && github.ref_name != 'v1.5.1'
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
@@ -49,7 +49,7 @@ jobs:
         run: ./gradlew :shared:desktopTest :app:testDebugUnitTest :app:assembleRelease --no-daemon
 
       - name: Rename APK for Release
-        if: github.ref_name != 'v1.5.0'
+        if: github.ref_name != 'v1.5.0' && github.ref_name != 'v1.5.1'
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
@@ -57,15 +57,15 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "release-artifacts/lirix-${RELEASE_TAG}.apk"
 
       - uses: actions/upload-artifact@v4
-        if: github.ref_name != 'v1.5.0'
+        if: github.ref_name != 'v1.5.0' && github.ref_name != 'v1.5.1'
         with:
           name: android-release
           path: release-artifacts/*
           if-no-files-found: error
 
   windows:
-    # v1.5.0 is Android-only; later releases retain Windows packaging.
-    if: github.ref_name != 'v1.5.0'
+    # v1.5.0 and v1.5.1 are Android-only; later releases retain Windows packaging.
+    if: github.ref_name != 'v1.5.0' && github.ref_name != 'v1.5.1'
     runs-on: windows-2022
     timeout-minutes: 30
     steps:
@@ -87,9 +87,9 @@ jobs:
 
   release:
     needs: [android, windows]
-    # v1.5.0 is signed locally with the permanent private key and uploaded manually.
+    # v1.5.0 and v1.5.1 are signed locally with the permanent private key and uploaded manually.
     # CI has no signing key and must not overwrite the verified APK with a debug-signed build.
-    if: ${{ always() && github.ref_name != 'v1.5.0' && needs.android.result == 'success' && needs.windows.result == 'success' }}
+    if: ${{ always() && github.ref_name != 'v1.5.0' && github.ref_name != 'v1.5.1' && needs.android.result == 'success' && needs.windows.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
