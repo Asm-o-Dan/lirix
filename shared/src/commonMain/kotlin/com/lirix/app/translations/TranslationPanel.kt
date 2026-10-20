@@ -175,7 +175,7 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                 if (mode == 2) Text(if (translation.aligned) "Оригинал и перевод со страницы источника. Без синхронизации караоке."
                     else "Оригинал и перевод отдельными текстами. Соответствие строк не подтверждено.", color = c.textMuted, fontSize = 12.sp)
             }
-            if (mode == 0) {
+            if (mode == 0 || (automatic != null && document == null && original.isNotBlank())) {
                 SelectionContainer { Text(original.ifBlank { document?.blocks?.joinToString("\n") { it.original }.orEmpty().ifBlank { "Оригинал пока не сохранён" } }, color = c.textPrimary, fontSize = 18.sp) }
             } else if (document == null) {
                 Text("Перевод на выбранный язык пока не добавлен", color = c.textPrimary)

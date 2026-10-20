@@ -121,6 +121,7 @@ fun DesktopWorkspace(
                 Text(error ?: message.orEmpty(), color = colors.textPrimary, modifier = Modifier.weight(1f))
                 TextButton(onClick = { repository.clearError(); message = null }) { Text("Закрыть") }
             }
+            Column(Modifier.weight(1f).fillMaxWidth()) {
             when (page) {
                 0 -> {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -132,7 +133,7 @@ fun DesktopWorkspace(
                     }
                     DesktopDeckScreen(playback, ingress, selectedTheme, onTheme, lyrics, hudVisible, onToggleHud,
                         onToggleCompactMode = onMini, audioLevels = audioLevels, modifier = Modifier.weight(1f), connectRequestVersion = connectRequest,
-                        onOpenTapSync = { syncTrack = currentTrack }, canTapSync = currentTrack != null,
+                        onOpenTapSync = { syncTrack = currentTrack }, canTapSync = currentTrack != null, showTransport = false,
                         textContent = currentTrack?.let { track -> @Composable {
                             com.lirix.app.translations.TranslationPanel(track.trackKey, "${track.artist} — ${track.title}",
                                 com.lirix.app.desktop.ui.components.desktopPlainLyrics(lyrics), repository.database.songTranslationDao(), translationProvider::load,
@@ -157,6 +158,8 @@ fun DesktopWorkspace(
                 }
                 3 -> DesktopSettingsPanel(rules, tracks, hudSettings, onHudSettings, repository, selectedTheme, onTheme, onEditHud)
             }
+            }
+            DesktopPersistentPlayer(playback, ingress, audioLevels)
         }
     }
     if (themeDialog) ThemeSelectionDialog(selectedTheme, onTheme) { themeDialog = false }

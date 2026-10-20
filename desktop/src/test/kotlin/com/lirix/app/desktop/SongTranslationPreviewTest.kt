@@ -183,6 +183,7 @@ class SongTranslationPreviewTest {
             try {
                 settle("Ищем перевод"); capture("automatic-searching")
                 assertTrue(dao.rows.value.isEmpty())
+                settle("Synthetic original line")
                 release.complete(Unit)
                 settle("Автоматически найденный русский перевод"); capture("automatic-ready")
                 assertEquals(1, calls.get())

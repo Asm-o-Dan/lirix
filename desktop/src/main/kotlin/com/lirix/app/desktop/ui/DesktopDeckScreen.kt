@@ -102,7 +102,8 @@ fun DesktopDeckScreen(
     connectRequestVersion: Int = 0,
     onOpenTapSync: () -> Unit = {},
     canTapSync: Boolean = false,
-    textContent: (@Composable () -> Unit)? = null
+    textContent: (@Composable () -> Unit)? = null,
+    showTransport: Boolean = true
 ) {
     val colors = LirixThemeTokens.colors
     val typography = LocalLirixTypography.current
@@ -172,138 +173,21 @@ fun DesktopDeckScreen(
                 onOpenConnect = { isConnectDialogOpen = true }
             )
 
-        // ==========================================
-        // MAIN TWO-PANE TELEPROMPTER DECK
-        // ==========================================
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            // ==========================================
-            // LEFT COLUMN: 88x88 Cover, Metadata, Transport, VU-Meter
-            // ==========================================
-            Surface(
-                modifier = Modifier
-                    .width(360.dp)
-                    .fillMaxHeight(),
-                shape = RoundedCornerShape(16.dp),
-                color = colors.surfaceCard,
-                border = BorderStroke(1.dp, colors.borderSubtle)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Top: Cover Art (88x88 dp) + Track Metadata
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        if (albumArtBitmap != null) {
-                            Image(
-                                bitmap = albumArtBitmap,
-                                contentDescription = "Обложка трека",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(88.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .border(1.dp, colors.borderSubtle, RoundedCornerShape(12.dp))
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(88.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(colors.surfaceElevated)
-                                    .border(1.dp, colors.borderSubtle, RoundedCornerShape(12.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.MusicNote,
-                                    contentDescription = null,
-                                    tint = colors.textMuted.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(36.dp)
-                                )
-                            }
-                        }
-
-                        // Track Title & Artist
-                        val displayTitle = when {
-                            lyricsState.displayTitle.isNotBlank() -> lyricsState.displayTitle
-                            playback?.title != null -> playback.title
-                            else -> "Ожидание трека"
-                        }
-                        val displayArtist = when {
-                            lyricsState.displayArtist.isNotBlank() -> lyricsState.displayArtist
-                            playback?.artist != null -> playback.artist
-                            else -> "Запустите музыку в плеере"
-                        }
-
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp)
-                        ) {
-                            Text(
-                                text = displayTitle,
-                                style = typography.trackTitle,
-                                color = colors.textPrimary,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = displayArtist,
-                                style = typography.trackArtistAlbum,
-                                color = colors.textSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-
-                    // Bottom: Transport Controls & Conditional WASAPI VU Meter
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        DesktopTransportBar(
-                            positionMs = currentPositionMs,
-                            durationMs = durationMs,
-                            isPlaying = playback?.isPlaying == true,
-                            onSeekTo = { pos -> ingressProvider.seekTo(pos) },
-                            onTogglePlayPause = { ingressProvider.playPause() },
-                            onSkipNext = { ingressProvider.skipNext() },
-                            onSkipPrevious = { ingressProvider.skipPrevious() },
-                            initialOffsetMs = syncOffsetMs,
-                            onOffsetChanged = DesktopSyncOffsetStore::setOffsetMs,
-                            accentColor = colors.accentPrimary,
-                            isDark = colors.isDark,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        // Analog VU Meter: strictly visible when actively playing and audio is producing sound
-                        if (playback?.isPlaying == true && audioLevels?.isActive == true && audioLevels.leftPeak > 0.0001f) {
-                            AnalogVuMeter(
-                                audioLevels = audioLevels,
-                                isPlaying = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
+        // Compact track header leaves the reading area the full available width.
+        Surface(color = colors.surfaceCard, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                if (albumArtBitmap != null) Image(albumArtBitmap, "Обложка трека", contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)))
+                else Icon(Icons.Filled.MusicNote, "Обложка отсутствует", tint = colors.textMuted, modifier = Modifier.size(40.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(playback?.title?.ifBlank { "Без названия" } ?: "Включите музыку в плеере ПК",
+                        style = typography.trackTitle, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(playback?.artist.orEmpty().ifBlank { "Lirix покажет текст текущей песни" },
+                        style = typography.trackArtistAlbum, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-
+        }
             // ==========================================
             // Lyrics modes
             // ==========================================
@@ -444,7 +328,7 @@ fun DesktopDeckScreen(
                     }
                 }
             }
-        }
+            if (showTransport) DesktopPersistentPlayer(playback, ingressProvider, audioLevels)
         }
 
         // ==========================================
