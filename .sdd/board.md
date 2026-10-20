@@ -274,3 +274,8 @@
 
 ## Repository hygiene — 2026-10-20
 - DONE: cleanup PR https://github.com/Asm-o-Dan/lirix/pull/1 merged into main as ea52bc1 after GitHub CI success. Archive docs indexed under docs; APKs, UI/log dumps, unused tunnel binary and private machine helpers untracked with local copies retained. Same cleanup applied to feature branch; orphan local skills gitlink and one-shot scripts untracked here. Published v1.4.0 tag/assets/status unchanged; future prerelease flag derives from tag suffix.
+
+## Android release 1.5.0 — 2026-10-20
+- IN_PROGRESS. User explicitly authorizes publication for Android only; no PC build, desktop version edit or Windows release assets. Release engineer android_release_150 owns version18/1.5.0, signed build, certificate continuity, Android/shared tests and notes. Root verifies then commits/pushes fresh v1.5.0 tag; published v1.4.0 unchanged.
+
+- Build/signing VERIFIED: 1.5.0/code18, com.lirix.app, non-debuggable, APK v2/v3 signature valid, permanent private signing material ignored locally. Android204+shared173 previous tests up-to-date without failures; release assembly succeeds. Old public1.4 debug certificate differs; user reported no key then instructed continue, transition/data warning in notes. PC unchanged. Publishing branch/tag and verified local APK through authenticated GitHub UI.

@@ -71,3 +71,7 @@ __pycache__/
 /scripts/scan_wifi_device.py
 /scripts/test_device_ssh.py
 /scripts/test_media_sessions.py
+
+# Private Android release signing material
+/.signing/
+/app/lirix-release.jks

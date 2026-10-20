@@ -3,16 +3,16 @@
 <p align="center">
   <img src="./docs/icon.png" width="128" alt="Lirix Logo" /><br/>
   <b>Synced Karaoke & Guitar Chords for Any Music Player on Android.</b><br/>
-  Lightweight (~16 MB), privacy-first companion capturing media from Spotify, Yandex Music, VK Music, YouTube ReVanced, Telegram, AIMP, and local files.
+  Lightweight (~19 MB), privacy-first companion capturing media from Spotify, Yandex Music, VK Music, YouTube ReVanced, Telegram, AIMP, and local files.
 </p>
 
 <p align="center">
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
-  <img alt="Version 1.4.0" src="https://img.shields.io/badge/Version-1.4.0-blue">
+  <img alt="Version 1.5.0" src="https://img.shields.io/badge/Version-1.5.0-blue">
   <img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-blue.svg">
   <img alt="Privacy: 100% on device" src="https://img.shields.io/badge/privacy-100%25%20on%20device-A855F7">
-  <img alt="APK Size" src="https://img.shields.io/badge/APK%20Size-~16%20MB-success">
+  <img alt="APK Size" src="https://img.shields.io/badge/APK%20Size-~19%20MB-success">
 </p>
 
 ---
@@ -27,7 +27,7 @@ Streaming services frequently gate synchronized lyrics behind subscriptions, lac
 - **Dynamic 6-Palette Theme Engine** — Real-time switching between Spotify Mood, Yandex Music, Obsidian Pulse, Pastel Serenity, Graphite & Chalk, and Paper & Ink with automated WCAG contrast clamping.
 - **Floating Lyrics Overlay** — Compact floating bubble (`SYSTEM_ALERT_WINDOW`) displaying current lyrics line directly over games, navigation, or third-party apps.
 - **Interactive Teach Mode** — In-app visual web inspector. Select lyrics or chord blocks from any webpage to save custom DOM extraction rules for future tracks.
-- **Offline History & Music Wrapped** — Room v11 database tracking play counts, listening streaks, favorite songs, and shareable 9:16 Stories cards locally without remote accounts.
+- **Offline History & Music Wrapped** — Room v12 database tracking play counts, listening streaks, favorite songs, and shareable 9:16 Stories cards locally without remote accounts.
 - **Zero Ads, Zero Trackers, Zero Telemetry** — 100% offline-first. No third-party analytics SDKs.
 
 ---
@@ -87,17 +87,17 @@ Compiled APK path: `app/build/outputs/apk/release/app-release-unsigned.apk` (or 
 
 ## 🇷🇺 По-русски
 
-**Lirix («Лирикс»)** — легковесный (~16 МБ) open-source плеер-компаньон для Android. Перехватывает трек из уведомлений любого плеера (**VK Музыка, Яндекс Музыка, Spotify, YouTube ReVanced, Telegram, AIMP**) и открывает:
+**Lirix («Лирикс»)** — легковесный (~19 МБ) open-source плеер-компаньон для Android. Перехватывает трек из уведомлений любого плеера (**VK Музыка, Яндекс Музыка, Spotify, YouTube ReVanced, Telegram, AIMP**) и открывает:
 
 1. **Синхронное караоке**: точный построчный скролл, перемотка по клику на строчку, калибровка таймингов и экран статуса поиска.
 2. **Аккорды с автоскроллом и транспонированием**: сетки аппликатур из словаря, транспонирование тональностей полутонами (`[♭] Key [♯]`), умный перенос пар аккордов по границам слов без обрезания строк.
 3. **Студия разметки Tap-to-Sync**: встроенный инструмент расстановки таймкодов песни с точностью до 100 мс в 5 шагов.
 4. **6 динамических тем**: Spotify, Яндекс Музыка, Obsidian, Пастель, Графит и Бумага со строгим контролем контрастности WCAG.
 5. **Плавающий оверлей**: вывод текущей строки песни поверх игр, навигаторов и других приложений.
-6. **Приватность и оффлайн**: без рекламы, без аккаунтов, без сетевой телеметрии. Вся история и кэш хранятся в локальной базе Room v11.
+6. **Приватность и оффлайн**: без рекламы, без аккаунтов, без сетевой телеметрии. Вся история и кэш хранятся в локальной базе Room v12.
 
 ### Установка:
-1. Скачайте свежий APK из раздела [Releases](https://github.com/Asm-o-Dan/lirix/releases/tag/v1.4.0).
+1. Скачайте свежий APK из раздела [Releases](https://github.com/Asm-o-Dan/lirix/releases/tag/v1.5.0).
 2. Разрешите доступ к уведомлениям: **Настройки → Приложения → Специальный доступ → Доступ к уведомлениям → Lirix**.
 3. Запустите музыку в любом плеере — откройте Lirix и текст подтянется автоматически.
 
@@ -106,6 +106,12 @@ Compiled APK path: `app/build/outputs/apk/release/app-release-unsigned.apk` (or 
 ## 📄 License
 
 Lirix is licensed under the [GNU General Public License v3.0](LICENSE).
+
+## Song translations / Переводы песен
+
+Automatic translation discovery supports Russian, English, Spanish, Portuguese and Chinese through Amalgama and LyricsTranslate. Saved translations remain available offline.
+
+Перед переустановкой APK с другой подписью сохраните важные данные. В [заметках к Android 1.5.0](.sdd/releases/v1.5.0.md) описано ограничение обновления с опубликованной 1.4.0.
 
 ## Project documentation
 

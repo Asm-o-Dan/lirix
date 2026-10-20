@@ -13,8 +13,8 @@ android {
         applicationId = "com.lirix.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 17
-        versionName = "1.4.0"
+        versionCode = 18
+        versionName = "1.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -29,7 +29,7 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("lirix-release.jks")
+            storeFile = file(System.getenv("RELEASE_STORE_FILE") ?: "lirix-release.jks")
             val releasePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
             val releaseKeyPassword = System.getenv("RELEASE_KEY_PASSWORD")
             if (!releasePassword.isNullOrBlank() && !releaseKeyPassword.isNullOrBlank()) {
