@@ -106,3 +106,7 @@ Compiled APK path: `app/build/outputs/apk/release/app-release-unsigned.apk` (or 
 ## 📄 License
 
 Lirix is licensed under the [GNU General Public License v3.0](LICENSE).
+
+## Project documentation
+
+See the [documentation index](docs/README.md) for architecture, UI design and archived planning reports. Download packaged applications from [GitHub Releases](https://github.com/Asm-o-Dan/lirix/releases).

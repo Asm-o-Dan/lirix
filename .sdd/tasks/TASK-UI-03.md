@@ -5,7 +5,7 @@
 - `app/src/main/java/com/eventengine/app/ui/WrappedScreen.kt` (полный редизайн интерфейса)
 - `app/src/test/java/com/eventengine/app/WrappedStatsEngineTest.kt` (тесты таймфреймов и одержимости)
 
-**Спецификация:** [.sdd/specs/wrapped-analytics/overview.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/wrapped-analytics/overview.md) (v2), дизайн-система `UI_DESIGN_SPEC.md`.
+**Спецификация:** [.sdd/specs/wrapped-analytics/overview.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/wrapped-analytics/overview.md) (v2), дизайн-система `docs/design/UI_DESIGN_SPEC.md`.
 
 ---
 

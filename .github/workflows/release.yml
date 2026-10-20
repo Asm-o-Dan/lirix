@@ -87,4 +87,4 @@ jobs:
           body_path: .sdd/releases/${{ github.ref_name }}.md
           name: "Lirix ${{ github.ref_name }}"
           draft: false
-          prerelease: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
