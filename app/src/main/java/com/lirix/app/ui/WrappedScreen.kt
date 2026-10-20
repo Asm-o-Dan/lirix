@@ -1,6 +1,8 @@
 package com.lirix.app.ui
 
-import android.graphics.BitmapFactory
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,26 +43,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lirix.app.analytics.AnalyticsTimeframe
 import com.lirix.app.analytics.GamificationEngine
-import com.lirix.app.analytics.TimeOfDaySlot
 import com.lirix.app.analytics.WrappedStats
 import com.lirix.app.analytics.WrappedStatsEngine
-import com.lirix.app.feature.share.PosterStyle
 import com.lirix.app.feature.share.PosterThemeSnapshot
 import com.lirix.app.feature.share.PosterArtworkLoader
 import com.lirix.app.feature.share.ShareCardGenerator
@@ -69,27 +67,16 @@ import com.lirix.app.ingestion.MediaSessionCollector
 import com.lirix.app.storage.AchievementEntity
 import com.lirix.app.storage.AppDatabase
 import com.lirix.app.ui.components.ShareFormatDialog
-import com.lirix.app.ui.theme.GolosTextFontFamily
 import com.lirix.app.ui.theme.LirixMobileTypography
 import com.lirix.app.ui.theme.LirixThemeTokens
 import com.lirix.app.ui.theme.LiterataFontFamily
-import java.io.File
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
-/**
- * Editorial WrappedScreen (SPEC-UI-MOBILE-2.0 / ADR-023 / TASK-UI-MOB-05).
- *
- * Replaces generic SaaS tiles with literary editorial typography:
- * 1. Header (48dp): Title "Итоги прослушиваний" + period dropdown [ За месяц ▾ ].
- * 2. Typography Essay: Lead sentence in Literata Italic (18sp); rest of essay in upright Literata Regular/Medium.
- * 3. Honest facts list: Music time, unique tracks, viewed with lyrics, favorite track.
- * 4. Export CTA (44dp): Adaptive share poster matching active dark/light theme (Graphite/Paper).
- * 5. Minimalist achievements: Compact progress list without pseudo-gold gradients.
- */
+/** Theme-aware listening summary with a screen-owned, system-scaled reveal animation. */
 @Composable
 fun WrappedScreen() {
     val lirixColors = LirixThemeTokens.colors
@@ -104,6 +91,16 @@ fun WrappedScreen() {
     var selectedTimeframe by remember { mutableStateOf(AnalyticsTimeframe.MONTH) }
     var calculatedStats by remember { mutableStateOf<Pair<AnalyticsTimeframe, WrappedStats>?>(null) }
     val stats = calculatedStats?.takeIf { it.first == selectedTimeframe }?.second
+    val reveal = remember(selectedTimeframe) { Animatable(0f) }
+    var replay by remember(selectedTimeframe) { mutableStateOf(0) }
+    // Screen-owned: scrolling, theme changes and live statistics must not replay the reveal.
+    LaunchedEffect(selectedTimeframe, stats != null, replay) {
+        if (stats != null) {
+            reveal.snapTo(0f)
+            // Compose applies the system animation duration scale, including immediate completion at 0.
+            reveal.animateTo(1f, tween(durationMillis = 900, easing = LinearEasing))
+        }
+    }
     var evaluatedAchievements by remember { mutableStateOf<List<AchievementEntity>>(emptyList()) }
     var showShareDialog by remember { mutableStateOf(false) }
     var isPeriodDropdownExpanded by remember { mutableStateOf(false) }
@@ -267,17 +264,30 @@ fun WrappedScreen() {
             }
         }
 
-        // 2. Typography Essay: Lead sentence in Literata Italic, rest in upright Literata Regular
+        // Native motion prototype: reveal real facts without changing their values or layout.
         item {
-            val essayText = buildEssayAnnotatedString(stats, selectedTimeframe, lirixColors.textPrimary)
-            Text(
-                text = essayText,
-                modifier = Modifier.fillMaxWidth()
-            )
+            val currentStats = stats
+            when {
+                currentStats == null -> Text(
+                    text = "Собираем ваши итоги…",
+                    style = LirixMobileTypography.bodyMedium,
+                    color = lirixColors.textSecondary
+                )
+                currentStats.totalListeningTimeMs == 0L && currentStats.topTracks.isEmpty() -> Text(
+                    text = "В этом периоде пока нет прослушиваний. Включите музыку — здесь появятся ваши итоги.",
+                    style = LirixMobileTypography.bodyMedium,
+                    color = lirixColors.textSecondary
+                )
+                else -> WrappedMotionSummary(
+                    stats = currentStats,
+                    progress = { reveal.value },
+                    onReplay = { replay++ }
+                )
+            }
         }
 
         // 3. Honest Facts Section (Typography list, no SaaS cards)
-        item {
+        if (stats != null) item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -287,37 +297,14 @@ fun WrappedScreen() {
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                val totalMinutes = (stats?.totalListeningTimeMs ?: 0L) / 60000L
-                val totalHours = totalMinutes / 60L
-                val remMinutes = totalMinutes % 60L
-                val timeFormatted = if (totalHours > 0) {
-                    val hStr = pluralizeWord(totalHours.toInt(), "час", "часа", "часов")
-                    val mStr = pluralizeWord(remMinutes.toInt(), "минута", "минуты", "минут")
-                    "$totalHours $hStr $remMinutes $mStr"
-                } else {
-                    val mStr = pluralizeWord(remMinutes.toInt(), "минута", "минуты", "минут")
-                    "$remMinutes $mStr"
-                }
-
-                val uniqueTracks = stats?.uniqueTracksCount ?: tracks.size
+                val uniqueTracks = stats?.uniqueTracksCount ?: 0
                 val coverageRatio = stats?.lyricsCoverageRatio ?: 0f
                 val viewedWithLyrics = (uniqueTracks * coverageRatio).roundToInt()
                 val songsWord = pluralizeWord(viewedWithLyrics, "песня", "песни", "песен")
 
-                val topTrack = stats?.topTracks?.firstOrNull()
-                val favoriteTrackFormatted = if (topTrack != null) {
-                    "${topTrack.artist} — ${topTrack.title} (×${topTrack.playCount})"
-                } else {
-                    "Пока нет данных"
-                }
-
-                FactRow(label = "Время в музыке", value = timeFormatted)
-                HorizontalDivider(color = lirixColors.borderSubtle.copy(alpha = 0.5f), thickness = 1.dp)
                 FactRow(label = "Уникальных треков", value = "$uniqueTracks")
                 HorizontalDivider(color = lirixColors.borderSubtle.copy(alpha = 0.5f), thickness = 1.dp)
                 FactRow(label = "С сохранённым текстом", value = "$viewedWithLyrics $songsWord")
-                HorizontalDivider(color = lirixColors.borderSubtle.copy(alpha = 0.5f), thickness = 1.dp)
-                FactRow(label = "Любимый трек", value = favoriteTrackFormatted)
             }
         }
 
@@ -376,6 +363,71 @@ fun WrappedScreen() {
         // 6. Compact Achievements List (48dp row height, thin progress, no gold gradients)
         items(evaluatedAchievements) { ach ->
             MinimalAchievementRow(achievement = ach)
+        }
+    }
+}
+
+@Composable
+private fun WrappedMotionSummary(
+    stats: WrappedStats,
+    progress: () -> Float,
+    onReplay: () -> Unit
+) {
+    val colors = LirixThemeTokens.colors
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.graphicsLayer { alpha = (progress() * 3f).coerceIn(0f, 1f) },
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text("Время в музыке", style = LirixMobileTypography.labelLarge, color = colors.textSecondary)
+            Text(
+                text = "${stats.totalListeningTimeMs / 60000L}",
+                style = LirixMobileTypography.titleLarge.copy(
+                    fontFamily = LiterataFontFamily, fontSize = 56.sp, lineHeight = 68.sp
+                ),
+                color = colors.accentPrimary
+            )
+            Text("минут прослушивания", style = LirixMobileTypography.bodyMedium, color = colors.textPrimary)
+        }
+        Column(
+            modifier = Modifier.graphicsLayer { alpha = (progress() * 3f - 1f).coerceIn(0f, 1f) },
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text("Любимый исполнитель", style = LirixMobileTypography.labelLarge, color = colors.textSecondary)
+            Text(
+                text = stats.topArtists.firstOrNull()?.artist ?: "Пока не определён",
+                style = LirixMobileTypography.titleLarge.copy(fontFamily = LiterataFontFamily),
+                color = colors.textPrimary
+            )
+        }
+        Column(
+            modifier = Modifier.graphicsLayer { alpha = (progress() * 3f - 2f).coerceIn(0f, 1f) },
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text("Ваши главные треки", style = LirixMobileTypography.labelLarge, color = colors.textSecondary)
+            if (stats.topTracks.isEmpty()) {
+                Text("Пока нет данных о треках", style = LirixMobileTypography.bodyMedium, color = colors.textSecondary)
+            }
+            stats.topTracks.take(3).forEachIndexed { index, track ->
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "0${index + 1}",
+                        style = LirixMobileTypography.titleMedium,
+                        color = colors.accentPrimary,
+                        modifier = Modifier.width(32.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(track.title, style = LirixMobileTypography.titleMedium, color = colors.textPrimary)
+                        Text(track.artist, style = LirixMobileTypography.bodyMedium, color = colors.textSecondary)
+                    }
+                }
+            }
+        }
+        TextButton(onClick = onReplay) {
+            Text("Повторить анимацию", color = colors.accentPrimary)
         }
     }
 }
@@ -506,87 +558,6 @@ private fun MinimalAchievementRow(achievement: AchievementEntity) {
                     trackColor = lirixColors.surfaceElevated
                 )
             }
-        }
-    }
-}
-
-/**
- * Builds the typographic essay:
- * - First lead sentence: Literata Italic (18sp).
- * - Rest of the text: Upright Literata Regular (16sp, line height 24sp).
- */
-private fun buildEssayAnnotatedString(
-    stats: WrappedStats?,
-    timeframe: AnalyticsTimeframe,
-    primaryColor: Color
-): androidx.compose.ui.text.AnnotatedString {
-    if (stats == null) return buildAnnotatedString { append("Считаем итоги…") }
-    val totalHours = (stats?.totalListeningTimeMs ?: 0L) / 3600000L
-    val periodStr = when (timeframe) {
-        AnalyticsTimeframe.TODAY -> "сегодня"
-        AnalyticsTimeframe.WEEK -> "за последнюю неделю"
-        AnalyticsTimeframe.MONTH -> "за последние 30 дней"
-        AnalyticsTimeframe.ALL_TIME -> "за всё время"
-    }
-
-    val hoursWord = pluralizeWord(totalHours.toInt(), "час", "часа", "часов")
-    val leadSentence = if (totalHours > 0) {
-        "За ${periodStr.removePrefix("за ")} вы провели в музыке $totalHours $hoursWord."
-    } else {
-        if ((stats?.totalListeningTimeMs ?: 0L) > 0L) {
-            "Вы провели в музыке ${(stats?.totalListeningTimeMs ?: 0L) / 60000L} минут $periodStr."
-        } else {
-            "За выбранный период пока нет прослушиваний."
-        }
-    }
-
-    // Time-of-day peak analysis (honest facts)
-    val distribution = stats?.timeOfDayDistribution.orEmpty()
-    val peakEntry = distribution.maxByOrNull { it.value }
-    val peakPercent = ((peakEntry?.value ?: 0f) * 100f).roundToInt()
-    val peakDesc = if (peakEntry != null && peakEntry.value > 0.50f) {
-        when (peakEntry.key) {
-            TimeOfDaySlot.NIGHT -> "Чаще всего вы включали музыку ночью ($peakPercent% запусков)."
-            TimeOfDaySlot.MORNING -> "Чаще всего вы включали музыку утром ($peakPercent% запусков)."
-            TimeOfDaySlot.AFTERNOON -> "Чаще всего вы включали музыку днём ($peakPercent% запусков)."
-            TimeOfDaySlot.EVENING -> "Чаще всего вы включали музыку вечером ($peakPercent% запусков)."
-        }
-    } else {
-        if (distribution.isEmpty()) "" else "Выраженного пика по числу запусков нет."
-    }
-
-    // Top artists
-    val topArtists = stats?.topArtists.orEmpty().take(2).map { it.artist }
-    val artistCompanion = if (topArtists.isNotEmpty()) {
-        "Главные исполнители — ${topArtists.joinToString(" и ")}."
-    } else {
-        ""
-    }
-
-    val remainder = if (artistCompanion.isNotEmpty()) " $peakDesc $artistCompanion" else " $peakDesc"
-
-    return buildAnnotatedString {
-        withStyle(
-            style = SpanStyle(
-                fontFamily = LiterataFontFamily,
-                fontStyle = FontStyle.Italic,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                color = primaryColor
-            )
-        ) {
-            append(leadSentence)
-        }
-        withStyle(
-            style = SpanStyle(
-                fontFamily = LiterataFontFamily,
-                fontStyle = FontStyle.Normal,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Normal,
-                color = primaryColor
-            )
-        ) {
-            append(remainder)
         }
     }
 }
