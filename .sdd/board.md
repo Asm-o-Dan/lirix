@@ -279,3 +279,8 @@
 - IN_PROGRESS. User explicitly authorizes publication for Android only; no PC build, desktop version edit or Windows release assets. Release engineer android_release_150 owns version18/1.5.0, signed build, certificate continuity, Android/shared tests and notes. Root verifies then commits/pushes fresh v1.5.0 tag; published v1.4.0 unchanged.
 
 - Build/signing VERIFIED: 1.5.0/code18, com.lirix.app, non-debuggable, APK v2/v3 signature valid, permanent private signing material ignored locally. Android204+shared173 previous tests up-to-date without failures; release assembly succeeds. Old public1.4 debug certificate differs; user reported no key then instructed continue, transition/data warning in notes. PC unchanged. Publishing branch/tag and verified local APK through authenticated GitHub UI.
+
+## Android system backup — 2026-10-20
+- IN_PROGRESS. User requested system backup and instructed execution. Intake .sdd/intake/ANDROID_SYSTEM_BACKUP.md. Architect/implementer android_system_backup owns manifest/XML allowlist, SQLite consistency and Android verification. Include library/settings; exclude Connect trust/addresses and derived artwork/cache. No PC changes or destructive phone test. Existing1.4 migration and already-created1.5tag are separate constraints; publication remains pending.
+
+- IMPLEMENTED / AUTOMATED+SOURCE REVIEW PASS. Android209 tests pass incl5policy tests; shared173 unchanged up-to-date. DebugAPKassembled with actualmanifestresources checked (allowBackuptrue, bothpolicyreferences, API28encryptedvariant, moderncloud+D2D). Separate reviewerbackup_policy_reviewPASS. No device/cloud roundtrip performed. Old1.4signaturemigration still unresolved; originalv1.5tag/APK not overwritten. Publicationversion clarification requested.

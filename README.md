@@ -11,7 +11,7 @@
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Version 1.5.0" src="https://img.shields.io/badge/Version-1.5.0-blue">
   <img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-blue.svg">
-  <img alt="Privacy: 100% on device" src="https://img.shields.io/badge/privacy-100%25%20on%20device-A855F7">
+  <img alt="Privacy: no telemetry" src="https://img.shields.io/badge/privacy-no%20telemetry-A855F7">
   <img alt="APK Size" src="https://img.shields.io/badge/APK%20Size-~19%20MB-success">
 </p>
 
@@ -49,7 +49,7 @@ Streaming services frequently gate synchronized lyrics behind subscriptions, lac
 | `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE` | Maintains persistent background capture service without OS killer eviction. |
 | `RECEIVE_BOOT_COMPLETED` | Restores background notification listener after device reboot. |
 
-All playback history, favorite tracks, notes, and scraper rules remain exclusively in a local SQLite database (`app_database.db`) on your device.
+Playback history, favorites, notes, lyrics, translations and source rules are stored in the local SQLite database (`event_engine.db`). If the user enables Android system backup, the OS may back up eligible library data and preferences to its configured backup provider or transfer them to another Android device. Device trust/pairing data and derived caches are excluded. Backup timing, encryption capabilities, transport availability and the 25 MB cloud quota are controlled by Android; enabling support does not confirm that a backup exists.
 
 ---
 
@@ -94,7 +94,7 @@ Compiled APK path: `app/build/outputs/apk/release/app-release-unsigned.apk` (or 
 3. **Студия разметки Tap-to-Sync**: встроенный инструмент расстановки таймкодов песни с точностью до 100 мс в 5 шагов.
 4. **6 динамических тем**: Spotify, Яндекс Музыка, Obsidian, Пастель, Графит и Бумага со строгим контролем контрастности WCAG.
 5. **Плавающий оверлей**: вывод текущей строки песни поверх игр, навигаторов и других приложений.
-6. **Приватность и оффлайн**: без рекламы, без аккаунтов, без сетевой телеметрии. Вся история и кэш хранятся в локальной базе Room v12.
+6. **Приватность и оффлайн**: без рекламы, без аккаунта Lirix и без сетевой телеметрии. Данные хранятся локально. Если пользователь включил системное резервное копирование Android, ОС может сохранить базу и настройки у выбранного провайдера копирования; доверие Connect и кэш исключены. Срок создания и возможность восстановления копии зависят от Android.
 
 ### Установка:
 1. Скачайте свежий APK из раздела [Releases](https://github.com/Asm-o-Dan/lirix/releases/tag/v1.5.0).

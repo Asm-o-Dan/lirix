@@ -1,5 +1,7 @@
 # Project documentation
 
+- [Android system backup](android-system-backup.md)
+
 - [Architecture](architecture/ARCHITECTURE.md)
 - [UI design specification](design/UI_DESIGN_SPEC.md)
 - [Current roadmap](../ROADMAP.md)
