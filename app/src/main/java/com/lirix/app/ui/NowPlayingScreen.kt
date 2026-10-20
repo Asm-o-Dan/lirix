@@ -1582,21 +1582,21 @@ fun NowPlayingScreen(
         }
 
         if (showShareDialog && currentTrack != null) {
-            val track = currentTrack
+            val track = remember { requireNotNull(currentTrack) }
+            val exportTheme = remember { com.lirix.app.feature.share.PosterThemeSnapshot.fromColors(lirixColors) }
+            val activeLyricLine = remember {
+                val lrc = lyricsCache?.syncedLyricsLrc
+                if (!lrc.isNullOrBlank()) {
+                    val parsed = parseLrcLinesStrict(lrc)
+                    val idx = parsed.indexOfLast { it.timestampMs <= playbackPositionMs }
+                    if (idx != -1) parsed[idx].text else parsed.firstOrNull()?.text
+                } else {
+                    lyricsCache?.plainLyrics?.lineSequence()?.firstOrNull { it.isNotBlank() }
+                }
+            }
             ShareFormatDialog(
                 onDismissRequest = { showShareDialog = false },
                 onFormatSelected = { format ->
-                    val exportTheme = com.lirix.app.feature.share.PosterThemeSnapshot.fromColors(lirixColors)
-                    val activeLyricLine = run {
-                        val lrc = lyricsCache?.syncedLyricsLrc
-                        if (!lrc.isNullOrBlank()) {
-                            val parsed = parseLrcLinesStrict(lrc)
-                            val idx = parsed.indexOfLast { it.timestampMs <= playbackPositionMs }
-                            if (idx != -1) parsed[idx].text else parsed.firstOrNull()?.text
-                        } else {
-                            lyricsCache?.plainLyrics?.lineSequence()?.firstOrNull { it.isNotBlank() }
-                        }
-                    }
                     val artBmp = com.lirix.app.feature.share.PosterArtworkLoader.load(context, track.albumArtUri)
                     val cardBitmap = withContext(Dispatchers.Default) { ShareCardGenerator.generateNowPlayingCard(
                         context = context,
@@ -1606,11 +1606,7 @@ fun NowPlayingScreen(
                         albumArtBitmap = artBmp,
                         theme = exportTheme
                     ) }
-                    check(ShareManager.shareBitmap(
-                        context = context,
-                        bitmap = cardBitmap,
-                        chooserTitle = "Поделиться треком ${track.title}"
-                    )) { "Не удалось открыть меню отправки" }
+                    cardBitmap
                 }
             )
         }

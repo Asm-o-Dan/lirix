@@ -1,7 +1,9 @@
 package com.lirix.app.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
 
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -46,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import com.lirix.app.storage.TrackEntity
 import com.lirix.app.ui.blacklist.BlacklistSettingsScreen
@@ -131,6 +134,7 @@ fun AppScaffold(
     var isBlacklistSettingsOpen by rememberSaveable { mutableStateOf(false) }
 
     val lirixColors = LirixThemeTokens.colors
+    val tabStateHolder = rememberSaveableStateHolder()
 
     Scaffold(
         modifier = Modifier
@@ -231,11 +235,19 @@ fun AppScaffold(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            Crossfade(
+            AnimatedContent(
                 targetState = currentTab,
-                animationSpec = tween(200),
+                modifier = Modifier.fillMaxSize(),
+                transitionSpec = {
+                    val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                    (fadeIn(tween(300, delayMillis = 60)) +
+                        slideInHorizontally(tween(360)) { width -> direction * width / 16 })
+                        .togetherWith(fadeOut(tween(180)))
+                        .using(null)
+                },
                 label = "TabSwitch"
             ) { target ->
+                tabStateHolder.SaveableStateProvider(target.route) {
                 when (target) {
                     AppTab.NOW_PLAYING -> NowPlayingScreen(
                         initialTrack = initialLyricsTrack,
@@ -266,6 +278,7 @@ fun AppScaffold(
                         }
                     )
                     AppTab.WRAPPED -> WrappedScreen()
+                }
                 }
             }
 
@@ -301,7 +314,11 @@ fun AppScaffold(
             }
 
             // Teach Mode WebView overlay
-            if (isTeachModeOpen) {
+            AnimatedVisibility(
+                visible = isTeachModeOpen,
+                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 24 },
+                exit = fadeOut(tween(180))
+            ) {
                 TeachModeScreen(
                     initialUrl = activeTeachUrl,
                     targetTrack = activeTeachTrack ?: viewingTrack,
@@ -319,7 +336,11 @@ fun AppScaffold(
             }
 
             // Blacklist Settings overlay
-            if (isBlacklistSettingsOpen) {
+            AnimatedVisibility(
+                visible = isBlacklistSettingsOpen,
+                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 24 },
+                exit = fadeOut(tween(180))
+            ) {
                 BlacklistSettingsScreen(
                     onBack = {
                         isBlacklistSettingsOpen = false

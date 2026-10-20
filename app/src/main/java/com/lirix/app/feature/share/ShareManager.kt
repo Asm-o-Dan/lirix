@@ -22,6 +22,13 @@ object ShareManager {
 
     private const val TAG = "ShareManager"
 
+    /** Write the displayed poster to the user-selected document; failures stay visible to the caller. */
+    suspend fun saveBitmap(context: Context, bitmap: Bitmap, destination: Uri) = withContext(Dispatchers.IO) {
+        checkNotNull(context.contentResolver.openOutputStream(destination)) { "Не удалось открыть файл" }.use { output ->
+            check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) { "Не удалось записать постер" }
+        }
+    }
+
     /**
      * Compresses the bitmap to cacheDir/shares and dispatches an ACTION_SEND intent.
      * Returns true if sharing intent was dispatched, false if an error occurred.

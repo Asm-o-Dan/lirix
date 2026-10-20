@@ -39,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,7 +62,6 @@ import com.lirix.app.analytics.WrappedStatsEngine
 import com.lirix.app.feature.share.PosterThemeSnapshot
 import com.lirix.app.feature.share.PosterArtworkLoader
 import com.lirix.app.feature.share.ShareCardGenerator
-import com.lirix.app.feature.share.ShareManager
 import com.lirix.app.feature.share.WrappedShareSection
 import com.lirix.app.ingestion.MediaSessionCollector
 import com.lirix.app.storage.AchievementEntity
@@ -88,7 +88,7 @@ fun WrappedScreen() {
     val rawAchievements by db.achievementDao().observeAchievements().collectAsStateWithLifecycle(initialValue = emptyList())
     val livePlayback by MediaSessionCollector.livePlaybackFlow.collectAsStateWithLifecycle(initialValue = null)
 
-    var selectedTimeframe by remember { mutableStateOf(AnalyticsTimeframe.MONTH) }
+    var selectedTimeframe by rememberSaveable { mutableStateOf(AnalyticsTimeframe.MONTH) }
     var calculatedStats by remember { mutableStateOf<Pair<AnalyticsTimeframe, WrappedStats>?>(null) }
     val stats = calculatedStats?.takeIf { it.first == selectedTimeframe }?.second
     val reveal = remember(selectedTimeframe) { Animatable(0f) }
@@ -98,7 +98,7 @@ fun WrappedScreen() {
         if (stats != null) {
             reveal.snapTo(0f)
             // Compose applies the system animation duration scale, including immediate completion at 0.
-            reveal.animateTo(1f, tween(durationMillis = 900, easing = LinearEasing))
+            reveal.animateTo(1f, tween(durationMillis = 1500, easing = LinearEasing))
         }
     }
     var evaluatedAchievements by remember { mutableStateOf<List<AchievementEntity>>(emptyList()) }
@@ -106,12 +106,12 @@ fun WrappedScreen() {
     var isPeriodDropdownExpanded by remember { mutableStateOf(false) }
 
     if (showShareDialog && stats != null) {
-        val currentStats = stats!!
+        val currentStats = remember { stats!! }
+        val exportTimeframe = remember { selectedTimeframe }
+        val exportTheme = remember { PosterThemeSnapshot.fromColors(lirixColors) }
         ShareFormatDialog(
             onDismissRequest = { showShareDialog = false },
             onFormatSelected = { format ->
-                val exportTimeframe = selectedTimeframe
-                val exportTheme = PosterThemeSnapshot.fromColors(lirixColors)
                 val artwork = currentStats.topTracks.associate { track ->
                     track.trackKey to PosterArtworkLoader.load(context, track.albumArtUri)
                 }
@@ -124,11 +124,7 @@ fun WrappedScreen() {
                     theme = exportTheme,
                     artworkByTrackKey = artwork
                 ) }
-                check(ShareManager.shareBitmap(
-                    context = context,
-                    bitmap = cardBitmap,
-                    chooserTitle = "Итоги прослушиваний (${exportTimeframe.labelRu.lowercase()})"
-                )) { "Не удалось открыть меню отправки" }
+                cardBitmap
             }
         )
     }
