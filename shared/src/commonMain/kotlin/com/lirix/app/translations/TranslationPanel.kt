@@ -43,6 +43,7 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
     var confirmed by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var languageMenu by remember { mutableStateOf(false) }
     val autoState = automatic?.states?.collectAsState()?.value?.get(automatic.stateKey(trackKey, language))
     LaunchedEffect(automatic, trackKey, title, artist) { automatic?.resolve(trackKey, title, artist, language = language) }
     LaunchedEffect(dao, trackKey) {
@@ -54,17 +55,30 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
     val cached = remember(entity) { entity?.let { runCatching { TranslationDocuments.decode(it.documentJson) }.getOrNull() } }
     val document = preview ?: cached
     Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (automatic != null) Text("Язык перевода", color = c.textSecondary, fontSize = 12.sp)
-        if (automatic != null) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            TranslationLanguages.labels.forEach { (code, label) ->
-                FilterChip(language == code, { automatic.setLanguage(code) }, label = { Text(label) }, enabled = !busy)
+        if (automatic != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Box {
+                TextButton(onClick = { languageMenu = true }, enabled = !busy,
+                    modifier = Modifier.semantics { contentDescription = "Выбрать язык перевода" }) {
+                    Text("${TranslationLanguages.labels[language]} ▾", maxLines = 1)
+                }
+                DropdownMenu(expanded = languageMenu, onDismissRequest = { languageMenu = false }) {
+                    TranslationLanguages.labels.forEach { (code, label) ->
+                        DropdownMenuItem(text = { Text(if (code == language) "$label ✓" else label) }, onClick = {
+                            languageMenu = false
+                            automatic.setLanguage(code)
+                        })
+                    }
+                }
+            }
+            TextButton(enabled = !busy, onClick = { importing = !importing; preview = null; confirmed = false }) {
+                Text(if (importing) "Закрыть" else "По ссылке", maxLines = 1)
             }
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf("Оригинал", TranslationLanguages.labels[language] ?: language, "Вместе").forEachIndexed { index, label ->
+            listOf("Оригинал", if (automatic != null) "Перевод" else TranslationLanguages.labels[language] ?: language, "Вместе").forEachIndexed { index, label ->
                 FilterChip(mode == index, { mode = index }, label = { Text(label) })
             }
-            TextButton(enabled = !busy, onClick = { importing = !importing; preview = null; confirmed = false }) {
+            if (automatic == null) TextButton(enabled = !busy, onClick = { importing = !importing; preview = null; confirmed = false }) {
                 Text(if (importing) "Закрыть импорт" else if (automatic != null) "Ссылка вручную" else "Добавить перевод")
             }
         }

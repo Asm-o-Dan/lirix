@@ -61,9 +61,16 @@ class SongTranslationPreviewTest {
                 val canvas = field.get(scene)
                 val ownerField = canvas.javaClass.getDeclaredField("mainOwner").apply { isAccessible = true }
                 val owner = ownerField.get(canvas)
-                val semantics = owner.javaClass.getMethod("getSemanticsOwner").invoke(owner) as SemanticsOwner
+                val layersField = canvas.javaClass.getDeclaredField("layers").apply { isAccessible = true }
+                val layers = layersField.get(canvas) as List<*>
+                val owners = listOf(owner) + layers.map { layer ->
+                    layer!!.javaClass.getDeclaredField("owner").apply { isAccessible = true }.get(layer)
+                }
                 fun flatten(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::flatten)
-                return flatten(semantics.rootSemanticsNode)
+                return owners.flatMap { item ->
+                    val semantics = item.javaClass.getMethod("getSemanticsOwner").invoke(item) as SemanticsOwner
+                    flatten(semantics.rootSemanticsNode)
+                }
             }
             fun text(node: SemanticsNode) = node.config.getOrElse(SemanticsProperties.Text) { emptyList() }.joinToString("\n") { it.text }
             fun settle(expected: String) {
@@ -149,9 +156,16 @@ class SongTranslationPreviewTest {
                 val canvas = field.get(scene)
                 val ownerField = canvas.javaClass.getDeclaredField("mainOwner").apply { isAccessible = true }
                 val owner = ownerField.get(canvas)
-                val semantics = owner.javaClass.getMethod("getSemanticsOwner").invoke(owner) as SemanticsOwner
+                val layersField = canvas.javaClass.getDeclaredField("layers").apply { isAccessible = true }
+                val layers = layersField.get(canvas) as List<*>
+                val owners = listOf(owner) + layers.map { layer ->
+                    layer!!.javaClass.getDeclaredField("owner").apply { isAccessible = true }.get(layer)
+                }
                 fun flatten(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::flatten)
-                return flatten(semantics.rootSemanticsNode)
+                return owners.flatMap { item ->
+                    val semantics = item.javaClass.getMethod("getSemanticsOwner").invoke(item) as SemanticsOwner
+                    flatten(semantics.rootSemanticsNode)
+                }
             }
             fun settle(expected: String) {
                 repeat(240) { index ->
@@ -174,6 +188,12 @@ class SongTranslationPreviewTest {
                 assertEquals(1, calls.get())
                 assertEquals(document, TranslationDocuments.decode(dao.rows.value.single().documentJson))
                 assertFalse(nodes().any { it.config.contains(SemanticsActions.SetText) })
+                val heading = nodes().first { node -> node.config.getOrElse(SemanticsProperties.Text) { emptyList() }.any { it.text == "Artist — Example" } }
+                assertTrue("Controls must leave room for the lyrics", heading.boundsInRoot.top < 160f)
+                assertFalse(nodes().any { node -> node.config.getOrElse(SemanticsProperties.Text) { emptyList() }.any { it.text == "Español" } })
+                val languageButton = nodes().first { node -> "Выбрать язык перевода" in node.config.getOrElse(SemanticsProperties.ContentDescription) { emptyList() } }
+                check(languageButton.config[SemanticsActions.OnClick].action!!.invoke())
+                settle("Español"); capture("language-menu")
                 val spanish = nodes().first { node -> node.config.contains(SemanticsActions.OnClick) &&
                     node.config.getOrElse(SemanticsProperties.Text) { emptyList() }.any { it.text == "Español" } }
                 check(spanish.config[SemanticsActions.OnClick].action!!.invoke())
