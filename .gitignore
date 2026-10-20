@@ -21,3 +21,37 @@ build_tmp/
 screen_*.png
 *.pyc
 __pycache__/
+
+# Release packages and local diagnostics
+*.apk
+/.codex-remote-attachments/
+/logcat*.txt
+/dump.xml
+/now_dump.xml
+/temp_ui*.xml
+/temp_ui*.png
+/lirix_db.bin
+/test_out.txt
+
+# Machine-specific developer tools (retain local copies)
+/scripts/cloudflared.exe
+/inspect_chords.py
+/.sdd/patch_now_playing.py
+/.agents/coordinator_id.txt
+/.sdd/skills_repo
+/scripts/ask_ai_gateway.mjs
+/scripts/poll_and_run_sol_opus.mjs
+/scripts/deploy_lirix.py
+/scripts/dump_db.py
+/scripts/dump_device_db.py
+/scripts/dump_ui_nodes.py
+/scripts/fast_port_scan.py
+/scripts/find_adb_port.py
+/scripts/inspect_sms.py
+/scripts/phone_check.py
+/scripts/phone_shell.py
+/scripts/scan_phone_adb.py
+/scripts/scan_phone_ports.py
+/scripts/scan_wifi_device.py
+/scripts/test_device_ssh.py
+/scripts/test_media_sessions.py

@@ -12,7 +12,7 @@
   6. `app/src/main/java/com/eventengine/app/ui/WrappedScreen.kt` (добавить кнопку шеринга в заголовок)
   7. `app/src/main/java/com/eventengine/app/ui/NowPlayingScreen.kt` (добавить кнопку шеринга в карточку трека)
   8. `app/src/test/java/com/eventengine/app/ShareCardGeneratorTest.kt` (создать: unit-тесты генерации и сохранения)
-- **Спека:** [.sdd/specs/media-ui/overview.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/overview.md) (v1), дизайн-система `UI_DESIGN_SPEC.md`
+- **Спека:** [.sdd/specs/media-ui/overview.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/overview.md) (v1), дизайн-система `docs/design/UI_DESIGN_SPEC.md`
 - **Приоритет:** HIGH (Новая ключевая фича: вирусный шеринг музыкальных итогов и цитат)
 
 ---

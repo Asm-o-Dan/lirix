@@ -47,4 +47,4 @@ jobs:
           generate_release_notes: true
           name: "Lirix ${{ github.ref_name }}"
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
