@@ -66,6 +66,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,6 +97,8 @@ import com.lirix.app.ui.theme.FontFeature
 import com.lirix.app.ui.theme.toSentenceCase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 /**
  * Fullscreen interactive dialog for syncing plain song lyrics into standard LRC
@@ -114,20 +117,32 @@ fun LrcTapSyncStudioDialog(
     trackTitle: String,
     artist: String,
     initialPlainText: String,
+    initialLrc: String? = null,
+    trackKey: String = "",
+    sourcePackage: String = "",
     onDismissRequest: () -> Unit,
-    onSaveLrc: (String) -> Unit
+    onSaveLrc: suspend (String, String) -> Unit
 ) {
     val tokens = LirixThemeTokens.colors
     val context = androidx.compose.ui.platform.LocalContext.current
     val haptic = LocalHapticFeedback.current
     val livePlayback by MediaSessionCollector.livePlaybackFlow.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var isSaving by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    var editedPlainText by remember { mutableStateOf(initialPlainText) }
+    val matchesTrack = tapSyncPlaybackMatches(trackKey,sourcePackage,livePlayback)
+    val seekSupported = matchesTrack && ((MediaSessionCollector.getActiveController(sourcePackage.ifBlank { null })
+        ?.playbackState?.actions ?: 0L) and android.media.session.PlaybackState.ACTION_SEEK_TO) != 0L
     val syncPrefs = remember { context.getSharedPreferences("lirix_sync_prefs", android.content.Context.MODE_PRIVATE) }
     var reactionLagMs by remember { mutableLongStateOf(syncPrefs.getLong("reaction_lag_ms", 200L)) }
 
-    var lines by remember(initialPlainText) {
-        mutableStateOf(LrcSyncEngine.parsePlainToSyncLines(initialPlainText))
+    var lines by remember(initialPlainText, initialLrc) {
+        val timed = initialLrc?.lineSequence()?.flatMap { LrcSyncEngine.parseLrcLinesStrict(it).asSequence() }?.toList().orEmpty()
+        mutableStateOf(if (timed.isNotEmpty()) timed.mapIndexed { index, line -> SyncLineItem(index,line.text,line.timestampMs) }
+            else LrcSyncEngine.parsePlainToSyncLines(initialPlainText))
     }
-    var currentIndex by remember { mutableIntStateOf(0) }
+    var currentIndex by remember { mutableIntStateOf(lines.indexOfFirst { it.timestampMs == null }.let { if(it<0) lines.size else it }) }
     var isPreviewOpen by remember { mutableStateOf(false) }
     var isEditingLyrics by remember { mutableStateOf(false) }
 
@@ -156,7 +171,7 @@ fun LrcTapSyncStudioDialog(
     )
 
     Dialog(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = { if (!isSaving) onDismissRequest() },
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false
@@ -194,7 +209,7 @@ fun LrcTapSyncStudioDialog(
                     IconButton(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onDismissRequest()
+                            if (!isSaving) onDismissRequest()
                         },
                         modifier = Modifier.size(38.dp)
                     ) {
@@ -323,6 +338,10 @@ fun LrcTapSyncStudioDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // 3. Central Teleprompter Focus Area
+                if (!matchesTrack) {
+                    Text("Сейчас играет другая песня или источник недоступен. Разметка остаётся у «$trackTitle»; запись меток и управление воспроизведением приостановлены.",
+                        color = tokens.textSecondary, style = MaterialTheme.typography.bodySmall)
+                }
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -526,8 +545,9 @@ fun LrcTapSyncStudioDialog(
                         IconButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                MediaSessionCollector.seekRelative(-5000L)
+                                if (seekSupported && !isSaving) MediaSessionCollector.seekRelative(-5000L)
                             },
+                            enabled = seekSupported && !isSaving,
                             modifier = Modifier.size(38.dp)
                         ) {
                             Icon(
@@ -545,9 +565,9 @@ fun LrcTapSyncStudioDialog(
                                 .size(42.dp)
                                 .clip(CircleShape)
                                 .background(tokens.accentPrimary)
-                                .clickable {
+                                .clickable(enabled = !isSaving && matchesTrack) {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    MediaSessionCollector.togglePlayPause()
+                                    if (matchesTrack && !isSaving) MediaSessionCollector.togglePlayPause()
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -563,8 +583,9 @@ fun LrcTapSyncStudioDialog(
                         IconButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                MediaSessionCollector.seekRelative(5000L)
+                                if (seekSupported && !isSaving) MediaSessionCollector.seekRelative(5000L)
                             },
+                            enabled = seekSupported && !isSaving,
                             modifier = Modifier.size(38.dp)
                         ) {
                             Icon(
@@ -629,7 +650,7 @@ fun LrcTapSyncStudioDialog(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(tokens.surfaceElevated)
                                 .border(1.dp, tokens.borderSubtle, RoundedCornerShape(8.dp))
-                                .clickable {
+                                .clickable(enabled = !isSaving) {
                                     val newLag = (reactionLagMs - 50L).coerceAtLeast(0L)
                                     reactionLagMs = newLag
                                     syncPrefs.edit().putLong("reaction_lag_ms", newLag).apply()
@@ -654,7 +675,7 @@ fun LrcTapSyncStudioDialog(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(tokens.surfaceElevated)
                                 .border(1.dp, tokens.borderSubtle, RoundedCornerShape(8.dp))
-                                .clickable {
+                                .clickable(enabled = !isSaving) {
                                     val newLag = (reactionLagMs + 50L).coerceAtMost(500L)
                                     reactionLagMs = newLag
                                     syncPrefs.edit().putLong("reaction_lag_ms", newLag).apply()
@@ -688,9 +709,9 @@ fun LrcTapSyncStudioDialog(
                         .height(48.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(tokens.accentPrimary)
-                        .clickable {
+                        .clickable(enabled = !isSaving && (matchesTrack || isAllFinished)) {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            if (currentIndex < lines.size) {
+                            if (!isSaving && matchesTrack && currentIndex < lines.size) {
                                 val currentMs = livePlayback?.currentPositionMs() ?: currentPlaybackPositionMs
                                 lines = LrcSyncEngine.recordTimestamp(lines, currentIndex, currentMs, reactionLagMs)
                                 currentIndex++
@@ -698,7 +719,7 @@ fun LrcTapSyncStudioDialog(
                                     // Finished all lines! Open preview for review
                                     isPreviewOpen = true
                                 }
-                            } else {
+                            } else if (!isSaving && currentIndex >= lines.size) {
                                 // Completed state -> Open preview
                                 isPreviewOpen = true
                             }
@@ -748,9 +769,9 @@ fun LrcTapSyncStudioDialog(
                             currentIndex = newIdx
                             // Smart audio cue seek: rewind 2 seconds to allow user to hear cue again
                             val rewindTarget = maxOf(0L, currentPlaybackPositionMs - 2000L)
-                            MediaSessionCollector.seekTo(rewindTarget)
+                            if (seekSupported) MediaSessionCollector.seekTo(rewindTarget)
                         },
-                        enabled = canUndo,
+                        enabled = canUndo && !isSaving,
                         modifier = Modifier
                             .weight(1f)
                             .height(42.dp),
@@ -784,10 +805,10 @@ fun LrcTapSyncStudioDialog(
                     OutlinedButton(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            lines = LrcSyncEngine.parsePlainToSyncLines(initialPlainText)
+                            lines = LrcSyncEngine.parsePlainToSyncLines(editedPlainText)
                             currentIndex = 0
                         },
-                        enabled = markedCount > 0,
+                        enabled = markedCount > 0 && !isSaving,
                         modifier = Modifier
                             .weight(1f)
                             .height(42.dp),
@@ -831,6 +852,7 @@ fun LrcTapSyncStudioDialog(
             onDismissRequest = { isEditingLyrics = false },
             onSaveLyrics = { updatedText ->
                 isEditingLyrics = false
+                editedPlainText = updatedText
                 lines = LrcSyncEngine.parsePlainToSyncLines(updatedText)
                 currentIndex = 0
             }
@@ -840,12 +862,11 @@ fun LrcTapSyncStudioDialog(
     // 8. Preview & Final Save Modal Dialog
     if (isPreviewOpen) {
         val lrcContent = remember(lines) {
-            val sanitized = LrcSyncEngine.validateAndSanitize(lines)
-            LrcSyncEngine.buildLrcString(sanitized)
+            LrcSyncEngine.buildLrcString(lines)
         }
         val isMonotonic = remember(lines) { LrcSyncEngine.isMonotonic(lines) }
 
-        Dialog(onDismissRequest = { isPreviewOpen = false }) {
+        Dialog(onDismissRequest = { if (!isSaving) isPreviewOpen = false }) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -962,7 +983,7 @@ fun LrcTapSyncStudioDialog(
                                                     .clip(RoundedCornerShape(6.dp))
                                                     .background(tokens.surfaceElevated)
                                                     .border(1.dp, tokens.borderSubtle, RoundedCornerShape(6.dp))
-                                                    .clickable {
+                                                    .clickable(enabled = !isSaving) {
                                                         lines = LrcSyncEngine.adjustTimestamp(lines, idx, -100L)
                                                     }
                                                     .defaultMinSize(minWidth = 44.dp, minHeight = 32.dp)
@@ -985,7 +1006,7 @@ fun LrcTapSyncStudioDialog(
                                                     .clip(RoundedCornerShape(6.dp))
                                                     .background(tokens.surfaceElevated)
                                                     .border(1.dp, tokens.borderSubtle, RoundedCornerShape(6.dp))
-                                                    .clickable {
+                                                    .clickable(enabled = !isSaving) {
                                                         lines = LrcSyncEngine.adjustTimestamp(lines, idx, +100L)
                                                     }
                                                     .defaultMinSize(minWidth = 44.dp, minHeight = 32.dp)
@@ -1011,13 +1032,17 @@ fun LrcTapSyncStudioDialog(
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
+                    saveError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    if (!isMonotonic) Text("Метки идут не по порядку. Исправьте время строк перед сохранением.",
+                        color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         OutlinedButton(
-                            onClick = { isPreviewOpen = false },
+                            onClick = { if (!isSaving) isPreviewOpen = false },
+                            enabled = !isSaving,
                             modifier = Modifier
                                 .weight(1f)
                                 .defaultMinSize(minHeight = 48.dp),
@@ -1038,10 +1063,20 @@ fun LrcTapSyncStudioDialog(
                         Button(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                isPreviewOpen = false
-                                onSaveLrc(lrcContent)
+                                if (!isSaving) {
+                                    isSaving = true
+                                    saveError = null
+                                    scope.launch {
+                                        try {
+                                            onSaveLrc(lrcContent, editedPlainText)
+                                        } catch (e: CancellationException) { throw e }
+                                        catch (e: Exception) {
+                                            saveError = e.message ?: "Не удалось сохранить. Метки оставлены для повторной попытки."
+                                        } finally { isSaving = false }
+                                    }
+                                }
                             },
-                            enabled = lrcContent.isNotBlank(),
+                            enabled = !isSaving && isMonotonic && lines.isNotEmpty() && lines.all { it.timestampMs != null },
                             modifier = Modifier
                                 .weight(1.2f)
                                 .defaultMinSize(minHeight = 48.dp),
@@ -1058,7 +1093,7 @@ fun LrcTapSyncStudioDialog(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Сохранить",
+                                text = if (isSaving) "Сохранение…" else "Сохранить",
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontFamily = GolosTextFontFamily,
                                     fontWeight = FontWeight.SemiBold,

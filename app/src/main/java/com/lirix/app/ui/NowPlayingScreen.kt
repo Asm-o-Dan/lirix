@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
@@ -98,6 +99,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -161,7 +163,7 @@ import com.lirix.app.ui.player.ChordsTabContent
 import com.lirix.app.ui.components.AlbumArtImage
 import com.lirix.app.ui.components.EditLyricsDialog
 import com.lirix.app.ui.components.EmptyPlayerStateView
-import com.lirix.app.ui.components.LrcTapSyncStudioDialog
+import com.lirix.app.ui.components.*
 import com.lirix.app.ui.components.NowPlayingOverflowMenu
 import com.lirix.app.ui.components.OverlayPermissionDialog
 import com.lirix.app.ui.components.PermissionRequestBanner
@@ -444,7 +446,14 @@ fun NowPlayingScreen(
     }
 
     var showShareDialog by remember { mutableStateOf(false) }
-    var showTapSyncStudio by remember { mutableStateOf(false) }
+    var tapSyncTarget by remember { mutableStateOf<TapSyncEditingTarget?>(null) }
+    val displayedTrackKey by rememberUpdatedState(currentTrack?.trackKey)
+    fun openTapSync() {
+        currentTrack?.let { track ->
+            tapSyncTarget = TapSyncEditingTarget(track.copy(sourcePackage = tapSyncSourcePackage(track, livePlayback)), lyricsCache?.plainLyrics ?: track.plainLyrics.orEmpty(),
+                lyricsCache?.syncedLyricsLrc ?: track.syncedLyrics)
+        }
+    }
     var showEditLyricsDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showCalibrationDialog by remember { mutableStateOf(false) }
@@ -469,7 +478,7 @@ fun NowPlayingScreen(
             while (isActive) {
                 withFrameMillis {
                     val raw = snapshot.currentPositionMs()
-                    playbackPositionMs = (raw + syncOffsetMs).coerceAtLeast(0L)
+                    playbackPositionMs = karaokeLyricPosition(raw, syncOffsetMs)
                 }
             }
         } else if (localIsPlaying) {
@@ -480,9 +489,11 @@ fun NowPlayingScreen(
                     val delta = now - lastTick
                     lastTick = now
                     localPlaybackPositionMs += delta
-                    playbackPositionMs = (localPlaybackPositionMs + syncOffsetMs).coerceAtLeast(0L)
+                    playbackPositionMs = karaokeLyricPosition(localPlaybackPositionMs, syncOffsetMs)
                 }
             }
+        } else {
+            playbackPositionMs = karaokeLyricPosition(localPlaybackPositionMs, syncOffsetMs)
         }
     }
 
@@ -729,7 +740,7 @@ fun NowPlayingScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = formatMs(playbackPositionMs),
+                                text = formatMs(karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration)),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontFeatureSettings = FontFeature.tabularFigures()
                                 ),
@@ -745,12 +756,12 @@ fun NowPlayingScreen(
                         }
                         if (totalTrackDuration > 0L) {
                             Slider(
-                                value = playbackPositionMs.toFloat().coerceIn(0f, totalTrackDuration.toFloat()),
+                                value = karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration).toFloat(),
                                 onValueChange = { newPos ->
                                     val target = newPos.toLong()
-                                    playbackPositionMs = target
                                     localPlaybackPositionMs = target
-                                    MediaSessionCollector.seekTo((target - syncOffsetMs).coerceAtLeast(0L))
+                                    playbackPositionMs = karaokeLyricPosition(target, syncOffsetMs)
+                                    MediaSessionCollector.seekTo(target)
                                 },
                                 valueRange = 0f..totalTrackDuration.toFloat(),
                                 colors = SliderDefaults.colors(
@@ -844,43 +855,18 @@ fun NowPlayingScreen(
 
                     // Компактный сдвиг ⏱ и степпер 'Аа' (только в караоке при наличии текста)
                     AnimatedVisibility(visible = isKaraokeWithLyrics) {
-                        Row(
+                        FlowRow(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp),
+                                .heightIn(min = 48.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            // Сдвиг
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("⏱", fontSize = 14.sp)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "%.1f с".format(syncOffsetMs / 1000f),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontFeatureSettings = FontFeature.tabularFigures()
-                                    ),
-                                    color = lirixColors.textSecondary
-                                )
-                                IconButton(
-                                    onClick = {
-                                        syncOffsetMs -= 100L
-                                        syncOffsetStore.setOffset(currentTrack.trackKey, syncOffsetMs)
-                                    },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Text("−", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
-                                }
-                                IconButton(
-                                    onClick = {
-                                        syncOffsetMs += 100L
-                                        syncOffsetStore.setOffset(currentTrack.trackKey, syncOffsetMs)
-                                    },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Text("+", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
-                                }
-                            }
+                            TimingCorrectionControls(
+                                offsetMs = syncOffsetMs,
+                                onChange = { syncOffsetMs = syncOffsetStore.setOffsetAndGet(currentTrack.trackKey, it) },
+                                onDetails = { showCalibrationDialog = true }
+                            )
 
                             // Степпер Аа
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -956,11 +942,12 @@ fun NowPlayingScreen(
                         isLandscape = true,
                         isReducedMotion = isReducedMotion,
                         onSeekTo = { targetMs ->
-                            playbackPositionMs = targetMs
-                            localPlaybackPositionMs = targetMs
-                            MediaSessionCollector.seekTo((targetMs - syncOffsetMs).coerceAtLeast(0L))
+                            val rawTarget = karaokeMediaSeekPosition(targetMs, syncOffsetMs, totalTrackDuration)
+                            localPlaybackPositionMs = rawTarget
+                            playbackPositionMs = karaokeLyricPosition(rawTarget, syncOffsetMs)
+                            MediaSessionCollector.seekTo(rawTarget)
                         },
-                        onStartTapSync = { showTapSyncStudio = true },
+                        onStartTapSync = { openTapSync() },
                         onEditLyrics = { showEditLyricsDialog = true },
                         onOpenTeachMode = { onOpenTeachMode?.invoke(currentTrack) },
                         transposeSemitones = transposeSemitones,
@@ -1179,11 +1166,12 @@ fun NowPlayingScreen(
                         isLandscape = false,
                         isReducedMotion = isReducedMotion,
                         onSeekTo = { targetMs ->
-                            playbackPositionMs = targetMs
-                            localPlaybackPositionMs = targetMs
-                            MediaSessionCollector.seekTo((targetMs - syncOffsetMs).coerceAtLeast(0L))
+                            val rawTarget = karaokeMediaSeekPosition(targetMs, syncOffsetMs, totalTrackDuration)
+                            localPlaybackPositionMs = rawTarget
+                            playbackPositionMs = karaokeLyricPosition(rawTarget, syncOffsetMs)
+                            MediaSessionCollector.seekTo(rawTarget)
                         },
-                        onStartTapSync = { showTapSyncStudio = true },
+                        onStartTapSync = { openTapSync() },
                         onEditLyrics = { showEditLyricsDialog = true },
                         onOpenTeachMode = { onOpenTeachMode?.invoke(currentTrack) },
                         transposeSemitones = transposeSemitones,
@@ -1208,7 +1196,7 @@ fun NowPlayingScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = formatMs(playbackPositionMs),
+                            text = formatMs(karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration)),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
@@ -1221,12 +1209,12 @@ fun NowPlayingScreen(
 
                         if (totalTrackDuration > 0L) {
                             Slider(
-                                value = playbackPositionMs.toFloat().coerceIn(0f, totalTrackDuration.toFloat()),
+                                value = karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration).toFloat(),
                                 onValueChange = { newPos ->
                                     val target = newPos.toLong()
-                                    playbackPositionMs = target
                                     localPlaybackPositionMs = target
-                                    MediaSessionCollector.seekTo((target - syncOffsetMs).coerceAtLeast(0L))
+                                    playbackPositionMs = karaokeLyricPosition(target, syncOffsetMs)
+                                    MediaSessionCollector.seekTo(target)
                                 },
                                 valueRange = 0f..totalTrackDuration.toFloat(),
                                 colors = SliderDefaults.colors(
@@ -1263,54 +1251,19 @@ fun NowPlayingScreen(
 
                 // 5. Контекстная строка сдвига и размера текста (48dp): только для караоке с синхронизацией
                 AnimatedVisibility(visible = isKaraokeWithLyrics && !isFocusMode && !isHideControlsForNotes) {
-                    Row(
+                    FlowRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
+                            .heightIn(min = 48.dp)
                             .padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // Сдвиг текста
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Сдвиг %.1f с".format(syncOffsetMs / 1000f),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = lirixColors.textSecondary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = lirixColors.surfaceCard,
-                                border = BorderStroke(1.dp, lirixColors.borderSubtle),
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clickable {
-                                        syncOffsetMs -= 100L
-                                        syncOffsetStore.setOffset(currentTrack.trackKey, syncOffsetMs)
-                                    }
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("−", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = lirixColors.surfaceCard,
-                                border = BorderStroke(1.dp, lirixColors.borderSubtle),
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clickable {
-                                        syncOffsetMs += 100L
-                                        syncOffsetStore.setOffset(currentTrack.trackKey, syncOffsetMs)
-                                    }
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("+", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
-                                }
-                            }
-                        }
+                        TimingCorrectionControls(
+                            offsetMs = syncOffsetMs,
+                            onChange = { syncOffsetMs = syncOffsetStore.setOffsetAndGet(currentTrack.trackKey, it) },
+                            onDetails = { showCalibrationDialog = true }
+                        )
 
                         // Степпер Аа
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1398,35 +1351,6 @@ fun NowPlayingScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Кнопка Lirix Connect с бейджем активности
-                        Box(contentAlignment = Alignment.TopEnd) {
-                            IconButton(
-                                onClick = { showConnectBottomSheet = true },
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .semantics {
-                                        role = Role.Button
-                                        contentDescription = "Воспроизвести на устройстве"
-                                    }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.DevicesOther,
-                                    contentDescription = null,
-                                    tint = if (isRemotePlaying) lirixColors.accentPrimary else lirixColors.textSecondary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            if (isRemotePlaying) {
-                                Box(
-                                    modifier = Modifier
-                                        .padding(top = 8.dp, end = 8.dp)
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF00E676))
-                                )
-                            }
-                        }
-
                         IconButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -1585,12 +1509,10 @@ fun NowPlayingScreen(
             TimingCalibrationDialog(
                 currentOffsetMs = syncOffsetMs,
                 onOffsetChange = { newOffset ->
-                    syncOffsetMs = newOffset.coerceIn(SyncOffsetStore.MIN_OFFSET_MS, SyncOffsetStore.MAX_OFFSET_MS)
-                    syncOffsetStore.setOffset(track.trackKey, syncOffsetMs)
+                    syncOffsetMs = syncOffsetStore.setOffsetAndGet(track.trackKey, newOffset)
                 },
                 onResetOffset = {
-                    syncOffsetMs = 0L
-                    syncOffsetStore.setOffset(track.trackKey, 0L)
+                    syncOffsetMs = syncOffsetStore.setOffsetAndGet(track.trackKey, 0L)
                 },
                 onDismissRequest = { showCalibrationDialog = false }
             )
@@ -1604,34 +1526,23 @@ fun NowPlayingScreen(
             )
         }
 
-        if (showTapSyncStudio && currentTrack != null) {
-            val track = currentTrack
-            val plainLyricsText = lyricsCache?.plainLyrics ?: track.plainLyrics.orEmpty()
+        tapSyncTarget?.let { target ->
             LrcTapSyncStudioDialog(
-                trackTitle = track.title,
-                artist = track.artist,
-                initialPlainText = plainLyricsText,
-                onDismissRequest = { showTapSyncStudio = false },
-                onSaveLrc = { generatedLrc ->
-                    showTapSyncStudio = false
-                    scope.launch(Dispatchers.IO) {
-                        val updatedEntity = LyricsCacheEntity(
-                            trackKey = track.trackKey,
-                            plainLyrics = plainLyricsText,
-                            syncedLyricsLrc = generatedLrc,
-                            chordsAmDm = lyricsCache?.chordsAmDm,
-                            userNotes = lyricsCache?.userNotes,
-                            provider = "USER:TAP_SYNC",
-                            updatedAt = System.currentTimeMillis()
-                        )
-                        db.lyricsDao().saveLyrics(updatedEntity)
-                        db.musicDao().updateLyrics(track.trackKey, plainLyricsText, generatedLrc)
-                        withContext(Dispatchers.Main) {
-                            lyricsCache = updatedEntity
-                            selectedMode = NowPlayingMode.KARAOKE
-                            snackbarHostState.showSnackbar("Караоке синхронизировано и сохранено!")
-                        }
+                trackTitle = target.title,
+                artist = target.artist,
+                initialPlainText = target.plainLyrics,
+                initialLrc = target.initialLrc,
+                trackKey = target.trackKey,
+                sourcePackage = target.track.sourcePackage,
+                onDismissRequest = { tapSyncTarget = null },
+                onSaveLrc = { generatedLrc, generatedPlain ->
+                    val saved = saveTapSyncLyrics(db, target, generatedLrc, generatedPlain)
+                    if (shouldDisplayTapSyncSave(target, displayedTrackKey)) {
+                        lyricsCache = saved
+                        selectedMode = NowPlayingMode.KARAOKE
                     }
+                    tapSyncTarget = null
+                    scope.launch { snackbarHostState.showSnackbar("Караоке синхронизировано и сохранено!") }
                 }
             )
         }
@@ -1952,8 +1863,7 @@ fun HighFidelityKaraokePlayer(
     }
 
     val activeIndex = remember(lines, playbackPositionMs) {
-        val idx = lines.indexOfLast { it.timestampMs <= playbackPositionMs }
-        if (idx == -1) 0 else idx
+        karaokeActiveLineIndex(lines.map { it.timestampMs }, playbackPositionMs)
     }
 
     val lazyListState = rememberLazyListState()
@@ -1975,13 +1885,12 @@ fun HighFidelityKaraokePlayer(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         // Golden ratio ~40% anchor
-        val topPadding = (maxHeight * 0.38f).coerceAtLeast(0.dp)
-        val bottomPadding = (maxHeight * 0.50f).coerceAtLeast(0.dp)
+        // A tall wrapped row must be able to reach the viewport top and scroll fully past it.
+        val topPadding = (maxHeight * 0.15f).coerceAtMost(48.dp)
+        val bottomPadding = maxHeight.coerceAtLeast(48.dp)
 
         val baseFontSize = if (isLandscape) 28.sp else 24.sp
         val activeFontSize = (baseFontSize.value * fontScale).sp
-        val nearFontSize = (activeFontSize.value * 0.82f).sp
-        val farFontSize = (activeFontSize.value * 0.70f).sp
 
         LazyColumn(
             state = lazyListState,
@@ -1989,7 +1898,7 @@ fun HighFidelityKaraokePlayer(
             contentPadding = PaddingValues(top = topPadding, bottom = bottomPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            itemsIndexed(lines, key = { _, line -> line.timestampMs }) { index, line ->
+            itemsIndexed(lines, key = { index, line -> karaokeOccurrenceKey(index, line.timestampMs) }) { index, line ->
                 val distance = kotlin.math.abs(index - activeIndex)
                 val isActive = index == activeIndex
 
@@ -2003,11 +1912,8 @@ fun HighFidelityKaraokePlayer(
                     label = "alpha"
                 )
 
-                val fontSize = when (distance) {
-                    0 -> activeFontSize
-                    1 -> nearFontSize
-                    else -> farFontSize
-                }
+                // Stable wrapping and height prevent active-row changes from moving the scroll anchor.
+                val fontSize = activeFontSize
 
                 Row(
                     modifier = Modifier
@@ -2041,7 +1947,7 @@ fun HighFidelityKaraokePlayer(
                     Text(
                         text = line.text.toSentenceCase(),
                         fontFamily = LiterataFontFamily,
-                        fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
+                        fontWeight = FontWeight.Normal,
                         fontSize = fontSize,
                         lineHeight = (fontSize.value * 1.35f).sp,
                         color = tokens.textPrimary.copy(alpha = lineAlpha),

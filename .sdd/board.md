@@ -258,3 +258,16 @@
 - User authorized all seven findings in order. First package e94990c: original fallback, persistent transport and compact full-width deck; focused actual Compose checks pass. Second package: honest statuses, snapshot-based poster preview/export, simple source text entry and parsed library LRC. Targeted six-theme/two-size matrix and poster controls pass; final broad tests and packaging in progress. Spec media-ui/desktop_ux_audit_corrections_v1.md. No agents.
 
 - Seven UX findings IMPLEMENTED/AUTOMATED PASS. Final123 desktop +173 shared +198 Android passed (494 total),2 optional network probes skipped. Six-theme/two-size workspace matrix, persistent playback actions and real poster menu switching passed. Final source dialog binds to captured song across playback changes. PC/APK built and packaged jar hashes match. Report DESKTOP_UX_CORRECTIONS_20261020.md. Phone disconnected; native acceptance separate.
+
+## Karaoke studio — 2026-10-20
+- IN_PROGRESS / ARCHITECTURE. User approved retaining phone Tap-to-Sync plus a separate precise line-timing studio. Intake: .sdd/intake/KARAOKE_STUDIO_V1.md. Architect karaoke_studio_architect owns source audit, zone specifications and atomic cards. Implementation follows frozen contracts. Existing attachment inputs remain untracked. No release publication.
+
+- Architecture delivered: .sdd/architecture/karaoke_studio_v1.md; model/UI contracts and KST-001..012 drafted. Verified risks: unclamped offset UI, current-track retargeting, premature close/nontransactional apply, ephemeral drafts and duplicate timestamp row keys. Direction approved; exact API/card gate refinement required before coding. Architect coordinates worker and test/build ownership.
+
+
+### Karaoke priority correction — 2026-10-20
+- User explicitly narrowed current delivery: verify/fix text offset, seeking and timing save; correct clipping and duplicated Connect actions FIRST. Studio implementation is DEFERRED until baseline corrections verified. Architect and worker notified immediately; no unfinished studio feature to ship in this package.
+
+- Baseline corrections implementation underway: no offset migration, same returned clamped value for UI/storage, centralized inverse seek, negative pre-vocal lyric time retained, stable reader metrics/occurrence keys, portrait Connect dedup. Captured-target transaction and quick-dialog awaited save in integration. Separate read-only QA review started; architect owns builds. Earlier Studio RED is not acceptance evidence for this narrower package.
+
+- Existing karaoke foundations AUTOMATED/REVIEW PASS: Android204 passed; unchanged shared173 cached, unchanged desktop123 passed/2 optional skips up-to-date (500 passed total). Fresh APK built. Report .sdd/reports/KARAOKE_FOUNDATIONS_20261020.md. No physical/visual acceptance: ADB empty. Studio remains DEFERRED; no publication.

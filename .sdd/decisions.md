@@ -825,3 +825,14 @@ AmDm.ru является ценным источником, однако мно�
 
 ## Desktop UX hierarchy — 2026-10-20
 - Preserve brand, themes, navigation names, saved data and playback backend. One persistent workspace player; compact metadata header, full-width reading surface. Offset/audio levels remain under transport options. Wrapped export captures stats+period and saves the exact preview image. Source UI separates ordinary text entry from link discovery and advanced rules. Physical acceptance is not inferred from CPU previews.
+
+## Karaoke studio intake — 2026-10-20
+- Preserve Tap-to-Sync on phone; add optional precise studio using the same markup. Correct current offset/layout behavior before timeline tools. Waveform requires actual audio access; romaji/word timing deferred. Latest supplied AGENTS.md governs coordinator role; architecture delegated before implementation.
+
+- Architecture/zone contracts accepted: karaoke_studio_v1.md; validated edit reducer leaves established desktop clamping helper unchanged. Baseline behavior regression reproduced (two assertion failures), then implementation gate opened. Timeline uses raw media time; song/device adjustment remains separate and existing effective values preserved during lazy migration. Apply compares opening baseline inside transaction; automatic draft writes never imply song Apply.
+
+
+## Existing karaoke first — user steering 2026-10-20
+- Current implementation scope narrowed by user to text offset, seeking, saving timestamps, clipped rows and duplicated device actions. Studio model/timeline/durability roadmap deferred. Preserve existing offset semantics and storage compatibility; avoid new offset migration unless necessary to fix baseline. Capture editor song, await atomic writes, retain input on failure.
+
+- Final bounded implementation verified: clamp returned/displayed offsets without migration; raw/lyric clocks and inverse seek separated; captured target atomic save preserves text/notes/chords and retry on failure. Occurrence-safe rows/stable typography plus portrait Connect dedup reviewed. Android204 tests pass and APK built; unchanged shared/desktop cached checks remain separate evidence. Physical clipping/seek verification pending disconnected phone.

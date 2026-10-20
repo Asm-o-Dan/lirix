@@ -27,6 +27,13 @@ class SyncOffsetStore(context: Context) {
         }
     }
 
+    /** Return the same bounded value rendered by the UI and written to preferences. */
+    fun setOffsetAndGet(trackKey: String, offsetMs: Long): Long {
+        val bounded = offsetMs.coerceIn(MIN_OFFSET_MS, MAX_OFFSET_MS)
+        setOffset(trackKey, bounded)
+        return if (trackKey.isBlank()) getGlobalOffset() else bounded
+    }
+
     fun getGlobalOffset(): Long {
         return prefs.getLong(KEY_GLOBAL_OFFSET, 0L)
     }

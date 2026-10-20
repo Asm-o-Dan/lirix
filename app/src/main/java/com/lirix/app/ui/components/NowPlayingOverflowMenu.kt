@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -38,6 +40,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -281,6 +289,8 @@ fun TimingCalibrationDialog(
     onDismissRequest: () -> Unit
 ) {
     val tokens = LirixThemeTokens.colors
+    var numericOffset by remember { mutableStateOf(currentOffsetMs.toString()) }
+    LaunchedEffect(currentOffsetMs) { numericOffset = currentOffsetMs.toString() }
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = {
@@ -293,7 +303,7 @@ fun TimingCalibrationDialog(
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -304,11 +314,34 @@ fun TimingCalibrationDialog(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Сдвиг отображения подстрочника относительно звука",
+                    text = "Плюс — текст раньше, минус — позже. Настройка сохраняется для этой песни.",
                     style = MaterialTheme.typography.bodySmall,
                     color = tokens.textSecondary
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+
+                TimingCorrectionControls(currentOffsetMs, onOffsetChange, {})
+                OutlinedTextField(
+                    value = numericOffset,
+                    onValueChange = { numericOffset = it },
+                    label = { Text("Сдвиг в миллисекундах (−3000…3000)") },
+                    isError = numericOffset.toLongOrNull() == null,
+                    supportingText = {
+                        if (numericOffset.toLongOrNull() == null) Text("Введите целое число миллисекунд")
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextButton(
+                    onClick = {
+                        numericOffset.toLongOrNull()?.let {
+                            val bounded = boundedSyncOffset(it)
+                            numericOffset = bounded.toString()
+                            onOffsetChange(bounded)
+                        }
+                    },
+                    enabled = numericOffset.toLongOrNull() != null
+                ) { Text("Применить значение") }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
