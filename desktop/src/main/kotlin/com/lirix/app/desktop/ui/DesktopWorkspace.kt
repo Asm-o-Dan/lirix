@@ -72,7 +72,7 @@ fun DesktopWorkspace(
     var translationTrack by remember { mutableStateOf<TrackEntity?>(null) }
     val translationProvider = remember { com.lirix.app.translations.SongTranslationProviders() }
     var message by remember { mutableStateOf<String?>(null) }
-    var showSourceTools by remember { mutableStateOf(false) }
+    var sourceTrack by remember { mutableStateOf<TrackEntity?>(null) }
     var connectRequest by remember { mutableIntStateOf(0) }
     val searchFocus = remember { FocusRequester() }
     val currentKey = playback?.let(repository::keyFor)
@@ -129,7 +129,7 @@ fun DesktopWorkspace(
                         ShortcutButton("Текст / LRC", "Ctrl+E", currentTrack != null, ::editCurrent)
                         ShortcutButton("Tap-to-Sync", "Ctrl+T", currentTrack != null) { syncTrack = currentTrack }
                         ShortcutButton("Постер", "Ctrl+Shift+S", currentTrack != null, ::exportCurrent)
-                        TextButton(onClick = { showSourceTools = true }, enabled = currentTrack != null) { Text("Источники") }
+                        TextButton(onClick = { sourceTrack = currentTrack }, enabled = currentTrack != null) { Text("Источники") }
                     }
                     DesktopDeckScreen(playback, ingress, selectedTheme, onTheme, lyrics, hudVisible, onToggleHud,
                         onToggleCompactMode = onMini, audioLevels = audioLevels, modifier = Modifier.weight(1f), connectRequestVersion = connectRequest,
@@ -147,15 +147,7 @@ fun DesktopWorkspace(
                         if (tracks.firstOrNull { it.trackKey == key }?.userNotes == value) notesDrafts.remove(key)
                         else notesDrafts[key] = value
                     })
-                2 -> DesktopWrappedPanel(tracks, sessions, achievements) { stats, period, format, section ->
-                    scope.launch {
-                        try {
-                            val destination = withContext(Dispatchers.IO) { DesktopFiles.choose("Сохранить итоги", "png", true, "lirix-wrapped.png") } ?: return@launch
-                            withContext(Dispatchers.IO) { ImageIO.write(DesktopPosterRenderer.wrapped(stats, period, colors, format, section), "png", destination) }
-                            message = "Постер сохранён: ${destination.name}"
-                        } catch (e: CancellationException) { throw e } catch (e: Exception) { message = "Ошибка экспорта: ${e.message}" }
-                    }
-                }
+                2 -> DesktopWrappedPanel(tracks, sessions, achievements) { message = it }
                 3 -> DesktopSettingsPanel(rules, tracks, hudSettings, onHudSettings, repository, selectedTheme, onTheme, onEditHud)
             }
             }
@@ -178,10 +170,13 @@ fun DesktopWorkspace(
         TextButton(onClick = { translationTrack = null }) { Text("Закрыть") }
     } }
     if (helpVisible) DesktopHotkeyHelp(hotkeyFailures) { onHelp(false) }
-    if (showSourceTools && currentTrack != null) DesktopSourceDialog(currentTrack, repository, onDismiss = { showSourceTools = false },
-        onRefresh = { lyricsService.onTrackChanged(playback?.title, playback?.artist, playback?.album, true) },
-        onReject = { lyricsService.rejectCurrentSource(currentTrack.title, currentTrack.artist, currentTrack.album) },
-        onAttach = { text -> scope.launch { lyricsService.saveUserLyrics(currentTrack.trackKey, currentTrack.title, currentTrack.artist, text, null, null); showSourceTools = false } })
+    sourceTrack?.let { track ->
+        DesktopSourceDialog(track, repository, onDismiss = { sourceTrack = null },
+            onRefresh = { if (currentKey == track.trackKey) lyricsService.onTrackChanged(track.title, track.artist, track.album, true) },
+            onReject = { if (currentKey == track.trackKey) lyricsService.rejectCurrentSource(track.title, track.artist, track.album) },
+            isCurrentTrack = currentKey == track.trackKey,
+            onAttach = { text -> lyricsService.saveUserLyrics(track.trackKey, track.title, track.artist, text, null, null) })
+    }
 }
 
 @Composable
@@ -244,7 +239,7 @@ private fun DesktopLibraryPanel(tracks: List<TrackEntity>, sessions: List<Listen
             val notes = notesDrafts[picked.trackKey] ?: picked.userNotes
             OutlinedTextField(notes, { onNotesDraft(picked.trackKey, it) }, label = { Text("Заметки к песне") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
             Button(onClick = { onNotes(picked, notes) }, enabled = notes != picked.userNotes) { Text("Сохранить заметки") }
-            SelectionContainer { Text(picked.plainLyrics ?: picked.syncedLyrics ?: "Текст пока не сохранён", color = c.textPrimary, fontSize = 17.sp) }
+            SelectionContainer { Text(desktopLibraryLyrics(picked.plainLyrics, picked.syncedLyrics), color = c.textPrimary, fontSize = 17.sp) }
             Text("История прослушиваний", color = c.textPrimary, fontSize = 18.sp)
             sessions.asReversed().filter { it.trackKey == picked.trackKey }.take(30).forEach { s ->
                 Text("${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(s.startTimeMs))} · ${s.durationMs / 1000} сек", color = c.textSecondary)
@@ -255,12 +250,12 @@ private fun DesktopLibraryPanel(tracks: List<TrackEntity>, sessions: List<Listen
 
 @Composable
 private fun DesktopWrappedPanel(tracks: List<TrackEntity>, sessions: List<ListeningSessionEntity>, achievements: List<AchievementEntity>,
-    onExport: (WrappedStats, AnalyticsTimeframe, PosterFormat, PosterSection) -> Unit) {
+    onMessage: (String) -> Unit) {
     val c = LirixThemeTokens.colors
     var period by remember { mutableStateOf(AnalyticsTimeframe.MONTH) }
     var stats by remember { mutableStateOf<WrappedStats?>(null) }
-    var format by remember { mutableStateOf(PosterFormat.STORIES) }
-    var section by remember { mutableStateOf(PosterSection.FULL) }
+    var posterSnapshot by remember { mutableStateOf<Pair<WrappedStats, AnalyticsTimeframe>?>(null) }
+    var showAchievements by remember { mutableStateOf(false) }
     LaunchedEffect(tracks, sessions, period) {
         stats = null
         stats = withContext(Dispatchers.Default) { WrappedStatsEngine.calculateStats(tracks, sessions, period, includeLiveSessionEstimate = false) }
@@ -269,6 +264,7 @@ private fun DesktopWrappedPanel(tracks: List<TrackEntity>, sessions: List<Listen
         Text("Итоги прослушиваний", color = c.textPrimary, fontSize = 28.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { AnalyticsTimeframe.entries.forEach { p -> FilterChip(period == p, { period = p }, label = { Text(if (p == AnalyticsTimeframe.MONTH) "30 дней" else p.labelRu) }) } }
         stats?.let { s ->
+            Button(onClick = { posterSnapshot = s to period }) { Text("Создать постер итогов") }
             Text("${s.totalListeningTimeMs / 3_600_000} ч ${(s.totalListeningTimeMs / 60_000) % 60} мин в музыке", color = c.textPrimary, fontSize = 36.sp)
             Text("Треков: ${s.uniqueTracksCount} · Исполнителей: ${s.uniqueArtistsCount}", color = c.textSecondary)
             if (s.uniqueTracksCount > 0) {
@@ -292,22 +288,23 @@ private fun DesktopWrappedPanel(tracks: List<TrackEntity>, sessions: List<Listen
                     Text(" ${day.totalDurationMs / 60_000} мин", color = c.textSecondary, modifier = Modifier.width(100.dp))
                 } }
             }
-            ChoiceDropdown("Формат", format.label, PosterFormat.entries.map { it.label }) { label -> format = PosterFormat.entries.first { it.label == label } }
-            ChoiceDropdown("Содержимое", section.label, PosterSection.entries.map { it.label }) { label -> section = PosterSection.entries.first { it.label == label } }
-            Button(onClick = { onExport(s, period, format, section) }) { Text("Сохранить постер итогов") }
         } ?: CircularProgressIndicator()
         Text("Достижения · ${achievements.count { it.isUnlocked }} из ${achievements.size}", color = c.textPrimary, fontSize = 22.sp)
-        achievements.forEach { a -> Surface(color = c.surfaceCard, modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp)) {
+        TextButton(onClick = { showAchievements = !showAchievements }) { Text(if (showAchievements) "Свернуть достижения" else "Показать достижения") }
+        if (showAchievements) achievements.forEach { a -> Surface(color = c.surfaceCard, modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp)) {
             Text((if (a.isUnlocked) "✓ " else "") + a.title, color = if (a.isUnlocked) c.accentPrimary else c.textPrimary)
             Text(a.description, color = c.textSecondary); LinearProgressIndicator(progress = (a.currentProgress.toFloat() / a.maxProgress.coerceAtLeast(1)).coerceIn(0f, 1f), modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
         } } }
     }
+    posterSnapshot?.let { (snapshot, snapshotPeriod) ->
+        DesktopWrappedPosterDialog(snapshot, snapshotPeriod, c, { posterSnapshot = null }, onMessage)
+    }
 }
 
 @Composable
-internal fun ChoiceDropdown(label: String, selected: String, options: List<String>, onSelect: (String) -> Unit) {
+internal fun ChoiceDropdown(label: String, selected: String, options: List<String>, enabled: Boolean = true, onSelect: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    Box { OutlinedButton(onClick = { open = true }) { Text("$label: $selected") }; DropdownMenu(open, { open = false }) { options.forEach { value -> DropdownMenuItem(text = { Text(value) }, onClick = { onSelect(value); open = false }) } } }
+    Box { OutlinedButton(onClick = { open = true }, enabled = enabled) { Text("$label: $selected") }; DropdownMenu(open, { open = false }) { options.forEach { value -> DropdownMenuItem(text = { Text(value) }, onClick = { onSelect(value); open = false }) } } }
 }
 
 @Composable
@@ -342,3 +339,7 @@ private fun DesktopSettingsPanel(rules: List<BlacklistRuleEntity>, tracks: List<
         } }
     }
 }
+
+internal fun desktopLibraryLyrics(plain: String?, synced: String?): String = plain?.takeIf { it.isNotBlank() }
+    ?: synced?.let { com.lirix.app.feature.lyrics.LrcSyncEngine.parseLrcLinesStrict(it).joinToString("\n") { line -> line.text } }
+        ?.takeIf { it.isNotBlank() } ?: "Текст пока не сохранён"

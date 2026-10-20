@@ -253,3 +253,8 @@
 - IN_PROGRESS: identified HTTP now200 and real POST search verified. LyricsTranslate routing, language-aware DAO/coordinator, persistent target selection and shared reader implemented. Spec song_translations_multilingual_v3.md. Live/test/package validation in progress. No agents.
 
 - Multilingual v3 IMPLEMENTED/AUTOMATED+LIVE PROVIDER PASS:120 desktop +173 shared +198 Android tests passed;2 opt-in checks skipped. Direct five-target search/load and browser-channel metadata fallback verified. Actual narrow/wide panel selection tests and fresh PC/APK packaging pass; jar hashes match. See reports/SONG_TRANSLATIONS_MULTILINGUAL_V3.md. Physical acceptance pending; no release publication.
+
+## Desktop UX audit corrections — 2026-10-20
+- User authorized all seven findings in order. First package e94990c: original fallback, persistent transport and compact full-width deck; focused actual Compose checks pass. Second package: honest statuses, snapshot-based poster preview/export, simple source text entry and parsed library LRC. Targeted six-theme/two-size matrix and poster controls pass; final broad tests and packaging in progress. Spec media-ui/desktop_ux_audit_corrections_v1.md. No agents.
+
+- Seven UX findings IMPLEMENTED/AUTOMATED PASS. Final123 desktop +173 shared +198 Android passed (494 total),2 optional network probes skipped. Six-theme/two-size workspace matrix, persistent playback actions and real poster menu switching passed. Final source dialog binds to captured song across playback changes. PC/APK built and packaged jar hashes match. Report DESKTOP_UX_CORRECTIONS_20261020.md. Phone disconnected; native acceptance separate.

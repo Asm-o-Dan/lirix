@@ -19,7 +19,9 @@ import java.net.URLEncoder
 
 @Composable
 internal fun DesktopSourceDialog(track: TrackEntity, repository: DesktopLibraryRepository, onDismiss: () -> Unit,
-    onRefresh: () -> Unit, onReject: () -> Unit, onAttach: (String) -> Unit) = DesktopFeatureDialog("Источники и обучение", onDismiss) {
+    onRefresh: () -> Unit, onReject: () -> Unit, isCurrentTrack: Boolean = true, onAttach: suspend (String) -> Unit) {
+    var busy by remember { mutableStateOf(false) }
+    DesktopFeatureDialog("Текст песни и источники", { if (!busy) onDismiss() }) {
     val c = LirixThemeTokens.colors
     val scope = rememberCoroutineScope()
     val rules by repository.sourceRules.collectAsState()
@@ -30,28 +32,37 @@ internal fun DesktopSourceDialog(track: TrackEntity, repository: DesktopLibraryR
     var result by remember { mutableStateOf("") }
     var candidates by remember { mutableStateOf(emptyList<SourceCandidate>()) }
     var error by remember { mutableStateOf<String?>(null) }
-    var busy by remember { mutableStateOf(false) }
-    fun run(block: suspend () -> Unit) { scope.launch { busy = true; error = null; try { block() } catch (e: CancellationException) { throw e } catch (e: Exception) { error = e.message } finally { busy = false } } }
+    var advanced by remember { mutableStateOf(false) }
+    var linkInput by remember { mutableStateOf(false) }
+    fun run(block: suspend () -> Unit) { if (busy) return; busy = true; scope.launch { error = null; try { block() } catch (e: CancellationException) { throw e } catch (e: Exception) { error = e.message } finally { busy = false } } }
     Text("${track.artist} — ${track.title}", color = c.textPrimary, fontSize = 22.sp)
+    if (!isCurrentTrack) Text("Сейчас играет другой трек. Текст сохранится для песни, указанной выше.", color = c.textSecondary)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { onRefresh(); onDismiss() }) { Text("Повторить поиск") }
-        OutlinedButton(onClick = { onReject(); onDismiss() }) { Text("Это не тот текст") }
-        TextButton(onClick = { java.awt.Desktop.getDesktop().browse(URI("https://www.google.com/search?q=" + URLEncoder.encode("${track.artist} ${track.title} текст", "UTF-8"))) }) { Text("Искать в браузере") }
+        OutlinedButton(enabled = !busy && isCurrentTrack, onClick = { onRefresh(); onDismiss() }) { Text("Повторить поиск") }
+        OutlinedButton(enabled = !busy && isCurrentTrack, onClick = { onReject(); onDismiss() }) { Text("Это не тот текст") }
+        TextButton(enabled = !busy, onClick = { java.awt.Desktop.getDesktop().browse(URI("https://www.google.com/search?q=" + URLEncoder.encode("${track.artist} ${track.title} текст", "UTF-8"))) }) { Text("Искать в браузере") }
     }
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Обучить источник", color = c.textPrimary, fontSize = 20.sp)
-        Text("Вставьте ссылку на страницу. Выберите найденный блок или укажите CSS-селектор, проверьте текст и привяжите его к песне.", color = c.textSecondary)
-        OutlinedTextField(url, { url = it; candidates = emptyList(); result = "" }, label = { Text("Ссылка на страницу песни") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        Text("Правильный текст песни", color = c.textPrimary, fontSize = 20.sp)
+        Text("Вставьте текст ниже и сохраните для этой песни. Он будет доступен без интернета.", color = c.textSecondary)
+        TextButton(onClick = { linkInput = !linkInput }, enabled = !busy) { Text(if (linkInput) "Скрыть загрузку по ссылке" else "Загрузить текст по ссылке") }
+        if (linkInput) {
+        OutlinedTextField(url, { url = it; candidates = emptyList() }, enabled = !busy, label = { Text("Ссылка на страницу песни") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Button(enabled = !busy && url.isNotBlank(), onClick = { run { val inspection = DesktopCustomSources.inspect(url); url = inspection.url; candidates = inspection.candidates; if (candidates.isEmpty()) error = "Блоки не найдены. Укажите селектор или вставьте текст вручную." } }) { Text("Найти блоки с текстом") }
-        candidates.take(15).forEach { candidate -> Surface(onClick = { selector = candidate.selector; run { result = DesktopCustomSources.extract(url, selector) } }, color = c.surfaceCard, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(10.dp)) { Text(candidate.selector, color = c.accentPrimary, maxLines = 1); Text(candidate.preview, color = c.textSecondary, maxLines = 3) }
+        candidates.take(15).forEachIndexed { index, candidate -> Surface(onClick = { if (!busy) { selector = candidate.selector; run { result = DesktopCustomSources.extract(url, selector) } } }, color = c.surfaceCard, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(10.dp)) { Text("Вариант ${index + 1}", color = c.accentPrimary, maxLines = 1); Text(candidate.preview, color = c.textSecondary, maxLines = 3) }
         } }
-        OutlinedTextField(selector, { selector = it; result = "" }, label = { Text("CSS-селектор блока") }, modifier = Modifier.fillMaxWidth())
+        }
+        OutlinedTextField(result, { result = it }, enabled = !busy, label = { Text("Текст песни") }, modifier = Modifier.fillMaxWidth(), minLines = 5, maxLines = 10)
+        Button(enabled = result.isNotBlank() && !busy, onClick = { run { onAttach(result); onDismiss() } }) { Text(if (busy) "Сохраняем…" else "Сохранить текст песни") }
+        HorizontalDivider()
+        TextButton(onClick = { advanced = !advanced }, enabled = !busy) { Text(if (advanced) "Скрыть настройки источников" else "Дополнительные настройки источников") }
+        if (advanced) {
+        OutlinedTextField(selector, { selector = it; result = "" }, enabled = !busy, label = { Text("CSS-селектор блока") }, modifier = Modifier.fillMaxWidth())
         OutlinedButton(enabled = !busy && url.isNotBlank() && selector.isNotBlank(), onClick = { run { result = DesktopCustomSources.extract(url, selector) } }) { Text("Проверить извлечение") }
-        OutlinedTextField(result, { result = it }, label = { Text("Проверьте текст / можно вставить вручную") }, modifier = Modifier.fillMaxWidth(), minLines = 5, maxLines = 10)
-        Button(enabled = result.isNotBlank() && !busy, onClick = { onAttach(result) }) { Text("Привязать текст к этой песне") }
-        OutlinedTextField(name, { name = it }, label = { Text("Название источника") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(search, { search = it }, label = { Text("Адрес поиска с {query}, необязательно") }, modifier = Modifier.fillMaxWidth())
+
+        OutlinedTextField(name, { name = it }, enabled = !busy, label = { Text("Название источника") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(search, { search = it }, enabled = !busy, label = { Text("Адрес поиска с {query}, необязательно") }, modifier = Modifier.fillMaxWidth())
         Text("Без адреса поиска правило привязывается только к этой песне.", color = c.textMuted)
         OutlinedButton(enabled = !busy && name.isNotBlank() && result.isNotBlank() && selector.isNotBlank(), onClick = { run {
             val base = DesktopCustomSources.rule(name, url, selector, search)
@@ -76,8 +87,11 @@ internal fun DesktopSourceDialog(track: TrackEntity, repository: DesktopLibraryR
                 TextButton(enabled = !rule.isBuiltIn, onClick = { repository.perform { repository.database.lyricsDao().deleteRule(rule.id) } }) { Text("Удалить") }
             }
         } }
+        }
     }
     error?.let { Text(it, color = c.accentPrimary) }
     if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-    TextButton(onClick = onDismiss) { Text("Закрыть") }
+    TextButton(onClick = onDismiss, enabled = !busy) { Text("Закрыть") }
+}
+
 }

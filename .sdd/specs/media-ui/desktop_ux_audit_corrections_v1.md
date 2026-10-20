@@ -1,0 +1,12 @@
+# Desktop UX audit corrections
+Date: 2026-10-20. Scope: seven user-approved findings; direct implementation, no agents.
+
+1. Shared translation reader renders available original while an automatic translation is missing/searching/failed. Preserve saved translations, auto discovery and explicit read modes.
+2. One workspace-owned persistent transport remains reachable on Now Playing, Library, Wrapped and Settings. Delegate actions to the existing ingress; sample the existing snapshot. Unknown playback/duration disables unavailable controls. Offset adjustment/reset and audio levels remain reachable from transport options. No second transport in the workspace deck.
+3. Replace the fixed360dp full-height metadata column with a48dp cover/metadata header and full-width reader. Preserve karaoke timing/seek/offset, themes, Connect, mini player and HUD. Standalone deck keeps a default transport for compatibility.
+4. Pause/playing/no-session labels reflect snapshot state in text. Remove literal successful Discord/WinRT statuses; display observed lyric availability and source instead. Do not imply unobserved integration health.
+5. Put poster creation near the Wrapped timeframe. Capture stats+period on opening, independently of background history recalculation. Preview actual renderer output with format/section choices. Export that exact ready image; stale request output cannot enable Save. Disable changes/close during export, preserve preview/settings on failure or file-picker cancellation. Achievements are expandable.
+6. Source dialog starts with paste/edit/save for this song. Link discovery and advanced CSS/rules are separately expandable; candidate labels are human readable. Existing rules/import/export remain available. Await saving, keep errors and input on failure, serialize operations and disable edits/close during an operation.
+7. Library uses nonblank plain text, otherwise parsed LRC text without timestamps/metadata. Preserve stored LRC unchanged; absent content has an honest empty state.
+
+Verification: real Compose reader and workspace navigation/actions, six-theme/two-size visual matrix, real poster format/section switching, source label and LRC regression tests. Source network, physical audio, native file pickers/window focus and installed-device acceptance are separate from detached visual tests. Preserve published1.4.0 and commit changes in bounded packages.

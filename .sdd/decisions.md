@@ -822,3 +822,6 @@ AmDm.ru является ценным источником, однако мно�
 
 ## Multilingual provider integration — 2026-10-19
 - Source requests with explicit Lirix identifier currently succeed. Use actual POST form and source links;403/429 remain explicit failures with60s source backoff. Target language is independent of UI locale. Existing schema already includes language in the primary key; DAO queries now honor it. Amalgama remains Russian-first, LyricsTranslate covers fallback and other targets.
+
+## Desktop UX hierarchy — 2026-10-20
+- Preserve brand, themes, navigation names, saved data and playback backend. One persistent workspace player; compact metadata header, full-width reading surface. Offset/audio levels remain under transport options. Wrapped export captures stats+period and saves the exact preview image. Source UI separates ordinary text entry from link discovery and advanced rules. Physical acceptance is not inferred from CPU previews.

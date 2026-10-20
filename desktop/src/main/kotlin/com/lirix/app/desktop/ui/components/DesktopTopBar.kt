@@ -103,7 +103,7 @@ fun DesktopTopBar(
 
             // Dynamic Source Badge with human-readable text
             val isIdle = sourceApp.isNullOrBlank()
-            val sourceText = formatHumanSourceName(sourceApp)
+            val sourceText = playbackSourceLabel(sourceApp, isPlaying)
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -329,4 +329,9 @@ private fun TopBarConnectButton(
             }
         }
     }
+}
+
+internal fun playbackSourceLabel(rawPackage: String?, isPlaying: Boolean): String {
+    val source = formatHumanSourceName(rawPackage)
+    return if (!rawPackage.isNullOrBlank() && !isPlaying) "На паузе · ${source.removePrefix("Играет в ")}" else source
 }

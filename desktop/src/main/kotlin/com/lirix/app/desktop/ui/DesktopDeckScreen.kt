@@ -84,7 +84,7 @@ import java.io.File
  *
  * Spec: TASK-UI-PROMPTER-FIX-01
  * Anti-Slop: Zero fake spinning vinyls, bookish typography (Literata + Golos),
- * 88x88 album cover, full-width transport bar, honest IDLE state, WCAG AA contrast.
+ * Compact track header, full-width reader, persistent transport, honest IDLE state.
  */
 @Composable
 fun DesktopDeckScreen(
@@ -382,11 +382,15 @@ private fun TrackSpecsPanel(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 SpecRow(label = "Источник аудио", value = playback?.packageName ?: "idle.session")
-                SpecRow(label = "Караоке провайдер", value = lyricsState.source ?: "Поиск в базах")
+                SpecRow(label = "Источник текста", value = lyricsState.source ?: "Не определён")
+                SpecRow(label = "Текст", value = when {
+                    lyricsState.isLoading -> "Поиск"
+                    lyricsState.errorMessage != null -> "Ошибка получения"
+                    lyricsState.hasLyrics -> "Доступен"
+                    else -> "Не найден"
+                })
                 SpecRow(label = "Синхронизированных строк", value = "${lyricsState.lrcLines.size} LRC tags")
                 SpecRow(label = "Длительность", value = formatTimeLabel(playback?.durationMs ?: 0L))
-                SpecRow(label = "Discord Rich Presence", value = "Активен (\\.\\pipe\\discord-ipc-0)")
-                SpecRow(label = "WinRT GSMTC Hook", value = "Подключен (Lirix Media Bridge C#)")
             }
         }
     }

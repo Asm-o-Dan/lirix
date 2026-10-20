@@ -137,9 +137,10 @@ class DesktopComposePreviewTest {
     private fun renderWorkspace(fixture: Fixture, output: File, theme: AppThemeType,
         width: Int, height: Int, playback: LivePlaybackSnapshot?, lyrics: DesktopLyricsState,
         stateName: String, navigate: Boolean) {
+        var playbackActions = 0
         val ingress = object : MediaIngressProvider {
             override val currentPlayback = MutableStateFlow(playback)
-            override fun playPause() = Unit
+            override fun playPause() { playbackActions++ }
             override fun seekTo(positionMs: Long) = Unit
             override fun skipNext() = Unit
             override fun skipPrevious() = Unit
@@ -189,6 +190,13 @@ class DesktopComposePreviewTest {
         fun capture(label: String, heading: String? = null, readyText: String? = null) {
             settle { (heading == null || contentHas(heading)) && (readyText == null || contentHas(readyText)) }
             if (heading != null) check(contentHas(heading)) { "Wrong destination for $label: expected $heading" }
+            if (playback != null) {
+                val transport = nodes().firstOrNull { "Воспроизведение" in it.config.getOrElse(SemanticsProperties.ContentDescription) { emptyList() } && it.config.contains(SemanticsActions.OnClick) }
+                    ?: error("Persistent playback action missing on $label")
+                val before = playbackActions
+                check(transport.config[SemanticsActions.OnClick].action!!.invoke())
+                check(playbackActions == before + 1) { "Playback action did not reach ingress on $label" }
+            }
             val image = scene.render(nanos); nanos += 16_666_667
             try {
                 val data = checkNotNull(image.encodeToData(EncodedImageFormat.PNG))
