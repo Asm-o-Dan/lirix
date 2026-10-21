@@ -1527,7 +1527,7 @@ fun NowPlayingScreen(
         }
 
         tapSyncTarget?.let { target ->
-            LrcTapSyncStudioDialog(
+            KaraokeStudioDialog(
                 trackTitle = target.title,
                 artist = target.artist,
                 initialPlainText = target.plainLyrics,
@@ -1541,7 +1541,7 @@ fun NowPlayingScreen(
                         lyricsCache = saved
                         selectedMode = NowPlayingMode.KARAOKE
                     }
-                    tapSyncTarget = null
+                    tapSyncTarget = target.copy(plainLyrics = generatedPlain, initialLrc = generatedLrc)
                     scope.launch { snackbarHostState.showSnackbar("Караоке синхронизировано и сохранено!") }
                 }
             )

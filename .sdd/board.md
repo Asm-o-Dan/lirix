@@ -292,3 +292,9 @@
 
 ## Android Wrapped motion prototype — 2026-10-20
 - WRAPPED-MOTION: IMPLEMENTED / DEVICE ACCEPTANCE PENDING. User authorized direct Codex implementation with minimal process. Native real-data summary (minutes, favorite artist, top 3), themed 900 ms opacity reveal, replay button, explicit loading/empty states. Android APK assembled; 209 unit tests pass. System-scale 0, theme changes, period changes, long titles and scrolling require physical acceptance; ADB device absent. Full lint blocked by unchanged AndroidAudioCaptureService.kt:212 MissingPermission and LibraryScreen.kt:192 NewApi; no Wrapped errors. No desktop/storage/export changes.
+
+## Karaoke studio — verification checkpoint 2026-10-21
+- User-selected scope: line studio + real local-audio waveform; keep quick Tap-to-Sync. Word timing excluded; Japanese/Chinese romanization proposal recorded separately.
+- Implementation prepared before current coordinator-only instruction. Current role: quality verification, independent review, documentation and isolated Git delivery; no new root product-code edits.
+- Final debug APK assembled; Android 260 and shared 200 tests pass. Studio/draft/PCM/duration/backup coverage passes; independent review correction verified. Test artifact and evidence: intake/KARAOKE_STUDIO_IMPLEMENTATION.md.
+- Final release lint PASS; independent review passed after duration correction. Phone absent from ADB; device acceptance pending and published release unchanged. See intake/KARAOKE_STUDIO_IMPLEMENTATION.md.

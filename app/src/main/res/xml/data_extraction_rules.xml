@@ -11,6 +11,7 @@
         <include domain="sharedpref" path="lirix_ui_prompter_prefs.xml" />
         <include domain="sharedpref" path="lirix_sync_prefs.xml" />
         <include domain="sharedpref" path="media_sync_offsets.xml" />
+        <include domain="file" path="karaoke-studio-drafts/" />
     </cloud-backup>
     <device-transfer>
         <include domain="database" path="event_engine.db" />
@@ -22,5 +23,6 @@
         <include domain="sharedpref" path="lirix_ui_prompter_prefs.xml" />
         <include domain="sharedpref" path="lirix_sync_prefs.xml" />
         <include domain="sharedpref" path="media_sync_offsets.xml" />
+        <include domain="file" path="karaoke-studio-drafts/" />
     </device-transfer>
 </data-extraction-rules>

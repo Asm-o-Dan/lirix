@@ -45,7 +45,7 @@ class AndroidBackupPolicyTest {
 
     @Test fun allTransportsPreserveDatabaseIncludingUncheckpointedWalAndUserPreferences() {
         val expected = setOf("event_engine.db", "event_engine.db-wal", "event_engine.db-shm", "event_engine.db-journal")
-            .map { Entry("database", it) }.toSet() + userPrefs.map { Entry("sharedpref", "$it.xml") }
+            .map { Entry("database", it) }.toSet() + userPrefs.map { Entry("sharedpref", "$it.xml") } + Entry("file", "karaoke-studio-drafts")
         policies().forEach { policy ->
             assertEquals(expected, policy.entries("include"))
             // No broad root exclusion may silently remove explicitly included child files.
@@ -59,6 +59,16 @@ class AndroidBackupPolicyTest {
                     physical == denied || physical.startsWith("$denied/")
                 })
             }
+        }
+    }
+
+    @Test fun studioDraftsAreIncludedButAudioAndDerivedDataAreNot() {
+        policies().forEach { policy ->
+            assertTrue(policy.permits(Entry("file", "karaoke-studio-drafts/song.json")))
+            assertTrue(policy.permits(Entry("file", "karaoke-studio-drafts/song.json.archive-original")))
+            assertFalse(policy.permits(Entry("file", "karaoke-studio-drafts-neighbor/song.json")))
+            assertFalse(policy.permits(Entry("file", "karaoke-studio-waveforms/cache.bin")))
+            assertFalse(policy.permits(Entry("external", "Music/song.mp3")))
         }
     }
 

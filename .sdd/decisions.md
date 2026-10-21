@@ -844,3 +844,8 @@ AmDm.ru является ценным источником, однако мно�
 - User explicitly authorized direct Codex implementation and minimal administration for small changes. Root implements this bounded Android-only UI prototype; no further delegated implementation or per-function cards.
 - Native Compose 900 ms staggered opacity reveal for real minutes, favorite artist and top three tracks; no generated counters, dependencies, storage/backend/desktop/export changes. Screen-owned progress is independent of live stats updates, theme and lazy item recreation. Period change and explicit replay restart it; Compose animation duration scale controls timing and disabled animations.
 - Empty/loading states stay explicit; full text layout is reserved during reveal. Physical acceptance requires a connected phone and is not implied by compilation.
+
+## Studio review correction — 2026-10-21
+- Independent review identified P2: a replaced/removed local waveform could leave its duration as the persisted editing bound. Accept the review's explicit evidence-priority/provenance contract in reports/KARAOKE_STUDIO_REVIEW_20261021.md; task KST-DURATION-001 assigned to one implementation executor.
+- Preserve marks/history on shorter bounds, invalidate superseded file evidence immediately, retain authoritative matching source and mismatch warning. Seven regression scenarios required. Root remains in coordinator/verification role under the latest user instructions.
+- Duration correction and seven regressions accepted by independent re-review. Fresh Android 260/shared 200 tests pass. Test APK prepared; no publication or physical acceptance claimed.
