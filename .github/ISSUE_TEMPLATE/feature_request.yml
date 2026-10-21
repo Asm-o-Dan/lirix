@@ -1,0 +1,37 @@
+name: Feature request / Предложение
+description: Suggest an improvement to Lirix / Предложить улучшение
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: English or Russian is welcome. Search existing issues before opening a new request.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform / Платформа
+      options:
+        - Android
+        - Windows desktop
+        - Both / Обе
+        - Documentation / Документация
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case / Проблема или сценарий
+      description: What task is difficult today, and who is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior / Предлагаемое поведение
+      description: Describe what should happen from the user's perspective.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and context / Альтернативы и контекст
+      description: Include workarounds, examples or relevant source URLs. Do not attach private data or full lyrics.

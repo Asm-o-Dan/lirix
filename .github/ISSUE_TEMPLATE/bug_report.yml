@@ -1,0 +1,64 @@
+name: Bug report / Ошибка
+description: Report a reproducible problem in Lirix / Сообщить об ошибке
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        English or Russian is welcome. Search existing issues first.
+        For vulnerabilities, use the private email in SECURITY.md. Remove personal data from attachments.
+  - type: input
+    id: version
+    attributes:
+      label: Lirix version and install source / Версия и источник установки
+      placeholder: "e.g. version from Settings, GitHub release or development commit"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Device and OS / Устройство и ОС
+      placeholder: "e.g. Pixel 7, Android 14; Windows 11"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area / Раздел
+      options:
+        - Lyrics / Тексты
+        - Karaoke and sync / Караоке и синхронизация
+        - Chords / Аккорды
+        - Playback detection / Определение трека
+        - Library and statistics / Библиотека и статистика
+        - Connect and casting / Подключение и трансляция
+        - Accessibility / Доступность
+        - Build or installation / Сборка или установка
+        - Other / Другое
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Шаги воспроизведения
+      description: Include the music player, artist/title, mode and provider when relevant. Do not paste full lyrics.
+      placeholder: "1. Open ...\n2. Play ...\n3. Observe ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior / Ожидаемое поведение
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior / Что произошло
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized logs or screenshots / Логи или скриншоты без личных данных
+      description: Optional. For accessibility, include assistive technology and font/motion settings. Remove tokens, private notifications and library data.

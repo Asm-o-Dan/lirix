@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability / Уязвимость
+    url: https://github.com/Asm-o-Dan/lirix/security/policy
+    about: Read the policy and report privately by email / Сообщите приватно по почте из политики
+  - name: Code of Conduct / Правила поведения
+    url: https://github.com/Asm-o-Dan/lirix/blob/main/CODE_OF_CONDUCT.md
+    about: Community rules and private reporting contact / Правила сообщества и контакт для обращений
