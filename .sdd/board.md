@@ -298,3 +298,8 @@
 - Implementation prepared before current coordinator-only instruction. Current role: quality verification, independent review, documentation and isolated Git delivery; no new root product-code edits.
 - Final debug APK assembled; Android 260 and shared 200 tests pass. Studio/draft/PCM/duration/backup coverage passes; independent review correction verified. Test artifact and evidence: intake/KARAOKE_STUDIO_IMPLEMENTATION.md.
 - Final release lint PASS; independent review passed after duration correction. Phone absent from ADB; device acceptance pending and published release unchanged. See intake/KARAOKE_STUDIO_IMPLEMENTATION.md.
+
+## Android player reading surface and context menu — 2026-10-21
+- IMPLEMENTED / AUTOMATED PASS, physical acceptance pending: user supplied annotated 3830/3831 screenshots. Remove white explanatory copy, compact green attribution, move red editing/translation controls to contextual overflow/sheet, move Connect to symmetric lower transport.
+- Audit confirms popup anchored to entire deck instead of MoreVert; approved bounded contract specs/android-ui/player_context_actions_v1.md. One executor owns UI implementation, preserving existing native themes and source/clock changes. Root owns quality gates and isolated Git delivery.
+- Clean 679c37b + UI patch: Android231/shared189 tests PASS, Android APK and instrumentation APK compile PASS, desktop compatibility compile PASS, release lint PASS. Independent review PASS. ADB empty; actual UI tests and physical popup/font/RTL/layout acceptance pending. No release publication.

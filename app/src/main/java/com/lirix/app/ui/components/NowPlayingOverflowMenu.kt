@@ -2,58 +2,66 @@ package com.lirix.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DevicesOther
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PictureInPictureAlt
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lirix.app.ui.theme.AppColors
 import com.lirix.app.ui.theme.LirixThemeTokens
+import com.lirix.app.ui.NowPlayingMode
+
+/** One rendered policy for production and UI tests; switching context discards an open popup. */
+@Composable
+fun PlayerContextOverflow(
+    mode: NowPlayingMode,
+    trackKey: String?,
+    landscape: Boolean,
+    isOverlayActive: Boolean,
+    onToggleOverlay: () -> Unit,
+    onEditLyrics: () -> Unit,
+    onSync: () -> Unit,
+    onTranslations: () -> Unit,
+    onSaveNotes: () -> Unit,
+    onCalibrate: () -> Unit,
+    onTeach: (() -> Unit)?,
+    onTrackInfo: (() -> Unit)?,
+    onTheme: () -> Unit,
+    onBlacklist: () -> Unit
+) {
+    var expanded by remember(mode, trackKey, landscape) { mutableStateOf(false) }
+    val lyrics = trackKey != null && (mode == NowPlayingMode.LYRICS || mode == NowPlayingMode.KARAOKE)
+    PlayerOverflowAnchor(onOpen = { expanded = true }) {
+        NowPlayingOverflowMenu(expanded, { expanded = false }, isOverlayActive, onToggleOverlay,
+            onEditLyricsClick = onEditLyrics.takeIf { lyrics },
+            onSyncClick = onSync.takeIf { lyrics },
+            onTranslationClick = onTranslations.takeIf { trackKey != null && mode == NowPlayingMode.LYRICS },
+            onSaveNotesClick = onSaveNotes.takeIf { trackKey != null && mode == NowPlayingMode.NOTES },
+            onTrackInfoClick = onTrackInfo.takeIf { trackKey != null },
+            onCalibrateClick = onCalibrate.takeIf { trackKey != null && mode == NowPlayingMode.KARAOKE },
+            onTeachModeClick = onTeach.takeIf { trackKey != null && mode != NowPlayingMode.NOTES },
+            onThemeSelectClick = onTheme, onOpenBlacklistSettings = onBlacklist)
+    }
+}
+
+/** The menu and trigger share this exact anchor, independent of the deck bounds. */
+@Composable
+fun PlayerOverflowAnchor(onOpen: () -> Unit, menu: @Composable () -> Unit) {
+    Box {
+        IconButton(onClick = onOpen, modifier = Modifier.size(48.dp)) {
+            Icon(Icons.Default.MoreVert, contentDescription = "Меню", tint = LirixThemeTokens.colors.textSecondary)
+        }
+        menu()
+    }
+}
 
 @Composable
 fun NowPlayingOverflowMenu(
@@ -61,12 +69,13 @@ fun NowPlayingOverflowMenu(
     onDismissRequest: () -> Unit,
     isOverlayActive: Boolean = false,
     onToggleOverlay: () -> Unit = {},
-    onConnectClick: () -> Unit = {},
     onEditLyricsClick: (() -> Unit)? = null,
-    onShareClick: () -> Unit = {},
-    onRejectSourceClick: () -> Unit = {},
-    onCalibrateClick: () -> Unit = {},
-    onTeachModeClick: () -> Unit = {},
+    onSyncClick: (() -> Unit)? = null,
+    onTranslationClick: (() -> Unit)? = null,
+    onSaveNotesClick: (() -> Unit)? = null,
+    onTrackInfoClick: (() -> Unit)? = null,
+    onCalibrateClick: (() -> Unit)? = null,
+    onTeachModeClick: (() -> Unit)? = null,
     onThemeSelectClick: () -> Unit = {},
     onOpenBlacklistSettings: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -75,209 +84,30 @@ fun NowPlayingOverflowMenu(
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
-        modifier = modifier
+        modifier = modifier.widthIn(max = 320.dp)
             .background(tokens.surfaceElevated, RoundedCornerShape(16.dp))
             .border(1.dp, tokens.borderSubtle, RoundedCornerShape(16.dp))
     ) {
-        DropdownMenuItem(
-            text = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Плавающий оверлей",
-                        color = if (isOverlayActive) tokens.accentSecondary else tokens.textPrimary,
-                        fontSize = 14.sp
-                    )
-                    if (isOverlayActive) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Активен",
-                            tint = tokens.accentSecondary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.PictureInPictureAlt,
-                    contentDescription = null,
-                    tint = if (isOverlayActive) tokens.accentSecondary else tokens.textSecondary
-                )
-            },
-            onClick = {
-                onDismissRequest()
-                onToggleOverlay()
-            }
-        )
-
-        DropdownMenuItem(
-            text = {
-                Text(
-                    text = "Поделиться постером",
-                    color = tokens.textPrimary,
-                    fontSize = 14.sp
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = null,
-                    tint = tokens.accentPrimary
-                )
-            },
-            onClick = {
-                onDismissRequest()
-                onShareClick()
-            }
-        )
-
-        DropdownMenuItem(
-            text = {
-                Text(
-                    text = "Редактировать текст песни",
-                    color = tokens.textPrimary,
-                    fontSize = 14.sp
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    tint = tokens.accentPrimary
-                )
-            },
-            onClick = {
-                onDismissRequest()
-                onEditLyricsClick?.invoke()
-            }
-        )
-
-        DropdownMenuItem(
-            text = {
-                Text(
-                    text = "Сменить источник текста",
-                    color = AppColors.ExpenseRed,
-                    fontSize = 14.sp
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = null,
-                    tint = AppColors.ExpenseRed
-                )
-            },
-            onClick = {
-                onDismissRequest()
-                onRejectSourceClick()
-            }
-        )
-
-        DropdownMenuItem(
-            text = {
-                Text(
-                    text = "Калибровка задержки",
-                    color = tokens.textPrimary,
-                    fontSize = 14.sp
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Tune,
-                    contentDescription = null,
-                    tint = tokens.accentPrimary
-                )
-            },
-            onClick = {
-                onDismissRequest()
-                onCalibrateClick()
-            }
-        )
-
-        DropdownMenuItem(
-            text = {
-                Text(
-                    text = "Режим обучения (Teach)",
-                    color = tokens.textPrimary,
-                    fontSize = 14.sp
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.School,
-                    contentDescription = null,
-                    tint = tokens.accentPrimary
-                )
-            },
-            onClick = {
-                onDismissRequest()
-                onTeachModeClick()
-            }
-        )
-
-        DropdownMenuItem(
-            text = {
-                Text(
-                    text = "Подключить ПК (Lirix Connect)",
-                    color = tokens.textPrimary,
-                    fontSize = 14.sp
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.DevicesOther,
-                    contentDescription = null,
-                    tint = tokens.accentPrimary
-                )
-            },
-            onClick = {
-                onDismissRequest()
-                onConnectClick()
-            }
-        )
-
-        DropdownMenuItem(
-            text = {
-                Text(
-                    text = "Тема оформления",
-                    color = tokens.textPrimary,
-                    fontSize = 14.sp
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Palette,
-                    contentDescription = null,
-                    tint = tokens.accentPrimary
-                )
-            },
-            onClick = {
-                onDismissRequest()
-                onThemeSelectClick()
-            }
-        )
-
-        DropdownMenuItem(
-            text = {
-                Text(
-                    text = "🛡 Черный список фонотеки",
-                    color = tokens.textPrimary,
-                    fontSize = 14.sp
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Shield,
-                    contentDescription = null,
-                    tint = tokens.accentPrimary
-                )
-            },
-            onClick = {
-                onDismissRequest()
-                onOpenBlacklistSettings()
-            }
-        )
+        @Composable
+        fun Action(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, callback: () -> Unit) {
+            DropdownMenuItem(
+                text = { Text(label, color = tokens.textPrimary, style = MaterialTheme.typography.bodyMedium) },
+                leadingIcon = { Icon(icon, null, tint = tokens.accentPrimary) },
+                onClick = { onDismissRequest(); callback() },
+                modifier = Modifier.heightIn(min = 48.dp)
+            )
+        }
+        onEditLyricsClick?.let { Action("Редактировать текст песни", Icons.Default.Edit, it) }
+        onSyncClick?.let { Action("Синхронизация — студия", Icons.Default.GraphicEq, it) }
+        onTranslationClick?.let { Action("Перевод и язык", Icons.Default.Translate, it) }
+        onSaveNotesClick?.let { Action("Сохранить заметки", Icons.Default.Check, it) }
+        onCalibrateClick?.let { Action("Калибровка задержки", Icons.Default.Tune, it) }
+        onTeachModeClick?.let { Action("Найти текст или аккорды (Teach)", Icons.Default.School, it) }
+        onTrackInfoClick?.let { Action("О треке и источниках", Icons.Default.Info, it) }
+        HorizontalDivider(color = tokens.borderSubtle)
+        Action(if (isOverlayActive) "Плавающий оверлей: включён" else "Плавающий оверлей", Icons.Default.PictureInPictureAlt, onToggleOverlay)
+        Action("Тема оформления", Icons.Default.Palette, onThemeSelectClick)
+        Action("Чёрный список фонотеки", Icons.Default.Shield, onOpenBlacklistSettings)
     }
 }
 

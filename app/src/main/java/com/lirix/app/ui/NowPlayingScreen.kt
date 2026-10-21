@@ -455,7 +455,7 @@ fun NowPlayingScreen(
         }
     }
     var showEditLyricsDialog by remember { mutableStateOf(false) }
-    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showTranslationSettings by remember { mutableStateOf(false) }
     var showCalibrationDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     val connectManager = remember { AndroidConnectManager.getInstance(context) }
@@ -561,6 +561,43 @@ fun NowPlayingScreen(
         }
     }
 
+    LaunchedEffect(selectedMode, currentTrack?.trackKey, isLandscape) {
+        showTranslationSettings = false
+    }
+    val overflow: @Composable () -> Unit = {
+        PlayerContextOverflow(
+                mode = selectedMode, trackKey = currentTrack?.trackKey, landscape = isLandscape,
+                onTrackInfo = null,
+                isOverlayActive = isOverlayRunning,
+                onEditLyrics = { showEditLyricsDialog = true },
+                onSync = { openTapSync() },
+                onTranslations = { showTranslationSettings = true },
+                onSaveNotes = saveNotes,
+                onToggleOverlay = {
+                    if (!FloatingLyricsService.isPermissionGranted(context)) {
+                        showOverlayPermissionDialog = true
+                    } else {
+                        val willEnable = !isOverlayRunning
+                        FloatingLyricsService.toggle(context)
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = if (willEnable) "Плавающий оверлей включён" else "Плавающий оверлей выключен",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }
+                },
+                onCalibrate = { showCalibrationDialog = true },
+                onTheme = {
+                    showThemeDialog = true
+                },
+                onTeach = onOpenTeachMode?.let { callback -> { callback(currentTrack) } },
+                onBlacklist = {
+                    onOpenBlacklistSettings()
+                }
+            )
+    }
+
     // System Back handles exiting notes edit mode, exiting focus mode, or navigating back
     BackHandler {
         if (selectedMode == NowPlayingMode.NOTES && (isNotesFocused || isImeVisible)) {
@@ -612,27 +649,8 @@ fun NowPlayingScreen(
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = { showConnectBottomSheet = true },
-                            modifier = Modifier.size(44.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.DevicesOther,
-                                contentDescription = "Подключить устройство (ПК)",
-                                tint = if (isRemotePlaying) lirixColors.accentPrimary else lirixColors.textPrimary
-                            )
-                        }
 
-                        IconButton(
-                            onClick = { showOverflowMenu = true },
-                            modifier = Modifier.size(44.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Меню",
-                                tint = lirixColors.textSecondary
-                            )
-                        }
+                        overflow()
                     }
                 }
 
@@ -688,16 +706,7 @@ fun NowPlayingScreen(
                             overflow = TextOverflow.Ellipsis
                         )
 
-                        IconButton(
-                            onClick = { showOverflowMenu = true },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Меню",
-                                tint = lirixColors.textSecondary
-                            )
-                        }
+                        overflow()
                     }
 
                     // Блок метаданных
@@ -851,6 +860,9 @@ fun NowPlayingScreen(
                         ) {
                             Icon(Icons.Default.SkipNext, "Следующий", tint = lirixColors.textPrimary)
                         }
+                        IconButton(onClick = { showShareDialog = true }, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Default.Share, "Поделиться карточкой", tint = lirixColors.textSecondary)
+                        }
                     }
 
                     // Компактный сдвиг ⏱ и степпер 'Аа' (только в караоке при наличии текста)
@@ -958,7 +970,9 @@ fun NowPlayingScreen(
                         onSaveNotes = saveNotes,
                         onNotesFocusChange = { isNotesFocused = it },
                         totalTrackDuration = totalTrackDuration,
-                        automaticTranslations = automaticTranslations
+                        automaticTranslations = automaticTranslations,
+                        showTranslationSettings = showTranslationSettings,
+                        onDismissTranslationSettings = { showTranslationSettings = false }
                     )
                 }
             }
@@ -1036,27 +1050,8 @@ fun NowPlayingScreen(
                         }
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = { showConnectBottomSheet = true },
-                                modifier = Modifier.size(44.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.DevicesOther,
-                                    contentDescription = "Подключить устройство (ПК)",
-                                    tint = if (isRemotePlaying) lirixColors.accentPrimary else lirixColors.textSecondary
-                                )
-                            }
 
-                            IconButton(
-                                onClick = { showOverflowMenu = true },
-                                modifier = Modifier.size(44.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = "Меню",
-                                    tint = lirixColors.textSecondary
-                                )
-                            }
+                            overflow()
                         }
                     }
                 }
@@ -1182,7 +1177,9 @@ fun NowPlayingScreen(
                         onSaveNotes = saveNotes,
                         onNotesFocusChange = { isNotesFocused = it },
                         totalTrackDuration = totalTrackDuration,
-                        automaticTranslations = automaticTranslations
+                        automaticTranslations = automaticTranslations,
+                        showTranslationSettings = showTranslationSettings,
+                        onDismissTranslationSettings = { showTranslationSettings = false }
                     )
                 }
 
@@ -1343,84 +1340,25 @@ fun NowPlayingScreen(
 
                 // 7. Панель транспорта (56dp)
                 AnimatedVisibility(visible = !isHideControlsForNotes) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                MediaSessionCollector.skipToPrevious()
-                            },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SkipPrevious,
-                                contentDescription = "Предыдущий",
-                                tint = lirixColors.textPrimary,
-                                modifier = Modifier.size(30.dp)
-                            )
-                        }
-
-                        Surface(
-                            shape = CircleShape,
-                            color = lirixColors.accentPrimary,
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clickable {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    val newPlaying = !isPlaying
-                                    localIsPlaying = newPlaying
-                                    MediaSessionCollector.togglePlayPause()
-                                }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (isPlaying) "Пауза" else "Играть",
-                                    tint = lirixColors.appBackground,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                MediaSessionCollector.skipToNext()
-                            },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SkipNext,
-                                contentDescription = "Следующий",
-                                tint = lirixColors.textPrimary,
-                                modifier = Modifier.size(30.dp)
-                            )
-                        }
-
-                        // Кнопка «Поделиться»
-                        IconButton(
-                            onClick = { showShareDialog = true },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .semantics {
-                                    role = Role.Button
-                                    contentDescription = "Поделиться карточкой"
-                                }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = null,
-                                tint = lirixColors.textSecondary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
+                    PlayerTransportRow(
+                        isPlaying = isPlaying, connected = isRemotePlaying,
+                        onConnect = { showConnectBottomSheet = true },
+                        onPrevious = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            MediaSessionCollector.skipToPrevious()
+                        },
+                        onTogglePlayback = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            val newPlaying = !isPlaying
+                            localIsPlaying = newPlaying
+                            MediaSessionCollector.togglePlayPause()
+                        },
+                        onNext = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            MediaSessionCollector.skipToNext()
+                        },
+                        onShare = { showShareDialog = true }
+                    )
                 }
 
                 // 8. Нижний буфер (8dp)
@@ -1436,63 +1374,6 @@ fun NowPlayingScreen(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 70.dp)
         )
-
-        if (showOverflowMenu) {
-            NowPlayingOverflowMenu(
-                expanded = showOverflowMenu,
-                onDismissRequest = { showOverflowMenu = false },
-                isOverlayActive = isOverlayRunning,
-                onConnectClick = {
-                    showOverflowMenu = false
-                    showConnectBottomSheet = true
-                },
-                onEditLyricsClick = {
-                    showOverflowMenu = false
-                    showEditLyricsDialog = true
-                },
-                onToggleOverlay = {
-                    showOverflowMenu = false
-                    if (!FloatingLyricsService.isPermissionGranted(context)) {
-                        showOverlayPermissionDialog = true
-                    } else {
-                        val willEnable = !isOverlayRunning
-                        FloatingLyricsService.toggle(context)
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = if (willEnable) "Плавающий оверлей включён" else "Плавающий оверлей выключен",
-                                duration = SnackbarDuration.Short
-                            )
-                        }
-                    }
-                },
-                onCalibrateClick = {
-                    showOverflowMenu = false
-                    showCalibrationDialog = true
-                },
-                onThemeSelectClick = {
-                    showOverflowMenu = false
-                    showThemeDialog = true
-                },
-                onTeachModeClick = {
-                    showOverflowMenu = false
-                    currentTrack?.let { onOpenTeachMode?.invoke(it) }
-                },
-                onOpenBlacklistSettings = {
-                    showOverflowMenu = false
-                    onOpenBlacklistSettings()
-                },
-                onShareClick = {
-                    showOverflowMenu = false
-                    if (currentTrack != null) {
-                        showShareDialog = true
-                    } else {
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Сначала включите воспроизведение трека")
-                        }
-                    }
-                }
-            )
-        }
 
         if (showOverlayPermissionDialog) {
             OverlayPermissionDialog(
@@ -1651,7 +1532,9 @@ private fun RenderTeleprompterContent(
     onSaveNotes: () -> Unit = {},
     onNotesFocusChange: (Boolean) -> Unit = {},
     totalTrackDuration: Long = 0L,
-    automaticTranslations: com.lirix.app.translations.AutomaticSongTranslations? = null
+    automaticTranslations: com.lirix.app.translations.AutomaticSongTranslations? = null,
+    showTranslationSettings: Boolean = false,
+    onDismissTranslationSettings: () -> Unit = {}
 ) {
     val tokens = LirixThemeTokens.colors
 
@@ -1781,13 +1664,10 @@ private fun RenderTeleprompterContent(
             val database = remember(context) { AppDatabase.getInstance(context) }
             val provider = remember { com.lirix.app.translations.SongTranslationProviders() }
             Column(Modifier.fillMaxSize()) {
-                Row {
-                    TextButton(onClick = onEditLyrics) { Text("Редактировать текст") }
-                    TextButton(onClick = onStartTapSync) { Text("Синхронизация") }
-                }
                 com.lirix.app.translations.TranslationPanel(currentTrack.trackKey, "${currentTrack.artist} — ${currentTrack.title}",
                     effectivePlain ?: effectiveSynced?.let { LrcSyncEngine.parseLrcLinesStrict(it).joinToString("\n") { line -> line.text } }.orEmpty(),
-                    database.songTranslationDao(), provider::load, Modifier.weight(1f), automaticTranslations, currentTrack.title, currentTrack.artist)
+                    database.songTranslationDao(), provider::load, Modifier.weight(1f), automaticTranslations, currentTrack.title, currentTrack.artist,
+                    compact = true, settingsExpanded = showTranslationSettings, onDismissSettings = onDismissTranslationSettings)
             }
         }
 

@@ -849,3 +849,8 @@ AmDm.ru является ценным источником, однако мно�
 - Independent review identified P2: a replaced/removed local waveform could leave its duration as the persisted editing bound. Accept the review's explicit evidence-priority/provenance contract in reports/KARAOKE_STUDIO_REVIEW_20261021.md; task KST-DURATION-001 assigned to one implementation executor.
 - Preserve marks/history on shorter bounds, invalidate superseded file evidence immediately, retain authoritative matching source and mismatch warning. Seven regression scenarios required. Root remains in coordinator/verification role under the latest user instructions.
 - Duration correction and seven regressions accepted by independent re-review. Fresh Android 260/shared 200 tests pass. Test APK prepared; no publication or physical acceptance claimed.
+
+## Android contextual player actions — 2026-10-21
+- Accept audited contract specs/android-ui/player_context_actions_v1.md: anchor overflow locally to the MoreVert button, filter actions by real mode/track availability, dismiss on context changes. Library owns its local actions; no invented global song menu.
+- Portrait Connect/Previous/Play/Next/Share are the single transport row; remove duplicate header/overflow Connect. Red controls move to context actions/settings sheet, green attribution becomes compact with full details reachable, white disclaimer removed from Android reading surface. Desktop shared-panel defaults must remain unchanged.
+- Targeted native Material preservation, no dependencies or brand changes. User authorized implementation; real device acceptance remains pending connectivity.

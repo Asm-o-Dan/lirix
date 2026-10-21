@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lirix.app.platform.currentTimeMillis
@@ -21,16 +22,18 @@ import kotlinx.coroutines.*
 @Composable
 fun TranslationPanel(trackKey: String, trackLabel: String, original: String, dao: SongTranslationDao,
                      load: suspend (String) -> SongTranslation, modifier: Modifier = Modifier,
-                     automatic: AutomaticSongTranslations? = null, title: String = "", artist: String = "") {
+                     automatic: AutomaticSongTranslations? = null, title: String = "", artist: String = "",
+                     compact: Boolean = false, settingsExpanded: Boolean = false, onDismissSettings: () -> Unit = {}) {
     val language = automatic?.language?.collectAsState()?.value ?: "ru"
-    key(trackKey, language) { TranslationPanelContent(trackKey, trackLabel, original, dao, load, modifier, automatic, title, artist, language) }
+    key(trackKey, language) { TranslationPanelContent(trackKey, trackLabel, original, dao, load, modifier, automatic, title, artist, language, compact, settingsExpanded, onDismissSettings) }
 }
 
 @Composable
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 private fun TranslationPanelContent(trackKey: String, trackLabel: String, original: String, dao: SongTranslationDao,
                                     load: suspend (String) -> SongTranslation, modifier: Modifier,
-                                    automatic: AutomaticSongTranslations?, title: String, artist: String, language: String) {
+                                    automatic: AutomaticSongTranslations?, title: String, artist: String, language: String,
+                                    compact: Boolean, settingsExpanded: Boolean, onDismissSettings: () -> Unit) {
     val c = LirixThemeTokens.colors
     val scope = rememberCoroutineScope()
     val uri = LocalUriHandler.current
@@ -44,6 +47,7 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var languageMenu by remember { mutableStateOf(false) }
+    var showAttribution by remember { mutableStateOf(false) }
     val autoState = automatic?.states?.collectAsState()?.value?.get(automatic.stateKey(trackKey, language))
     LaunchedEffect(automatic, trackKey, title, artist) { automatic?.resolve(trackKey, title, artist, language = language) }
     LaunchedEffect(dao, trackKey) {
@@ -54,7 +58,8 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
     val entity = saved.firstOrNull { it.sourceUrl == selectedUrl } ?: saved.firstOrNull()
     val cached = remember(entity) { entity?.let { runCatching { TranslationDocuments.decode(it.documentJson) }.getOrNull() } }
     val document = preview ?: cached
-    Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    @Composable
+    fun Controls() {
         if (automatic != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Box {
                 TextButton(onClick = { languageMenu = true }, enabled = !busy,
@@ -82,6 +87,57 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                 Text(if (importing) "Закрыть импорт" else if (automatic != null) "Ссылка вручную" else "Добавить перевод")
             }
         }
+    }
+    @Composable
+    fun ImportForm() {
+            if (importing) {
+                Text("Перевод для: $trackLabel", color = c.textPrimary)
+                OutlinedTextField(input, { input = it; preview = null; confirmed = false }, enabled = !busy,
+                    label = { Text("Ссылка Amalgama или LyricsTranslate") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                Button(enabled = !busy && input.isNotBlank(), onClick = {
+                    if (busy || input.isBlank()) return@Button
+                    busy = true
+                    scope.launch {
+                    busy = true; error = null; preview = null; confirmed = false
+                    try { preview = withTimeout(25_000) { load(input) }; mode = 2; if (compact) onDismissSettings() }
+                    catch (e: TimeoutCancellationException) { error = "Источник не ответил вовремя. Попробуйте ещё раз." }
+                    catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { error = e.message ?: "Не удалось загрузить перевод" }
+                    finally { busy = false }
+                } }) { Text(if (busy) "Загрузка…" else "Предпросмотр") }
+            }
+    }
+    if (compact && settingsExpanded) {
+        ModalBottomSheet(onDismissRequest = onDismissSettings) {
+            Column(Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState())
+                .imePadding().padding(horizontal = 16.dp).padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Перевод и язык", style = MaterialTheme.typography.titleLarge, color = c.textPrimary)
+                Controls()
+                ImportForm()
+                error?.let { Text(it, color = c.accentPrimary) }
+                TextButton(onClick = onDismissSettings) { Text("Готово") }
+            }
+        }
+    }
+    if (compact && showAttribution && document != null) {
+        AlertDialog(onDismissRequest = { showAttribution = false },
+            title = { Text("Об источнике перевода") },
+            text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${document.artist} — ${document.title}")
+                if (document.translatedTitle.isNotBlank()) Text(document.translatedTitle)
+                Text("Источник: ${document.sourceName}")
+                Text("Перевод: ${document.translator.ifBlank { "автор не указан" }}")
+                Text(document.sourceUrl)
+                document.warnings.forEach { Text(it) }
+            } },
+            confirmButton = { TextButton(onClick = {
+                runCatching { uri.openUri(document.sourceUrl) }.onFailure { error = "Не удалось открыть источник" }
+            }) { Text("Открыть источник") } },
+            dismissButton = { TextButton(onClick = { showAttribution = false }) { Text("Закрыть") } })
+    }
+    Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (!compact) Controls()
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (cached == null && preview == null && automatic != null) {
@@ -116,22 +172,7 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                 if (autoState != null && autoState != AutomaticTranslationState.Searching && autoState != AutomaticTranslationState.Ready)
                     TextButton(enabled = !busy, onClick = { scope.launch { automatic.resolve(trackKey, title, artist, true, language) } }) { Text("Искать снова") }
             }
-            if (importing) {
-                Text("Перевод для: $trackLabel", color = c.textPrimary)
-                OutlinedTextField(input, { input = it; preview = null; confirmed = false }, enabled = !busy,
-                    label = { Text("Ссылка Amalgama или LyricsTranslate") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Button(enabled = !busy && input.isNotBlank(), onClick = {
-                    if (busy || input.isBlank()) return@Button
-                    busy = true
-                    scope.launch {
-                    busy = true; error = null; preview = null; confirmed = false
-                    try { preview = withTimeout(25_000) { load(input) }; mode = 2 }
-                    catch (e: TimeoutCancellationException) { error = "Источник не ответил вовремя. Попробуйте ещё раз." }
-                    catch (e: CancellationException) { throw e }
-                    catch (e: Exception) { error = e.message ?: "Не удалось загрузить перевод" }
-                    finally { busy = false }
-                } }) { Text(if (busy) "Загрузка…" else "Предпросмотр") }
-            }
+            if (!compact) ImportForm()
             error?.let { Text(it, color = c.accentPrimary) }
             if (entity != null && cached == null) Text("Сохранённый перевод повреждён. Можно импортировать его заново.", color = c.textSecondary)
             if (preview != null) {
@@ -167,12 +208,18 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                 }
             }
             document?.let { translation ->
-                Text("${translation.artist} — ${translation.title}", color = c.textPrimary, fontWeight = FontWeight.Bold)
-                if (translation.translatedTitle.isNotBlank()) Text(translation.translatedTitle, color = c.textSecondary)
-                Text("Источник: ${translation.sourceName} · Перевод: ${translation.translator.ifBlank { "автор не указан" }}", color = c.textSecondary)
-                translation.warnings.forEach { Text(it, color = c.textSecondary) }
-                TextButton(onClick = { runCatching { uri.openUri(translation.sourceUrl) }.onFailure { error = "Не удалось открыть источник" } }) { Text("Открыть источник") }
-                if (mode == 2) Text(if (translation.aligned) "Оригинал и перевод со страницы источника. Без синхронизации караоке."
+                if (compact) TextButton(onClick = { showAttribution = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text(listOf(translation.sourceName, translation.translator).filter { it.isNotBlank() }.joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f).semantics { contentDescription = "Об источнике перевода: ${translation.sourceName}; ${translation.translator}" })
+                }
+                if (!compact) Text("${translation.artist} — ${translation.title}", color = c.textPrimary, fontWeight = FontWeight.Bold)
+                if (!compact && translation.translatedTitle.isNotBlank()) Text(translation.translatedTitle, color = c.textSecondary)
+                if (!compact) Text("Источник: ${translation.sourceName} · Перевод: ${translation.translator.ifBlank { "автор не указан" }}", color = c.textSecondary)
+                if (!compact) translation.warnings.forEach { Text(it, color = c.textSecondary) }
+                if (!compact) TextButton(onClick = { runCatching { uri.openUri(translation.sourceUrl) }.onFailure { error = "Не удалось открыть источник" } }) { Text("Открыть источник") }
+                if (!compact && mode == 2) Text(if (translation.aligned) "Оригинал и перевод со страницы источника. Без синхронизации караоке."
                     else "Оригинал и перевод отдельными текстами. Соответствие строк не подтверждено.", color = c.textMuted, fontSize = 12.sp)
             }
             if (mode == 0 || (automatic != null && document == null && original.isNotBlank())) {
