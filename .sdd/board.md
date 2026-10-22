@@ -303,3 +303,10 @@
 - IMPLEMENTED / AUTOMATED PASS, physical acceptance pending: user supplied annotated 3830/3831 screenshots. Remove white explanatory copy, compact green attribution, move red editing/translation controls to contextual overflow/sheet, move Connect to symmetric lower transport.
 - Audit confirms popup anchored to entire deck instead of MoreVert; approved bounded contract specs/android-ui/player_context_actions_v1.md. One executor owns UI implementation, preserving existing native themes and source/clock changes. Root owns quality gates and isolated Git delivery.
 - Clean 679c37b + UI patch: Android231/shared189 tests PASS, Android APK and instrumentation APK compile PASS, desktop compatibility compile PASS, release lint PASS. Independent review PASS. ADB empty; actual UI tests and physical popup/font/RTL/layout acceptance pending. No release publication.
+
+## Antigravity stream audit — 2026-10-22
+- REVIEW FAIL / corrections required. User supplied mixed Latin/Han karaoke screenshot and asked to verify the JA/ZH/MP4/RU-EN session claims.
+- Actual four production romanization engines reproduced unknown Han passthrough and per-line language switching. All 29 existing unmodified romanization tests passed in a standalone cached compiler/JUnit run; this is not a full Gradle/phone acceptance result.
+- Confirmed core findings: partial reading displayed as complete; Japanese Han-only lines routed to Mandarin; contextual polyphones/particles/normalization gaps. Report: reports/ROMANIZATION_AUDIT_20261022.md.
+- Additional read-only findings: Android locale application path disconnected, desktop locale/parity incomplete, encoder silently drops/unreliably finalizes frames, typewriter/long-line export limits. Report: reports/AG_STREAM_CLAIMS_REVIEW_20261022.md. Device codec/locales were not run; static findings are explicitly distinguished from runtime proof.
+- No product/test/dependency, phone or release edits made by this audit. Prior green-test/feature-completion claims do not supersede these quality gaps.

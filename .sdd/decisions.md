@@ -854,3 +854,8 @@ AmDm.ru является ценным источником, однако мно�
 - Accept audited contract specs/android-ui/player_context_actions_v1.md: anchor overflow locally to the MoreVert button, filter actions by real mode/track availability, dismiss on context changes. Library owns its local actions; no invented global song menu.
 - Portrait Connect/Previous/Play/Next/Share are the single transport row; remove duplicate header/overflow Connect. Red controls move to context actions/settings sheet, green attribution becomes compact with full details reachable, white disclaimer removed from Android reading surface. Desktop shared-panel defaults must remain unchanged.
 - Targeted native Material preservation, no dependencies or brand changes. User authorized implementation; real device acceptance remains pending connectivity.
+
+## Romanization quality acceptance — 2026-10-22
+- Record the independently reproduced mixed-script output as an engine/UI completeness defect, not a font, lyrics timing or stale persisted-cache issue. Preserve original text and report unresolved spans; deleting unknown characters is not a valid repair.
+- Carry explicit document/song source language to both rendering paths; UI locale is independent. Han-only input needs ambiguity handling rather than unconditional Mandarin classification.
+- Existing 29 green example tests are insufficient acceptance evidence. Require independent short coverage/context/normalization cases and actual locale/MP4 device checks before renewing completion claims. Reading-backend selection/benchmark and production repairs remain follow-up work; this turn is an audit only.
