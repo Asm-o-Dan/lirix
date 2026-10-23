@@ -310,3 +310,19 @@
 - Confirmed core findings: partial reading displayed as complete; Japanese Han-only lines routed to Mandarin; contextual polyphones/particles/normalization gaps. Report: reports/ROMANIZATION_AUDIT_20261022.md.
 - Additional read-only findings: Android locale application path disconnected, desktop locale/parity incomplete, encoder silently drops/unreliably finalizes frames, typewriter/long-line export limits. Report: reports/AG_STREAM_CLAIMS_REVIEW_20261022.md. Device codec/locales were not run; static findings are explicitly distinguished from runtime proof.
 - No product/test/dependency, phone or release edits made by this audit. Prior green-test/feature-completion claims do not supersede these quality gaps.
+
+## Audit repairs — 2026-10-22
+- IN_PROGRESS: user authorized fixing all Romanization/locale/MP4 audit findings. Root coordinates under current AGENTS; owners implement approved v2 contracts and function cards.
+- Roman owner: /root/romanization_audit, source-language context, real offline reading backends, qualified incomplete results, normalization and NowPlaying/reading UI. Approved pinned KuromojiIPADIC0.9.0, wanakana-core1.1.1 and houbb/pinyin0.4.0; actual compatibility/size/device gates still required.
+- Locale owner: /root/ag_summary_consistency_review, Android lifecycle/resources/prefs, desktop observable/persisted language and UI catalogs, studio and Wrapped caller. Owns XML/catalog and narrowly scoped backup policy for reading preference file.
+- MP4 owner: /root/mp4_repair, production backpressure/EOS/failure cleanup, text/grapheme layout, CounterRoll labels data and device codec test. CounterRollLabels(header,minutes,tracks,artists,topTracks,plays) API frozen; locale owner passes caller-localized immutable labels.
+- Root owns Gradle/independent review/isolated delivery. MP4 old-code RED snapshot run active. Phone absent from ADB; no physical acceptance or release change claimed.
+
+## Player device regressions — 2026-10-23
+- User authorized hands-off ADB verification.
+- REPRODUCED: Gold transpose selector changes but structural chord line remains unchanged; owner is preparing chord parsing specification and meaningful fixtures.
+- REPRODUCED: heart remains outline while database favorite flag changes 0→1. Observed stored state + transactional toggle repair approved.
+- CONFIRMED by source owner: repeated top safe inset; canonical AppScaffold owner handles consumption of parent padding.
+- Database14 compatibility prerequisite frozen in build/repairs-baseline/db14-clean; installation gated on rebuilt Room identity.
+- MP4 refreshed 26-file freeze under isolated tests. Locale/romanization and player integration pending.
+- Acceptance evidence: .sdd/reports/PLAYER_DEVICE_BASELINE_20261023.md. Invalid earlier Library trial excluded.

@@ -859,3 +859,12 @@ AmDm.ru является ценным источником, однако мно�
 - Record the independently reproduced mixed-script output as an engine/UI completeness defect, not a font, lyrics timing or stale persisted-cache issue. Preserve original text and report unresolved spans; deleting unknown characters is not a valid repair.
 - Carry explicit document/song source language to both rendering paths; UI locale is independent. Han-only input needs ambiguity handling rather than unconditional Mandarin classification.
 - Existing 29 green example tests are insufficient acceptance evidence. Require independent short coverage/context/normalization cases and actual locale/MP4 device checks before renewing completion claims. Reading-backend selection/benchmark and production repairs remain follow-up work; this turn is an audit only.
+
+## Repair contracts and integration ownership — 2026-10-22
+- Approve Romanization repair v2, Locale repair v2 and MP4 repair v2 following independent audit; fixes must preserve exact original lyrics, occurrence identity/timings, drafts and existing non-feature edits.
+- NowPlaying/overflow/reading integration belongs to Roman owner; locale owner supplies resource IDs and Context.findHostActivity helper. Root writes no product code. CounterRoll renderer/Labels belongs to MP4 owner, resource catalogs/Wrapped caller to locale owner. Other owners must not edit XML/catalog concurrently.
+- Dependency approval covers exact pinned reading artifacts and required license notices, not a runtime-quality claim. Full dictionary and independent corpus checks replace screenshot-only hand maps. Dictionary limits must be visible; no Han deletion or false COMPLETE output.
+- Device/source-language choices are independent of app UI locale. API33+ framework locale authority and <=32 persisted settings are defined in approved locale contract. No manual process restart, destructive data migration, uninstall or release publication in this task.
+
+## Player and safe device acceptance — 2026-10-23
+Approved bounded contract .sdd/specs/media-ui/player_gold_repair_v1.md: favorite toggle uses actual persisted state and preserves existing fields, UI observes Room state, parent inset is consumed before child insets. Gold chord parser receives its own function-level specification and independent validation. Read-only Git show/diff is permitted for scoped clean delivery; staging/commits remain with coordinator. No destructive migration, uninstall, or data wipe is authorized. Phone hands-off window was explicitly granted; baseline only, no new APK installed yet.
