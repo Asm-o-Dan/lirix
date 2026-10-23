@@ -1,0 +1,10 @@
+Intro: Am (Em) F (C) }x2
+[Verse 1]
+| Am/E  G/B | Fmaj7 Cadd9 |
+Припев: Dm7  G7sus4  Cmaj9/E  :| x2
+[Am] [ C/G ] (F#m7b5) {Bb7(#11)/F} 2x
+Chorus: Cmaj7  Dm9/G  G13(b9) C6/9
+A cup of tea in C is ordinary prose.
+(Am) is a label in this sentence.
+[Verse 2] Keep [notes] and [Am] as explicit markup.
+Cfoobar Am
