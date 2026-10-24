@@ -75,7 +75,12 @@ class PlayerSurfaceUiTest {
             val results = mutableListOf<TextLayoutResult>()
             assertTrue(node.config[SemanticsActions.GetTextLayoutResult].action?.invoke(results) == true)
             assertTrue(results.isNotEmpty())
-            assertFalse("Clipped label: $label", results.any { it.hasVisualOverflow })
+            assertFalse("Clipped label: $label; bounds=${node.boundsInRoot}; layouts=${results.map { result ->
+                "size=${result.size}, paragraph=${result.multiParagraph.width}x${result.multiParagraph.height}, " +
+                    "overflowWidth=${result.didOverflowWidth}, overflowHeight=${result.didOverflowHeight}, " +
+                    "lines=${result.lineCount}, constraints=${result.layoutInput.constraints}, style=${result.layoutInput.style}, " +
+                    "lineEdges=${(0 until result.lineCount).map { result.getLineLeft(it) to result.getLineRight(it) }}"
+            }}", results.any { it.hasVisualOverflow })
             assertTrue(node.boundsInRoot.top >= selector.top && node.boundsInRoot.bottom <= selector.bottom)
             ui.onNodeWithText(label).performClick().assertIsSelected()
         }
