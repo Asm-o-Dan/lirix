@@ -29,3 +29,8 @@ Overall goal: ACTIVE, not complete. This turn made product-code/test/artifact pr
 ADB remained empty at verification. A device connection/hands-off request is pending. Keep the complete goal active; do not replace these gates with code inspection or compiled tests.
 
 Gesture reference: AndroidX's [horizontal drag detector](https://raw.githubusercontent.com/androidx/androidx/androidx-main/compose/foundation/foundation/src/commonMain/kotlin/androidx/compose/foundation/gestures/DragGestureDetector.kt) starts callbacks after touch slop. Our first-down displacement avoids losing that initial movement; the actual gesture test remains a device gate.
+
+## Text-size button consistency follow-up
+- Replaced portrait 36 dp and landscape 32 dp controls with a shared 48 dp component, matching timing correction surfaces and corners. Added RU/EN accessibility labels and rounded percentage display.
+- assembleDebug PASS (text-size-controls.log, 1m23s). Device verification remains pending: ADB has no connected devices.
+- Refreshed preview APK SHA-256: 9193a6363f4ccde987e2fcd79f63d4b080a34836f78c2fc165b242a6cd2ac574. The earlier APK hash and source manifest describe the preceding build; the instrumentation APK was not rebuilt for this UI-only follow-up.

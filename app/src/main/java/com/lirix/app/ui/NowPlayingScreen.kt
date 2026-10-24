@@ -903,22 +903,9 @@ fun NowPlayingScreen(
                                 onDetails = { showCalibrationDialog = true }
                             )
 
-                            // Степпер Аа
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Aa", style = MaterialTheme.typography.labelSmall, color = lirixColors.textSecondary)
-                                IconButton(
-                                    onClick = { textScaleFactor = (textScaleFactor - 0.1f).coerceIn(0.8f, 1.5f) },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Text("−", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
-                                }
-                                IconButton(
-                                    onClick = { textScaleFactor = (textScaleFactor + 0.1f).coerceIn(0.8f, 1.5f) },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Text("+", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
-                                }
-                            }
+                            com.lirix.app.ui.components.TextSizeControls(
+                                scale = textScaleFactor, onChange = { textScaleFactor = it }
+                            )
                         }
                     }
 
@@ -1300,44 +1287,9 @@ fun NowPlayingScreen(
                             onDetails = { showCalibrationDialog = true }
                         )
 
-                        // Степпер Аа
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Aa ${(textScaleFactor * 100).toInt()}%",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = lirixColors.textSecondary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = lirixColors.surfaceCard,
-                                border = BorderStroke(1.dp, lirixColors.borderSubtle),
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clickable {
-                                        textScaleFactor = (textScaleFactor - 0.1f).coerceIn(0.8f, 1.5f)
-                                    }
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("−", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = lirixColors.surfaceCard,
-                                border = BorderStroke(1.dp, lirixColors.borderSubtle),
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clickable {
-                                        textScaleFactor = (textScaleFactor + 0.1f).coerceIn(0.8f, 1.5f)
-                                    }
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("+", fontWeight = FontWeight.Bold, color = lirixColors.textPrimary)
-                                }
-                            }
-                        }
+                        com.lirix.app.ui.components.TextSizeControls(
+                            scale = textScaleFactor, onChange = { textScaleFactor = it }
+                        )
                     }
                 }
 
