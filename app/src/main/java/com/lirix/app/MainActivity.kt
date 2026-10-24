@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
         }
 
         handleIntent(intent)
+        com.lirix.app.update.UpdateActivity.checkOnLaunch(this)
 
         setContent {
             LocalizedAppContent {

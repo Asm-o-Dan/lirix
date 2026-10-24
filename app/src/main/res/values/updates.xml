@@ -1,0 +1,17 @@
+<resources>
+  <string name="update_title">Lirix updates</string>
+  <string name="update_checking">Checking GitHub…</string>
+  <string name="update_version">Version %1$s</string>
+  <string name="update_cancel">Cancel</string>
+  <string name="update_download">Download update</string>
+  <string name="update_install">Install</string>
+  <string name="update_check">Check again</string>
+  <string name="update_current">The Android app is up to date.</string>
+  <string name="update_available">An update is available. Tap to download.</string>
+  <string name="update_downloading">Downloading APK…</string>
+  <string name="update_ready">APK verified. Confirm installation in the Android system dialog.</string>
+  <string name="update_permission">Allow Lirix to install updates, then return to the app.</string>
+  <string name="update_failed">Could not fetch or verify the update. Check your connection and retry.</string>
+  <string name="update_cancelled">Download cancelled.</string>
+  <string name="update_signature">This APK has a different signing certificate. It cannot update this installed build. Your data is preserved; do not uninstall the app.</string>
+</resources>

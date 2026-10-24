@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -47,6 +48,8 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+
+        <activity android:name=".update.UpdateActivity" android:exported="false" android:configChanges="locale|layoutDirection" />
 
         <!-- Notification Ingestion Service -->
         <service

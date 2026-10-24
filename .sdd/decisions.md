@@ -868,3 +868,7 @@ AmDm.ru является ценным источником, однако мно�
 
 ## Player and safe device acceptance — 2026-10-23
 Approved bounded contract .sdd/specs/media-ui/player_gold_repair_v1.md: favorite toggle uses actual persisted state and preserves existing fields, UI observes Room state, parent inset is consumed before child insets. Gold chord parser receives its own function-level specification and independent validation. Read-only Git show/diff is permitted for scoped clean delivery; staging/commits remain with coordinator. No destructive migration, uninstall, or data wipe is authorized. Phone hands-off window was explicitly granted; baseline only, no new APK installed yet.
+
+## Android GitHub delivery — 2026-10-24
+- Daily foreground checks and an explicit download/installation screen; stable numeric tags and one APK with GitHub SHA-256. Exact size/hash, package, versionCode and signer checks precede scoped FileProvider handoff. Never uninstall or clear data to bypass signing incompatibility. Existing permanent release key remains required.
+- Seven tests, APK and release lint pass; physical installer acceptance pending, device absent. No silent installation promise or release publication.

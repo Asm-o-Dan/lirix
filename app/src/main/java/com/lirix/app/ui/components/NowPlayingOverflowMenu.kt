@@ -88,6 +88,7 @@ fun NowPlayingOverflowMenu(
     modifier: Modifier = Modifier
 ) {
     val tokens = LirixThemeTokens.colors
+    val updateContext = androidx.compose.ui.platform.LocalContext.current
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
@@ -116,6 +117,7 @@ fun NowPlayingOverflowMenu(
         Action(stringResource(if (isOverlayActive) R.string.menu_floating_overlay_enabled else R.string.menu_floating_overlay), Icons.Default.PictureInPictureAlt, onToggleOverlay)
         Action(stringResource(R.string.menu_theme), Icons.Default.Palette, onThemeSelectClick)
         Action(stringResource(R.string.menu_language), Icons.Default.Language, onOpenLanguageDialog)
+        Action(stringResource(R.string.update_title), Icons.Default.SystemUpdate) { com.lirix.app.update.UpdateActivity.open(updateContext) }
         Action(stringResource(R.string.menu_blacklist), Icons.Default.Shield, onOpenBlacklistSettings)
     }
 }

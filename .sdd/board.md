@@ -326,3 +326,6 @@
 - Database14 compatibility prerequisite frozen in build/repairs-baseline/db14-clean; installation gated on rebuilt Room identity.
 - MP4 refreshed 26-file freeze under isolated tests. Locale/romanization and player integration pending.
 - Acceptance evidence: .sdd/reports/PLAYER_DEVICE_BASELINE_20261023.md. Invalid earlier Library trial excluded.
+
+## Android GitHub updates — 2026-10-24
+- IMPLEMENTED / AUTOMATED PASS: GitHub update delivery; seven tests, debug APK and release lint pass. Daily foreground check, manual player menu, verified APK and system consent. Physical update acceptance pending: ADB empty. Contract: specs/android-ui/github_updates_v1.md; report: reports/ANDROID_UPDATES_20261024.md. No release or desktop updater changes.
