@@ -82,6 +82,7 @@ android {
 
     testOptions {
         unitTests {
+            isIncludeAndroidResources = true
             isReturnDefaultValues = true
         }
     }
@@ -89,6 +90,8 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // Both Kuromoji artifacts carry notices; preserve all text in the APK.
+            merges += setOf("META-INF/LICENSE.md", "META-INF/CONTRIBUTORS.md")
         }
     }
 }

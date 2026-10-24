@@ -22,6 +22,7 @@ import com.lirix.app.feature.ParsedTrackInfo
 import com.lirix.app.storage.ThemePreferencesRepository
 import com.lirix.app.ui.AppScaffold
 import com.lirix.app.ui.LirixTheme
+import com.lirix.app.ui.i18n.LocalizedAppContent
 import timber.log.Timber
 
 /**
@@ -56,6 +57,7 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
 
         setContent {
+            LocalizedAppContent {
             val themeRepo = remember { ThemePreferencesRepository.getInstance(applicationContext) }
             val currentTheme by themeRepo.selectedTheme.collectAsState()
             LirixTheme(themeType = currentTheme) {
@@ -65,6 +67,7 @@ class MainActivity : ComponentActivity() {
                     initialSharedPayload = sharedPayload,
                     onSharedPayloadConsumed = { sharedPayload = null }
                 )
+            }
             }
         }
     }
@@ -93,6 +96,12 @@ class MainActivity : ComponentActivity() {
                 Timber.i("Received ACTION_SEND payload: %s", sharedPayload)
             }
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Handle only locale/layoutDirection in place, keeping open editors and current media state.
+        com.lirix.app.ui.i18n.LanguageManager.refresh(this)
     }
 
     override fun onResume() {

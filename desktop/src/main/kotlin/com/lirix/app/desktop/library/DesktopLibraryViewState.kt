@@ -3,11 +3,12 @@ package com.lirix.app.desktop.library
 import com.lirix.app.feature.lyrics.LrcSyncEngine
 import com.lirix.app.storage.TrackEntity
 
-enum class DesktopLibraryFilter(val label: String) {
+enum class DesktopLibraryFilter(private val sourceLabel: String) {
     ALL("Все"),
     FAVORITES("Избранное"),
     KARAOKE("Караоке"),
-    SAVED_TEXT("С сохранённым текстом")
+    SAVED_TEXT("С сохранённым текстом");
+    val label get() = com.lirix.app.ui.i18n.LirixStrings.message(sourceLabel)
 }
 
 enum class DesktopLibraryEmpty { NONE, NO_HISTORY, NO_MATCHES }

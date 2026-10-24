@@ -12,9 +12,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lirix.app.R
 import com.lirix.app.ui.theme.AppColors
 import com.lirix.app.ui.theme.LirixThemeTokens
 import com.lirix.app.ui.NowPlayingMode
@@ -35,7 +37,9 @@ fun PlayerContextOverflow(
     onTeach: (() -> Unit)?,
     onTrackInfo: (() -> Unit)?,
     onTheme: () -> Unit,
-    onBlacklist: () -> Unit
+    onBlacklist: () -> Unit,
+    onLanguage: () -> Unit = {},
+    onRomanization: (() -> Unit)? = null
 ) {
     var expanded by remember(mode, trackKey, landscape) { mutableStateOf(false) }
     val lyrics = trackKey != null && (mode == NowPlayingMode.LYRICS || mode == NowPlayingMode.KARAOKE)
@@ -48,7 +52,8 @@ fun PlayerContextOverflow(
             onTrackInfoClick = onTrackInfo.takeIf { trackKey != null },
             onCalibrateClick = onCalibrate.takeIf { trackKey != null && mode == NowPlayingMode.KARAOKE },
             onTeachModeClick = onTeach.takeIf { trackKey != null && mode != NowPlayingMode.NOTES },
-            onThemeSelectClick = onTheme, onOpenBlacklistSettings = onBlacklist)
+            onRomanizationClick = onRomanization.takeIf { lyrics },
+            onThemeSelectClick = onTheme, onOpenLanguageDialog = onLanguage, onOpenBlacklistSettings = onBlacklist)
     }
 }
 
@@ -57,7 +62,7 @@ fun PlayerContextOverflow(
 fun PlayerOverflowAnchor(onOpen: () -> Unit, menu: @Composable () -> Unit) {
     Box {
         IconButton(onClick = onOpen, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Default.MoreVert, contentDescription = "Меню", tint = LirixThemeTokens.colors.textSecondary)
+            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.menu_overflow), tint = LirixThemeTokens.colors.textSecondary)
         }
         menu()
     }
@@ -76,7 +81,9 @@ fun NowPlayingOverflowMenu(
     onTrackInfoClick: (() -> Unit)? = null,
     onCalibrateClick: (() -> Unit)? = null,
     onTeachModeClick: (() -> Unit)? = null,
+    onRomanizationClick: (() -> Unit)? = null,
     onThemeSelectClick: () -> Unit = {},
+    onOpenLanguageDialog: () -> Unit = {},
     onOpenBlacklistSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -97,17 +104,19 @@ fun NowPlayingOverflowMenu(
                 modifier = Modifier.heightIn(min = 48.dp)
             )
         }
-        onEditLyricsClick?.let { Action("Редактировать текст песни", Icons.Default.Edit, it) }
-        onSyncClick?.let { Action("Синхронизация — студия", Icons.Default.GraphicEq, it) }
-        onTranslationClick?.let { Action("Перевод и язык", Icons.Default.Translate, it) }
-        onSaveNotesClick?.let { Action("Сохранить заметки", Icons.Default.Check, it) }
-        onCalibrateClick?.let { Action("Калибровка задержки", Icons.Default.Tune, it) }
-        onTeachModeClick?.let { Action("Найти текст или аккорды (Teach)", Icons.Default.School, it) }
-        onTrackInfoClick?.let { Action("О треке и источниках", Icons.Default.Info, it) }
+        onEditLyricsClick?.let { Action(stringResource(R.string.menu_edit_lyrics), Icons.Default.Edit, it) }
+        onSyncClick?.let { Action(stringResource(R.string.menu_sync_studio), Icons.Default.GraphicEq, it) }
+        onTranslationClick?.let { Action(stringResource(R.string.menu_translations), Icons.Default.Translate, it) }
+        onSaveNotesClick?.let { Action(stringResource(R.string.menu_save_notes), Icons.Default.Check, it) }
+        onCalibrateClick?.let { Action(stringResource(R.string.menu_calibrate_timing), Icons.Default.Tune, it) }
+        onTeachModeClick?.let { Action(stringResource(R.string.menu_teach_mode), Icons.Default.School, it) }
+        onRomanizationClick?.let { Action(stringResource(R.string.menu_romanization_reading), Icons.Default.Subtitles, it) }
+        onTrackInfoClick?.let { Action(stringResource(R.string.menu_track_info), Icons.Default.Info, it) }
         HorizontalDivider(color = tokens.borderSubtle)
-        Action(if (isOverlayActive) "Плавающий оверлей: включён" else "Плавающий оверлей", Icons.Default.PictureInPictureAlt, onToggleOverlay)
-        Action("Тема оформления", Icons.Default.Palette, onThemeSelectClick)
-        Action("Чёрный список фонотеки", Icons.Default.Shield, onOpenBlacklistSettings)
+        Action(stringResource(if (isOverlayActive) R.string.menu_floating_overlay_enabled else R.string.menu_floating_overlay), Icons.Default.PictureInPictureAlt, onToggleOverlay)
+        Action(stringResource(R.string.menu_theme), Icons.Default.Palette, onThemeSelectClick)
+        Action(stringResource(R.string.menu_language), Icons.Default.Language, onOpenLanguageDialog)
+        Action(stringResource(R.string.menu_blacklist), Icons.Default.Shield, onOpenBlacklistSettings)
     }
 }
 
@@ -125,7 +134,7 @@ fun TimingCalibrationDialog(
         onDismissRequest = onDismissRequest,
         title = {
             Text(
-                text = "Калибровка тайминга караоке",
+                text = stringResource(R.string.calibration_title),
                 style = MaterialTheme.typography.titleMedium,
                 color = tokens.textPrimary,
                 fontWeight = FontWeight.Bold
@@ -137,14 +146,14 @@ fun TimingCalibrationDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "${if (currentOffsetMs >= 0) "+$currentOffsetMs" else currentOffsetMs} мс",
+                    text = "${if (currentOffsetMs >= 0) "+$currentOffsetMs" else currentOffsetMs} ms",
                     style = MaterialTheme.typography.headlineMedium,
                     color = if (currentOffsetMs == 0L) tokens.accentSecondary else AppColors.AmberGold,
                     fontWeight = FontWeight.ExtraBold
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Плюс — текст раньше, минус — позже. Настройка сохраняется для этой песни.",
+                    text = stringResource(R.string.calibration_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = tokens.textSecondary
                 )
@@ -154,10 +163,10 @@ fun TimingCalibrationDialog(
                 OutlinedTextField(
                     value = numericOffset,
                     onValueChange = { numericOffset = it },
-                    label = { Text("Сдвиг в миллисекундах (−3000…3000)") },
+                    label = { Text(stringResource(R.string.calibration_offset_label)) },
                     isError = numericOffset.toLongOrNull() == null,
                     supportingText = {
-                        if (numericOffset.toLongOrNull() == null) Text("Введите целое число миллисекунд")
+                        if (numericOffset.toLongOrNull() == null) Text(stringResource(R.string.calibration_offset_error))
                     },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -171,7 +180,7 @@ fun TimingCalibrationDialog(
                         }
                     },
                     enabled = numericOffset.toLongOrNull() != null
-                ) { Text("Применить значение") }
+                ) { Text(stringResource(R.string.calibration_apply)) }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -184,7 +193,7 @@ fun TimingCalibrationDialog(
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("-50мс", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text("-50ms", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                     OutlinedButton(
                         onClick = { onOffsetChange(currentOffsetMs - 10) },
@@ -193,7 +202,7 @@ fun TimingCalibrationDialog(
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("-10мс", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text("-10ms", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
 
@@ -210,7 +219,7 @@ fun TimingCalibrationDialog(
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("+10мс", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text("+10ms", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                     OutlinedButton(
                         onClick = { onOffsetChange(currentOffsetMs + 50) },
@@ -219,10 +228,9 @@ fun TimingCalibrationDialog(
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("+50мс", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text("+50ms", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
-
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -232,7 +240,7 @@ fun TimingCalibrationDialog(
                 ) {
                     Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Сбросить в 0 мс")
+                    Text(stringResource(R.string.calibration_reset))
                 }
             }
         },
@@ -241,7 +249,7 @@ fun TimingCalibrationDialog(
                 onClick = onDismissRequest,
                 colors = ButtonDefaults.textButtonColors(contentColor = tokens.accentPrimary)
             ) {
-                Text("Готово", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.action_done), fontWeight = FontWeight.Bold)
             }
         },
         containerColor = tokens.surfaceElevated,

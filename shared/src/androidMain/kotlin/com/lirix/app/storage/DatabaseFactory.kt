@@ -6,6 +6,28 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
+val AppDatabase.Companion.MIGRATION_13_14: Migration
+    get() = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE lyrics_cache ADD COLUMN sourceAttributionJson TEXT DEFAULT NULL")
+        }
+    }
+
+val AppDatabase.Companion.MIGRATION_12_13: Migration
+    get() = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE music_listening_sessions ADD COLUMN listeningIntervalsJson TEXT NOT NULL DEFAULT ''")
+        }
+    }
+
+val AppDatabase.Companion.MIGRATION_12_14: Migration
+    get() = object : Migration(12, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE music_listening_sessions ADD COLUMN listeningIntervalsJson TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE lyrics_cache ADD COLUMN sourceAttributionJson TEXT DEFAULT NULL")
+        }
+    }
+
 val AppDatabase.Companion.MIGRATION_11_12: Migration
     get() = object : Migration(11, 12) {
         override fun migrate(db: SupportSQLiteDatabase) { db.execSQL(com.lirix.app.translations.CREATE_SONG_TRANSLATIONS) }
@@ -252,9 +274,11 @@ fun getAppDatabaseBuilder(context: Context): RoomDatabase.Builder<AppDatabase> {
             AppDatabase.MIGRATION_8_9,
             AppDatabase.MIGRATION_9_10,
             AppDatabase.MIGRATION_10_11,
-            AppDatabase.MIGRATION_11_12
+            AppDatabase.MIGRATION_11_12,
+            AppDatabase.MIGRATION_12_13,
+            AppDatabase.MIGRATION_13_14,
+            AppDatabase.MIGRATION_12_14
         )
-        .fallbackToDestructiveMigration(dropAllTables = false)
         .addCallback(object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)

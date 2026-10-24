@@ -18,20 +18,20 @@ fun DesktopKaraokeUnavailable(
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (content == DesktopLyricsContent.LOADING) CircularProgressIndicator(color = colors.accentPrimary, modifier = Modifier.size(28.dp))
             Text(when (content) {
-                DesktopLyricsContent.IDLE -> "Ничего не играет"
-                DesktopLyricsContent.LOADING -> "Поиск текста песни…"
-                DesktopLyricsContent.UNSYNCED -> "Для караоке нужна синхронизация"
-                else -> "Текст не найден"
+                DesktopLyricsContent.IDLE -> com.lirix.app.ui.i18n.LirixStrings.message("Ничего не играет")
+                DesktopLyricsContent.LOADING -> com.lirix.app.ui.i18n.LirixStrings.message("Поиск текста песни…")
+                DesktopLyricsContent.UNSYNCED -> com.lirix.app.ui.i18n.LirixStrings.message("Для караоке нужна синхронизация")
+                else -> com.lirix.app.ui.i18n.LirixStrings.message("Текст не найден")
             }, color = colors.textPrimary)
             Text(when (content) {
-                DesktopLyricsContent.IDLE -> "Запустите музыку в любом плеере"
-                DesktopLyricsContent.LOADING -> "Ищем текст и временные метки"
-                DesktopLyricsContent.UNSYNCED -> "У этого текста нет временных меток. Расставьте их в Tap-to-Sync или откройте текст."
-                else -> "Попробуйте другой источник или добавьте текст через «Текст / LRC»."
+                DesktopLyricsContent.IDLE -> com.lirix.app.ui.i18n.LirixStrings.message("Запустите музыку в любом плеере")
+                DesktopLyricsContent.LOADING -> com.lirix.app.ui.i18n.LirixStrings.message("Ищем текст и временные метки")
+                DesktopLyricsContent.UNSYNCED -> com.lirix.app.ui.i18n.LirixStrings.message("У этого текста нет временных меток. Расставьте их в Tap-to-Sync или откройте текст.")
+                else -> com.lirix.app.ui.i18n.LirixStrings.message("Попробуйте другой источник или добавьте текст через «Текст / LRC».")
             }, color = colors.textSecondary)
             if (content == DesktopLyricsContent.UNSYNCED) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = onOpenTapSync, enabled = canTapSync) { Text("Tap-to-Sync") }
-                TextButton(onClick = onShowText) { Text("Открыть текст") }
+                TextButton(onClick = onShowText) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Открыть текст")) }
             }
         }
     }

@@ -49,6 +49,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import com.lirix.app.R
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -133,7 +135,7 @@ fun EditLyricsDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Закрыть редактор",
+                            contentDescription = stringResource(R.string.edit_lyrics_close_cd),
                             tint = tokens.textSecondary
                         )
                     }
@@ -145,7 +147,7 @@ fun EditLyricsDialog(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Редактор текста",
+                            text = stringResource(R.string.edit_lyrics_title),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontFamily = GolosTextFontFamily,
                                 fontWeight = FontWeight.SemiBold,
@@ -156,7 +158,7 @@ fun EditLyricsDialog(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "${artist.ifBlank { "Исполнитель" }} — ${trackTitle.ifBlank { "Трек" }}",
+                            text = "${artist.ifBlank { stringResource(R.string.edit_lyrics_fallback_artist) }} — ${trackTitle.ifBlank { stringResource(R.string.edit_lyrics_fallback_track) }}",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontFamily = GolosTextFontFamily,
                                 fontWeight = FontWeight.Normal,
@@ -181,7 +183,7 @@ fun EditLyricsDialog(
                         modifier = Modifier.height(34.dp)
                     ) {
                         Text(
-                            text = "Готово",
+                            text = stringResource(R.string.edit_lyrics_done),
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontFamily = GolosTextFontFamily,
                                 fontWeight = FontWeight.SemiBold,
@@ -223,7 +225,7 @@ fun EditLyricsDialog(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Разбить на строки",
+                                text = stringResource(R.string.edit_lyrics_tool_split_lines),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontFamily = GolosTextFontFamily,
                                     fontWeight = FontWeight.Medium,
@@ -260,7 +262,7 @@ fun EditLyricsDialog(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Убрать аккорды",
+                                text = stringResource(R.string.edit_lyrics_tool_remove_chords),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontFamily = GolosTextFontFamily,
                                     fontWeight = FontWeight.Medium,
@@ -296,7 +298,7 @@ fun EditLyricsDialog(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Вставить",
+                                text = stringResource(R.string.edit_lyrics_tool_paste),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontFamily = GolosTextFontFamily,
                                     fontWeight = FontWeight.Medium,
@@ -333,7 +335,7 @@ fun EditLyricsDialog(
                     ),
                     placeholder = {
                         Text(
-                            text = "Введите текст песни или вставьте его из буфера обмена...",
+                            text = stringResource(R.string.edit_lyrics_placeholder),
                             style = TextStyle(
                                 fontFamily = GolosTextFontFamily,
                                 fontSize = 14.sp,
@@ -356,7 +358,7 @@ fun EditLyricsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Строк: $nonBlankLines",
+                        text = stringResource(R.string.edit_lyrics_lines_count, nonBlankLines),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontFamily = GolosTextFontFamily,
                             fontFeatureSettings = FontFeature.tabularFigures(),
@@ -366,7 +368,7 @@ fun EditLyricsDialog(
                         color = tokens.accentPrimary
                     )
                     Text(
-                        text = "$charCount символов",
+                        text = stringResource(R.string.edit_lyrics_chars_count, charCount),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontFamily = GolosTextFontFamily,
                             fontFeatureSettings = FontFeature.tabularFigures(),

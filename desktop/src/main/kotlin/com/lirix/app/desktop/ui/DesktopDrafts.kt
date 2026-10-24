@@ -33,7 +33,7 @@ internal class DesktopDraft<T>(initial: T) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            error = e.message ?: "Не удалось сохранить изменения"
+            error = e.message ?: com.lirix.app.ui.i18n.LirixStrings.message("Не удалось сохранить изменения")
             false
         } finally {
             saving = false

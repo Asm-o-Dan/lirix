@@ -26,3 +26,13 @@ Status: INCOMPLETE. No repaired APK installed. Public release unchanged.
 - ADB now lists no devices. User asked to reconnect phone. No uninstall or data wipe was attempted.
 
 Evidence logs live locally in ignored .gradle/karaoke-private-verification; clean frozen deliverables and test XML in ignored build/repairs-baseline. Do not equate frozen source with accepted runtime behavior.
+## Superseding results — 2026-10-24
+User explicitly permitted root product-code edits and testing after executor limits. All listed compilation boundaries were repaired in a clean snapshot without unfinished analytics/source expansion. Chinese tests now follow the approved lexical-tone contract.
+
+- Full shared suite: 247 tests, zero failures/errors/skips. Full Android unit suite: 313 tests, zero failures/errors/skips. Results saved before focused reruns.
+- Desktop: 127 tests, zero failures/errors, six existing opt-in/live tests skipped.
+- Combined APK + instrumentation APK + release lint + desktop tests passed (repairs-integration-final.log).
+- Physical Android: real FileProvider exact-byte/read-grant test and 1080x1920 24fps four-second MP4 test passed. MP4: 96 decoded frames, monotonic PTS, 48 red/48 blue frames, positive measured bitrate. First combined run was interrupted by a user swipe-away; only completed cases count.
+- Subsequent physical Compose run: OK (4 tests), actual unsaved editor RU/EN retention and resource strings, JA document context/readings and qualified partial results. OEM test host uses explicit shell foreground start in debug only; no production permission widening.
+- Device tree confirms header top padding reduced by 110 pixels. Later screenshot/taps encountered concurrent phone interactions and are excluded as manual Gold/favorite acceptance.
+- Pending: controlled manual Gold chord transposition/favorite restore, post-install DB snapshot. Phone absent from ADB at latest check. Do not claim these checks passed. No uninstall/data wipe or release publication performed.

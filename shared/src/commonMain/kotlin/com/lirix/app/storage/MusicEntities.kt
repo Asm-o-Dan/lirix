@@ -4,6 +4,9 @@ import kotlinx.serialization.Serializable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 
 typealias MusicTrackEntity = TrackEntity
 typealias MusicListeningSessionEntity = ListeningSessionEntity
@@ -49,6 +52,7 @@ data class TrackEntity(
     ]
 )
 @Serializable
+@OptIn(ExperimentalSerializationApi::class)
 data class ListeningSessionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -57,7 +61,11 @@ data class ListeningSessionEntity(
     val startTimeMs: Long,
     val endTimeMs: Long,
     val durationMs: Long,
-    val isCompleted: Boolean = false
+    val isCompleted: Boolean = false,
+    // Empty means legacy history with unknown pause intervals; [] means confirmed zero listening.
+    @ColumnInfo(defaultValue = "''")
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val listeningIntervalsJson: String = ""
 )
 
 /**
@@ -69,6 +77,7 @@ data class ListeningSessionEntity(
  */
 @Entity(tableName = "lyrics_cache")
 @Serializable
+@OptIn(ExperimentalSerializationApi::class)
 data class LyricsCacheEntity(
     @PrimaryKey
     val trackKey: String,
@@ -77,7 +86,10 @@ data class LyricsCacheEntity(
     val chordsAmDm: String?,
     val userNotes: String?,
     val provider: String,
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(defaultValue = "NULL")
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val sourceAttributionJson: String? = null
 )
 
 /**

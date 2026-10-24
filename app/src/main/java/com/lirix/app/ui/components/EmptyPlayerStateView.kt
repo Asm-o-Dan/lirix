@@ -32,10 +32,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lirix.app.R
 import com.lirix.app.ui.theme.LirixThemeTokens
 
 enum class PlayerEmptyStateType {
@@ -91,7 +93,7 @@ fun EmptyPlayerStateView(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Ничего не играет",
+                        text = stringResource(R.string.player_empty_title),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -103,7 +105,7 @@ fun EmptyPlayerStateView(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Запустите трек в любом плеере Windows/Android",
+                        text = stringResource(R.string.player_empty_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
                         color = tokens.textSecondary,
                         textAlign = TextAlign.Center
@@ -126,7 +128,7 @@ fun EmptyPlayerStateView(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Подключить ПК (Lirix Connect)",
+                                text = stringResource(R.string.player_empty_connect_pc),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
                             )
@@ -153,7 +155,7 @@ fun EmptyPlayerStateView(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Ищем текст песни...",
+                        text = stringResource(R.string.player_searching_lyrics),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -175,7 +177,7 @@ fun EmptyPlayerStateView(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Проверяем базу Lirix и онлайн-источники...",
+                        text = stringResource(R.string.player_searching_lyrics_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
                         color = tokens.textSecondary,
                         textAlign = TextAlign.Center
@@ -202,7 +204,7 @@ fun EmptyPlayerStateView(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Не нашли текст для этого трека",
+                        text = stringResource(R.string.player_lyrics_not_found),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -224,7 +226,7 @@ fun EmptyPlayerStateView(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Вы можете найти его в веб-поиске и привязать к песне в один клик",
+                        text = stringResource(R.string.player_lyrics_not_found_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
                         color = tokens.textSecondary,
                         textAlign = TextAlign.Center
@@ -249,7 +251,7 @@ fun EmptyPlayerStateView(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Искать вручную",
+                                text = stringResource(R.string.player_search_manually),
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                         }
@@ -275,7 +277,7 @@ fun EmptyPlayerStateView(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "Тайминги недоступны. Прокручивайте текст вручную",
+                                text = stringResource(R.string.player_unsynced_lyrics_hint),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = tokens.textSecondary
                             )

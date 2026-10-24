@@ -10,7 +10,7 @@ import com.lirix.app.storage.blacklist.BlacklistRuleEntity
 
 /**
  * Room Multiplatform Database for Music & Lyrics Hub.
- * Version 12: Adds independent offline song translations with an additive migration.
+ * Version 14: Adds optional lyrics/chord attribution; version 13 listening intervals remain intact.
  * Spec: TASK-KMP-06 / SPEC-BLK-01 / ADR-020
  */
 @Database(
@@ -24,7 +24,7 @@ import com.lirix.app.storage.blacklist.BlacklistRuleEntity
         BlacklistRuleEntity::class,
         com.lirix.app.translations.SongTranslationEntity::class
     ],
-    version = 12,
+    version = 14,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

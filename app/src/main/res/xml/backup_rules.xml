@@ -10,5 +10,6 @@
     <include domain="sharedpref" path="lirix_ui_prompter_prefs.xml" />
     <include domain="sharedpref" path="lirix_sync_prefs.xml" />
     <include domain="sharedpref" path="media_sync_offsets.xml" />
+    <include domain="sharedpref" path="lyrics_reading_preferences.xml" />
     <include domain="file" path="karaoke-studio-drafts/" />
 </full-backup-content>

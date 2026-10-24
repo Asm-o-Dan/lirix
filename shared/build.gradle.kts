@@ -37,7 +37,14 @@ kotlin {
 
         val jvmShared by creating {
             dependsOn(commonMain)
-            dependencies { implementation("org.jsoup:jsoup:1.23.2") }
+            dependencies {
+                implementation("org.jsoup:jsoup:1.23.2")
+                implementation("com.atilika.kuromoji:kuromoji-ipadic:0.9.0")
+                implementation("dev.esnault.wanakana:wanakana-core:1.1.1")
+                implementation("com.github.houbb:pinyin:0.4.0")
+                implementation("com.github.houbb:heaven:0.2.0")
+                implementation("com.github.houbb:nlp-common:0.0.5")
+            }
         }
 
         val androidMain by getting {

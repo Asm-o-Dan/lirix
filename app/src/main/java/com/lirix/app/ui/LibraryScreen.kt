@@ -81,6 +81,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.lirix.app.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lirix.app.storage.AppDatabase
 import com.lirix.app.storage.TrackEntity
@@ -99,20 +102,20 @@ import java.util.Locale
 /**
  * Filter chips for Media Library.
  */
-enum class LibraryFilterChip(val title: String) {
-    ALL("Все"),
-    FAVORITES("Избранное"),
-    KARAOKE("Караоке"),
-    CHORDS("Аккорды"),
-    OFFLINE("Офлайн")
+enum class LibraryFilterChip(@StringRes val titleRes: Int) {
+    ALL(R.string.library_filter_all),
+    FAVORITES(R.string.library_filter_favorites),
+    KARAOKE(R.string.library_filter_karaoke),
+    CHORDS(R.string.library_filter_chords),
+    OFFLINE(R.string.library_filter_offline)
 }
 
 /**
  * Segment modes: Tracks vs Artists.
  */
-enum class LibrarySegmentMode(val title: String) {
-    TRACKS("Треки"),
-    ARTISTS("Артисты")
+enum class LibrarySegmentMode(@StringRes val titleRes: Int) {
+    TRACKS(R.string.library_segment_tracks),
+    ARTISTS(R.string.library_segment_artists)
 }
 
 /**
@@ -180,8 +183,8 @@ fun LibraryScreen(
     }
 
     // Unique artists count
-    val uniqueArtists = remember(visibleTracks) {
-        visibleTracks.map { it.artist.ifBlank { "Неизвестный исполнитель" } }.distinct()
+    val uniqueArtists = remember(visibleTracks, context) {
+        visibleTracks.map { it.artist.ifBlank { context.getString(R.string.unknown_artist) } }.distinct()
     }
 
     // Adaptive Snackbar timeout (6-8s) via AccessibilityManager
@@ -189,7 +192,9 @@ fun LibraryScreen(
         context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
     }
     val recommendedTimeoutMs = remember(accessibilityManager) {
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
         accessibilityManager?.getRecommendedTimeoutMillis(7000, AccessibilityManager.FLAG_CONTENT_CONTROLS) ?: 7000
+        } else 7000
     }
 
     // Function to hide track with undoable snackbar
@@ -198,8 +203,8 @@ fun LibraryScreen(
         hiddenTrackKeys.add(track.trackKey)
         scope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = "Трек «${track.title}» скрыт из медиатеки",
-                actionLabel = "Отменить",
+                message = context.getString(R.string.library_track_hidden, track.title),
+                actionLabel = context.getString(R.string.action_undo),
                 duration = SnackbarDuration.Indefinite
             )
             if (result == SnackbarResult.ActionPerformed) {
@@ -239,7 +244,7 @@ fun LibraryScreen(
                         .height(48.dp),
                     placeholder = {
                         Text(
-                            text = "Поиск по названию, артисту или словам...",
+                            text = stringResource(R.string.library_search_placeholder),
                             style = MaterialTheme.typography.bodySmall,
                             color = lirixColors.textSecondary,
                             maxLines = 1,
@@ -257,7 +262,7 @@ fun LibraryScreen(
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(36.dp)) {
-                                Icon(Icons.Default.Close, contentDescription = "Очистить", tint = lirixColors.textSecondary)
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_clear), tint = lirixColors.textSecondary)
                             }
                         }
                     },
@@ -285,7 +290,7 @@ fun LibraryScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Block,
-                        contentDescription = "Чёрный список",
+                        contentDescription = stringResource(R.string.library_blacklist_button),
                         tint = lirixColors.textSecondary,
                         modifier = Modifier.size(20.dp)
                     )
@@ -321,7 +326,7 @@ fun LibraryScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = chip.title,
+                            text = stringResource(chip.titleRes),
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             ),
@@ -358,7 +363,7 @@ fun LibraryScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "${mode.title} ($count)",
+                            text = "${stringResource(mode.titleRes)} ($count)",
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             ),
@@ -383,7 +388,7 @@ fun LibraryScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = if (searchQuery.isBlank()) "Медиатека пуста" else "Ничего не найдено",
+                                    text = if (searchQuery.isBlank()) stringResource(R.string.library_empty) else stringResource(R.string.library_no_results),
                                     color = lirixColors.textSecondary,
                                     style = MaterialTheme.typography.bodyMedium
                                 )
@@ -449,7 +454,7 @@ fun LibraryScreen(
                                             color = lirixColors.textPrimary
                                         )
                                         Text(
-                                            text = "${artistTracks.size} треков",
+                                            text = stringResource(R.string.library_artist_track_count, artistTracks.size),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = lirixColors.textSecondary
                                         )
@@ -527,11 +532,11 @@ private fun LibraryTrackItemRow(
             .heightIn(min = 64.dp)
             .semantics {
                 customActions = listOf(
-                    CustomAccessibilityAction(if (track.isFavorite) "Убрать из избранного" else "В избранное") {
+                    CustomAccessibilityAction(if (track.isFavorite) context.getString(R.string.action_remove_favorite) else context.getString(R.string.action_add_favorite)) {
                         onToggleFavorite()
                         true
                     },
-                    CustomAccessibilityAction("Скрыть трек из медиатеки") {
+                    CustomAccessibilityAction(context.getString(R.string.action_hide_track)) {
                         onHideTrack()
                         true
                     }
@@ -641,7 +646,7 @@ private fun LibraryTrackItemRow(
                     if (track.isFavorite) {
                         Icon(
                             imageVector = Icons.Default.Favorite,
-                            contentDescription = "В избранном",
+                            contentDescription = stringResource(R.string.action_favorite),
                             tint = tokens.accentSecondary,
                             modifier = Modifier.size(14.dp)
                         )
@@ -652,10 +657,10 @@ private fun LibraryTrackItemRow(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (!track.syncedLyrics.isNullOrBlank()) {
-                        BorderBadge(text = "Синхронно", borderColor = accentPrimary)
+                        BorderBadge(text = stringResource(R.string.badge_synced), borderColor = accentPrimary)
                     } else if (!track.plainLyrics.isNullOrBlank()) {
                         BorderBadge(
-                            text = "Текст",
+                            text = stringResource(R.string.badge_lyrics),
                             borderColor = tokens.borderSubtle,
                             backgroundColor = tokens.surfaceElevated,
                             textColor = tokens.textSecondary

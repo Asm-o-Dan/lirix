@@ -32,10 +32,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lirix.app.R
 import com.lirix.app.storage.TrackEntity
 import com.lirix.app.ui.theme.LirixThemeTokens
 
@@ -120,7 +122,7 @@ fun TrackActionBottomSheet(
             ActionRowItem(
                 icon = if (track.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                 iconTint = if (track.isFavorite) tokens.accentSecondary else accentPrimary,
-                title = if (track.isFavorite) "Убрать из избранного" else "В избранное",
+                title = stringResource(if (track.isFavorite) R.string.action_remove_favorite else R.string.action_add_favorite),
                 onClick = {
                     onToggleFavorite(track)
                     onDismissRequest()
@@ -133,7 +135,7 @@ fun TrackActionBottomSheet(
             ActionRowItem(
                 icon = Icons.Default.VisibilityOff,
                 iconTint = if (tokens.isDark) Color(0xFFE57373) else Color(0xFFC85A5A),
-                title = "Скрыть из медиатеки",
+                title = stringResource(R.string.action_hide_from_library),
                 onClick = {
                     onHideTrack(track)
                     onDismissRequest()

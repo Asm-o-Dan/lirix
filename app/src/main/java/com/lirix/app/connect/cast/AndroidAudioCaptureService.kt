@@ -209,11 +209,17 @@ class AndroidAudioCaptureEngine(
                 android.media.AudioFormat.ENCODING_PCM_16BIT
             )
             check(minBufferSize > 0) { "Unsupported audio capture format" }
-            val record = AudioRecord.Builder()
-                .setAudioPlaybackCaptureConfig(captureConfig)
-                .setAudioFormat(audioFormat)
-                .setBufferSizeInBytes(maxOf(minBufferSize, format.frameSizeBytes * 4))
-                .build()
+            val record = try {
+                AudioRecord.Builder()
+                    .setAudioPlaybackCaptureConfig(captureConfig)
+                    .setAudioFormat(audioFormat)
+                    .setBufferSizeInBytes(maxOf(minBufferSize, format.frameSizeBytes * 4))
+                    .build()
+            } catch (denied: SecurityException) {
+                chunkCallback = null
+                Log.e("LirixCast", "stage=capture-start microphone permission denied", denied)
+                return false
+            }
             createdRecord = record
             check(record.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord not initialized" }
             record.startRecording()

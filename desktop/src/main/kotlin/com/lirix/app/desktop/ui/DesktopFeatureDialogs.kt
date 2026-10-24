@@ -35,19 +35,19 @@ internal fun DesktopFeatureDialog(title: String, onDismiss: () -> Unit, content:
 }
 
 @Composable
-internal fun DesktopHotkeyHelp(failures: List<String>, onDismiss: () -> Unit) = DesktopFeatureDialog("Горячие клавиши", onDismiss) {
+internal fun DesktopHotkeyHelp(failures: List<String>, onDismiss: () -> Unit) = DesktopFeatureDialog(com.lirix.app.ui.i18n.LirixStrings.message("Горячие клавиши"), onDismiss) {
     val c = LirixThemeTokens.colors
-    Text("Горячие клавиши", color = c.textPrimary, fontSize = 26.sp)
+    Text(com.lirix.app.ui.i18n.LirixStrings.message("Горячие клавиши"), color = c.textPrimary, fontSize = 26.sp)
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        Text("Работают, даже когда окно Lirix скрыто", color = c.accentPrimary)
+        Text(com.lirix.app.ui.i18n.LirixStrings.message("Работают, даже когда окно Lirix скрыто"), color = c.accentPrimary)
         HotkeyCatalog.global.forEach { binding -> Row(Modifier.fillMaxWidth()) { Text(binding.keys, color = c.textPrimary, modifier = Modifier.width(230.dp)); Text(binding.title, color = c.textSecondary) } }
         HorizontalDivider(Modifier.padding(vertical = 10.dp))
-        Text("Внутри окна Lirix", color = c.accentPrimary)
+        Text(com.lirix.app.ui.i18n.LirixStrings.message("Внутри окна Lirix"), color = c.accentPrimary)
         HotkeyCatalog.local.forEach { (keys, title) -> Row(Modifier.fillMaxWidth()) { Text(keys, color = c.textPrimary, modifier = Modifier.width(230.dp)); Text(title, color = c.textSecondary) } }
-        if (failures.isNotEmpty()) { Text("Не удалось зарегистрировать", color = c.accentPrimary); failures.forEach { Text(it, color = c.textSecondary) } }
-        Text("Закреплённый оверлей пропускает щелчки мыши. Ctrl+Alt+L возвращает перетаскивание, изменение размера и кнопки. А+/А− меняют размер текста.", color = c.textSecondary)
+        if (failures.isNotEmpty()) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Не удалось зарегистрировать"), color = c.accentPrimary); failures.forEach { Text(it, color = c.textSecondary) } }
+        Text(com.lirix.app.ui.i18n.LirixStrings.message("Закреплённый оверлей пропускает щелчки мыши. Ctrl+Alt+L возвращает перетаскивание, изменение размера и кнопки. А+/А− меняют размер текста."), color = c.textSecondary)
     }
-    Button(onClick = onDismiss) { Text("Понятно") }
+    Button(onClick = onDismiss) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Понятно")) }
 }
 
 @Composable
@@ -56,7 +56,7 @@ internal fun DesktopLyricsEditor(track: TrackEntity, repository: DesktopLibraryR
     val content = draft.content
     var confirmClose by remember { mutableStateOf(false) }
     val requestClose = { if (!content.saving) { if (content.dirty) confirmClose = true else onDismiss() }; Unit }
-    DesktopFeatureDialog("Текст — ${track.title}", requestClose) {
+    DesktopFeatureDialog(com.lirix.app.ui.i18n.LirixStrings.message("Текст — {0}", track.title), requestClose) {
     val c = LirixThemeTokens.colors
     val scope = rememberCoroutineScope()
     val plain = content.value.plain
@@ -67,7 +67,7 @@ internal fun DesktopLyricsEditor(track: TrackEntity, repository: DesktopLibraryR
     var loadAttempt by remember { mutableIntStateOf(0) }
     LaunchedEffect(track.trackKey, loadAttempt) {
         if (!draft.chordsLoaded) try { draft.loadChords(repository.savedLyrics(track.trackKey)?.chordsAmDm.orEmpty()); error = null }
-        catch (e: CancellationException) { throw e } catch (e: Exception) { error = "Не удалось загрузить аккорды: ${e.message}" }
+        catch (e: CancellationException) { throw e } catch (e: Exception) { error = com.lirix.app.ui.i18n.LirixStrings.message("Не удалось загрузить аккорды: {0}", e.message) }
     }
     fun updateText(target: Int, text: String) {
         content.value = when (target) { 0 -> content.value.copy(plain = text); 1 -> content.value.copy(lrc = text); else -> content.value.copy(chords = text) }
@@ -75,31 +75,31 @@ internal fun DesktopLyricsEditor(track: TrackEntity, repository: DesktopLibraryR
     val canSave = draft.chordsLoaded && !content.saving && (lrc.isBlank() || LrcSyncEngine.parseLrcLinesStrict(lrc).isNotEmpty())
     fun save() { if (canSave) scope.launch { if (content.save { onSave(it.plain.ifBlank { null }, it.lrc.ifBlank { null }, it.chords.ifBlank { null }) }) onDismiss() } }
     Text(track.title, color = c.textPrimary, fontSize = 24.sp)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("Текст", "LRC / караоке", "Аккорды").forEachIndexed { index, title -> FilterChip(tab == index, { tab = index }, label = { Text(title) }) } }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf(com.lirix.app.ui.i18n.LirixStrings.message("Текст"), com.lirix.app.ui.i18n.LirixStrings.message("LRC / караоке"), com.lirix.app.ui.i18n.LirixStrings.message("Аккорды")).forEachIndexed { index, title -> FilterChip(tab == index, { tab = index }, label = { Text(title) }) } }
     OutlinedTextField(when(tab) { 0 -> plain; 1 -> lrc; else -> chords }, { updateText(tab, it) }, enabled = !content.saving && (tab != 2 || draft.chordsLoaded),
-        modifier = Modifier.fillMaxWidth().weight(1f), label = { Text(if (tab == 1) "[00:12.34] Строка песни" else "Текст") })
+        modifier = Modifier.fillMaxWidth().weight(1f), label = { Text(if (tab == 1) com.lirix.app.ui.i18n.LirixStrings.message("[00:12.34] Строка песни") else com.lirix.app.ui.i18n.LirixStrings.message("Текст")) })
     error?.let { Text(it, color = c.accentPrimary) }
-    content.error?.let { Text("Ошибка сохранения: $it", color = c.accentPrimary) }
-    if (!draft.chordsLoaded) TextButton(onClick = { loadAttempt++ }) { Text("Загрузить аккорды повторно") }
-    if (lrc.isNotBlank() && !canSave && !content.saving && draft.chordsLoaded) Text("LRC не содержит корректных временных меток", color = c.accentPrimary)
+    content.error?.let { Text(com.lirix.app.ui.i18n.LirixStrings.message("Ошибка сохранения: {0}", it), color = c.accentPrimary) }
+    if (!draft.chordsLoaded) TextButton(onClick = { loadAttempt++ }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Загрузить аккорды повторно")) }
+    if (lrc.isNotBlank() && !canSave && !content.saving && draft.chordsLoaded) Text(com.lirix.app.ui.i18n.LirixStrings.message("LRC не содержит корректных временных меток"), color = c.accentPrimary)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedButton(enabled = !content.saving && (tab != 2 || draft.chordsLoaded), onClick = { val targetTab = tab; scope.launch {
             try {
-                val file = withContext(Dispatchers.IO) { DesktopFiles.choose("Импортировать текст или LRC", if (targetTab == 1) "lrc" else "txt", false) } ?: return@launch
-                val text = withContext(Dispatchers.IO) { require(file.length() <= 2_000_000) { "Файл слишком большой" }; file.readText() }
+                val file = withContext(Dispatchers.IO) { DesktopFiles.choose(com.lirix.app.ui.i18n.LirixStrings.message("Импортировать текст или LRC"), if (targetTab == 1) "lrc" else "txt", false) } ?: return@launch
+                val text = withContext(Dispatchers.IO) { require(file.length() <= 2_000_000) { com.lirix.app.ui.i18n.LirixStrings.message("Файл слишком большой") }; file.readText() }
                 if (!content.saving) updateText(targetTab, text)
             } catch (e: CancellationException) { throw e } catch (e: Exception) { error = e.message }
-        } }) { Text("Импорт файла") }
+        } }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Импорт файла")) }
         OutlinedButton(onClick = { scope.launch {
             try {
                 val extension = if (tab == 1) "lrc" else "txt"
-                val file = withContext(Dispatchers.IO) { DesktopFiles.choose("Экспортировать текст", extension, true) } ?: return@launch
+                val file = withContext(Dispatchers.IO) { DesktopFiles.choose(com.lirix.app.ui.i18n.LirixStrings.message("Экспортировать текст"), extension, true) } ?: return@launch
                 withContext(Dispatchers.IO) { file.writeText(when(tab) { 0 -> plain; 1 -> lrc; else -> chords }) }
             } catch (e: CancellationException) { throw e } catch (e: Exception) { error = e.message }
-        } }) { Text("Экспорт файла") }
+        } }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Экспорт файла")) }
         Spacer(Modifier.weight(1f))
-        TextButton(enabled = !content.saving, onClick = requestClose) { Text("Отмена") }
-        Button(enabled = canSave, onClick = ::save) { Text(if (content.saving) "Сохраняем…" else "Сохранить") }
+        TextButton(enabled = !content.saving, onClick = requestClose) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Отмена")) }
+        Button(enabled = canSave, onClick = ::save) { Text(if (content.saving) com.lirix.app.ui.i18n.LirixStrings.message("Сохраняем…") else com.lirix.app.ui.i18n.LirixStrings.message("Сохранить")) }
     }
     if (confirmClose) DesktopDraftCloseConfirmation(content.saving, canSave, { confirmClose = false }, onDismiss, ::save)
     }
@@ -129,15 +129,15 @@ internal fun DesktopTapSyncDialog(track: TrackEntity, playback: LivePlaybackSnap
         else when { e.isCtrlPressed && e.key == Key.Z -> { undo(); true }; (e.key == Key.Spacebar || e.key == Key.Enter) && !e.isCtrlPressed -> { stamp(); true }; else -> false }
     }, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("${track.artist} — ${track.title}", color = c.textPrimary, fontSize = 23.sp)
-        Text("Начало строки: Space или Enter · Отменить: Ctrl+Z", color = c.textSecondary)
-        if (playback == null) Text("Для синхронизации включите этот трек в музыкальном плеере ПК", color = c.accentPrimary)
+        Text(com.lirix.app.ui.i18n.LirixStrings.message("Начало строки: Space или Enter · Отменить: Ctrl+Z"), color = c.textSecondary)
+        if (playback == null) Text(com.lirix.app.ui.i18n.LirixStrings.message("Для синхронизации включите этот трек в музыкальном плеере ПК"), color = c.accentPrimary)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedButton(onClick = { ingress.seekTo((position - 5_000).coerceAtLeast(0)) }, enabled = playback != null) { Text("−5 сек") }
-            OutlinedButton(onClick = { ingress.playPause() }, enabled = playback != null) { Text(if (playback?.isPlaying == true) "Пауза" else "Продолжить") }
-            OutlinedButton(onClick = { ingress.seekTo(position + 5_000) }, enabled = playback != null) { Text("+5 сек") }
+            OutlinedButton(onClick = { ingress.seekTo((position - 5_000).coerceAtLeast(0)) }, enabled = playback != null) { Text(com.lirix.app.ui.i18n.LirixStrings.message("−5 сек")) }
+            OutlinedButton(onClick = { ingress.playPause() }, enabled = playback != null) { Text(if (playback?.isPlaying == true) com.lirix.app.ui.i18n.LirixStrings.message("Пауза") else com.lirix.app.ui.i18n.LirixStrings.message("Продолжить")) }
+            OutlinedButton(onClick = { ingress.seekTo(position + 5_000) }, enabled = playback != null) { Text(com.lirix.app.ui.i18n.LirixStrings.message("+5 сек")) }
             Text(LrcSyncEngine.formatTimeLabel(position), color = c.textPrimary)
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = { preview = !preview }) { Text(if (preview) "К разметке" else "Просмотр LRC") }
+            TextButton(onClick = { preview = !preview }) { Text(if (preview) com.lirix.app.ui.i18n.LirixStrings.message("К разметке") else com.lirix.app.ui.i18n.LirixStrings.message("Просмотр LRC")) }
         }
         if (preview) SelectionContainer(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) { Text(LrcSyncEngine.buildLrcString(lines), color = c.textPrimary) }
         else LazyColumn(state = list, modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -150,14 +150,14 @@ internal fun DesktopTapSyncDialog(track: TrackEntity, playback: LivePlaybackSnap
                 }
             } }
         }
-        if (!LrcSyncEngine.isMonotonic(lines)) Text("Некоторые метки идут назад во времени. Исправьте их перед сохранением.", color = c.accentPrimary)
+        if (!LrcSyncEngine.isMonotonic(lines)) Text(com.lirix.app.ui.i18n.LirixStrings.message("Некоторые метки идут назад во времени. Исправьте их перед сохранением."), color = c.accentPrimary)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(onClick = ::stamp, enabled = playback != null && index in lines.indices) { Text("Начало строки · ${index.coerceAtMost(lines.size)}/${lines.size}") }
-            OutlinedButton(onClick = ::undo, enabled = lines.any { it.timestampMs != null }) { Text("Отменить") }
-            Spacer(Modifier.weight(1f)); TextButton(enabled = !draft.saving, onClick = requestClose) { Text("Закрыть") }
-            Button(onClick = ::save, enabled = canSave) { Text(if (draft.saving) "Сохраняем…" else "Сохранить LRC") }
+            Button(onClick = ::stamp, enabled = playback != null && index in lines.indices) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Начало строки · {0}/{1}", index.coerceAtMost(lines.size), lines.size)) }
+            OutlinedButton(onClick = ::undo, enabled = lines.any { it.timestampMs != null }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Отменить")) }
+            Spacer(Modifier.weight(1f)); TextButton(enabled = !draft.saving, onClick = requestClose) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Закрыть")) }
+            Button(onClick = ::save, enabled = canSave) { Text(if (draft.saving) com.lirix.app.ui.i18n.LirixStrings.message("Сохраняем…") else com.lirix.app.ui.i18n.LirixStrings.message("Сохранить LRC")) }
         }
-        draft.error?.let { Text("Ошибка сохранения: $it", color = c.accentPrimary) }
+        draft.error?.let { Text(com.lirix.app.ui.i18n.LirixStrings.message("Ошибка сохранения: {0}", it), color = c.accentPrimary) }
     }
     if (confirmClose) DesktopDraftCloseConfirmation(draft.saving, canSave, { confirmClose = false }, onDismiss, ::save)
     }
@@ -165,14 +165,14 @@ internal fun DesktopTapSyncDialog(track: TrackEntity, playback: LivePlaybackSnap
 
 @Composable
 private fun DesktopDraftCloseConfirmation(busy: Boolean, canSave: Boolean, onCancel: () -> Unit, onDiscard: () -> Unit, onSave: () -> Unit) {
-    AlertDialog(onDismissRequest = { if (!busy) onCancel() }, title = { Text("Сохранить изменения?") },
-        text = { Text("В редакторе остались несохранённые правки.") },
-        confirmButton = { TextButton(enabled = canSave, onClick = { onCancel(); onSave() }) { Text("Сохранить") } },
-        dismissButton = { Row { TextButton(enabled = !busy, onClick = onCancel) { Text("Продолжить редактирование") }; TextButton(enabled = !busy, onClick = onDiscard) { Text("Не сохранять") } } })
+    AlertDialog(onDismissRequest = { if (!busy) onCancel() }, title = { Text(com.lirix.app.ui.i18n.LirixStrings.message("Сохранить изменения?")) },
+        text = { Text(com.lirix.app.ui.i18n.LirixStrings.message("В редакторе остались несохранённые правки.")) },
+        confirmButton = { TextButton(enabled = canSave, onClick = { onCancel(); onSave() }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Сохранить")) } },
+        dismissButton = { Row { TextButton(enabled = !busy, onClick = onCancel) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Продолжить редактирование")) }; TextButton(enabled = !busy, onClick = onDiscard) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Не сохранять")) } } })
 }
 
 @Composable
-internal fun DesktopPosterDialog(track: TrackEntity, colors: LirixColors, onDismiss: () -> Unit, onMessage: (String) -> Unit) = DesktopFeatureDialog("Постер — ${track.title}", onDismiss) {
+internal fun DesktopPosterDialog(track: TrackEntity, colors: LirixColors, onDismiss: () -> Unit, onMessage: (String) -> Unit) = DesktopFeatureDialog(com.lirix.app.ui.i18n.LirixStrings.message("Постер — {0}", track.title), onDismiss) {
     val scope = rememberCoroutineScope()
     var format by remember { mutableStateOf(PosterFormat.STORIES) }
     var lyric by remember { mutableStateOf(track.plainLyrics?.lineSequence()?.firstOrNull { it.isNotBlank() }.orEmpty()) }
@@ -182,17 +182,17 @@ internal fun DesktopPosterDialog(track: TrackEntity, colors: LirixColors, onDism
     LaunchedEffect(track, lyric, format, colors) {
         preview = withContext(Dispatchers.Default) { DesktopPosterRenderer.track(track, lyric, colors, format).toComposeImageBitmap() }
     }
-    ChoiceDropdown("Формат", format.label, PosterFormat.entries.map { it.label }) { label -> format = PosterFormat.entries.first { it.label == label } }
-    OutlinedTextField(lyric, { lyric = it }, label = { Text("Цитата / строка песни") }, modifier = Modifier.fillMaxWidth(), maxLines = 3)
-    preview?.let { Image(it, "Предпросмотр постера", modifier = Modifier.weight(1f).fillMaxWidth(), contentScale = androidx.compose.ui.layout.ContentScale.Fit) } ?: Spacer(Modifier.weight(1f))
+    ChoiceDropdown(com.lirix.app.ui.i18n.LirixStrings.message("Формат"), format.label, PosterFormat.entries.map { it.label }) { label -> format = PosterFormat.entries.first { it.label == label } }
+    OutlinedTextField(lyric, { lyric = it }, label = { Text(com.lirix.app.ui.i18n.LirixStrings.message("Цитата / строка песни")) }, modifier = Modifier.fillMaxWidth(), maxLines = 3)
+    preview?.let { Image(it, com.lirix.app.ui.i18n.LirixStrings.message("Предпросмотр постера"), modifier = Modifier.weight(1f).fillMaxWidth(), contentScale = androidx.compose.ui.layout.ContentScale.Fit) } ?: Spacer(Modifier.weight(1f))
     error?.let { Text(it, color = colors.accentPrimary) }
-    Row { TextButton(onClick = onDismiss) { Text("Закрыть") }; Spacer(Modifier.weight(1f)); Button(enabled = !busy, onClick = { scope.launch {
+    Row { TextButton(onClick = onDismiss) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Закрыть")) }; Spacer(Modifier.weight(1f)); Button(enabled = !busy, onClick = { scope.launch {
         busy = true
         try {
-            val destination = withContext(Dispatchers.IO) { DesktopFiles.choose("Сохранить постер", "png", true, "lirix-track.png") } ?: return@launch
+            val destination = withContext(Dispatchers.IO) { DesktopFiles.choose(com.lirix.app.ui.i18n.LirixStrings.message("Сохранить постер"), "png", true, "lirix-track.png") } ?: return@launch
             val snapshotText = lyric; val snapshotFormat = format
             withContext(Dispatchers.IO) { ImageIO.write(DesktopPosterRenderer.track(track, snapshotText, colors, snapshotFormat), "png", destination) }
-            onMessage("Постер сохранён: ${destination.name}"); onDismiss()
+            onMessage(com.lirix.app.ui.i18n.LirixStrings.message("Постер сохранён: {0}", destination.name)); onDismiss()
         } catch (e: CancellationException) { throw e } catch (e: Exception) { error = e.message } finally { busy = false }
-    } }) { Text(if (busy) "Сохранение…" else "Сохранить PNG") } }
+    } }) { Text(if (busy) com.lirix.app.ui.i18n.LirixStrings.message("Сохранение…") else com.lirix.app.ui.i18n.LirixStrings.message("Сохранить PNG")) } }
 }

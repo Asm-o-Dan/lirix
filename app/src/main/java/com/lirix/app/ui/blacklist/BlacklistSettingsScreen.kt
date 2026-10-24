@@ -66,6 +66,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.lirix.app.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lirix.app.storage.AppDatabase
 import com.lirix.app.storage.blacklist.BlacklistMatchMode
@@ -105,7 +107,7 @@ fun BlacklistSettingsScreen(
                 val job = launch {
                     val result = snackbarHostState.showSnackbar(
                         message = message,
-                        actionLabel = "Отменить",
+                        actionLabel = context.getString(R.string.action_undo),
                         duration = SnackbarDuration.Indefinite
                     )
                     if (result == SnackbarResult.ActionPerformed) {
@@ -151,7 +153,7 @@ fun BlacklistSettingsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
+                            contentDescription = stringResource(R.string.action_back),
                             tint = tokens.textPrimary
                         )
                     }
@@ -160,7 +162,7 @@ fun BlacklistSettingsScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Чёрный список",
+                            text = stringResource(R.string.blacklist_title),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 17.sp
@@ -169,7 +171,7 @@ fun BlacklistSettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Правила игнорирования и авто-очистка",
+                            text = stringResource(R.string.blacklist_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = tokens.textSecondary
                         )
@@ -207,7 +209,7 @@ fun BlacklistSettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Создать правило игнорирования",
+                            text = stringResource(R.string.blacklist_create_rule),
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
@@ -335,7 +337,7 @@ private fun DashboardBanner(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Активные правила: $activeRulesCount",
+                        text = stringResource(R.string.blacklist_active_rules, activeRulesCount),
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.Bold
                         ),
@@ -349,7 +351,7 @@ private fun DashboardBanner(
                     border = androidx.compose.foundation.BorderStroke(1.dp, tokens.borderSubtle)
                 ) {
                     Text(
-                        text = "Всего правил: $totalRulesCount",
+                        text = stringResource(R.string.blacklist_total_rules, totalRulesCount),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Medium,
                             fontSize = 11.sp
@@ -363,7 +365,7 @@ private fun DashboardBanner(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "Блокировка сохранения треков из выбранных приложений и по ключевым словам в медиасессиях.",
+                text = stringResource(R.string.blacklist_banner_description),
                 style = MaterialTheme.typography.bodySmall,
                 color = tokens.textSecondary,
                 lineHeight = 16.sp
@@ -391,28 +393,28 @@ private fun FilterTabsRow(
     ) {
         item {
             TabChip(
-                label = "Все (${rules.size})",
+                label = stringResource(R.string.blacklist_tab_all, rules.size),
                 selected = activeTab == BlacklistTab.ALL,
                 onClick = { onTabSelected(BlacklistTab.ALL) }
             )
         }
         item {
             TabChip(
-                label = "Треки ($titlesCount)",
+                label = stringResource(R.string.blacklist_tab_titles, titlesCount),
                 selected = activeTab == BlacklistTab.TITLES,
                 onClick = { onTabSelected(BlacklistTab.TITLES) }
             )
         }
         item {
             TabChip(
-                label = "Артисты ($artistsCount)",
+                label = stringResource(R.string.blacklist_tab_artists, artistsCount),
                 selected = activeTab == BlacklistTab.ARTISTS,
                 onClick = { onTabSelected(BlacklistTab.ARTISTS) }
             )
         }
         item {
             TabChip(
-                label = "Приложения ($packagesCount)",
+                label = stringResource(R.string.blacklist_tab_packages, packagesCount),
                 selected = activeTab == BlacklistTab.PACKAGES,
                 onClick = { onTabSelected(BlacklistTab.PACKAGES) }
             )
@@ -496,27 +498,27 @@ private fun BlacklistRuleCard(
 
     // Friendly rule title (no "Подстрока" jargon)
     val ruleTitle = when (rule.ruleType) {
-        BlacklistRuleType.PACKAGE_NAME -> "Приложение: $displayPattern"
+        BlacklistRuleType.PACKAGE_NAME -> stringResource(R.string.blacklist_rule_package, displayPattern)
         BlacklistRuleType.TITLE -> when (rule.matchMode) {
-            BlacklistMatchMode.CONTAINS_IGNORE_CASE -> "Название содержит: $displayPattern"
-            BlacklistMatchMode.EXACT -> "Название совпадает: $displayPattern"
-            BlacklistMatchMode.REGEX -> "Название по шаблону: $displayPattern"
+            BlacklistMatchMode.CONTAINS_IGNORE_CASE -> stringResource(R.string.blacklist_match_contains, displayPattern)
+            BlacklistMatchMode.EXACT -> stringResource(R.string.blacklist_match_exact, displayPattern)
+            BlacklistMatchMode.REGEX -> stringResource(R.string.blacklist_match_regex, displayPattern)
         }
         BlacklistRuleType.ARTIST -> when (rule.matchMode) {
-            BlacklistMatchMode.CONTAINS_IGNORE_CASE -> "Исполнитель содержит: $displayPattern"
-            BlacklistMatchMode.EXACT -> "Исполнитель совпадает: $displayPattern"
-            BlacklistMatchMode.REGEX -> "Исполнитель по шаблону: $displayPattern"
+            BlacklistMatchMode.CONTAINS_IGNORE_CASE -> stringResource(R.string.blacklist_match_contains, displayPattern)
+            BlacklistMatchMode.EXACT -> stringResource(R.string.blacklist_match_exact, displayPattern)
+            BlacklistMatchMode.REGEX -> stringResource(R.string.blacklist_match_regex, displayPattern)
         }
     }
 
     // Type badge tokens
     val (badgeText, badgeBg, badgeTextColor) = when (rule.ruleType) {
-        BlacklistRuleType.TITLE -> Triple("Трек", tokens.accentPrimary.copy(alpha = 0.15f), tokens.accentPrimary)
-        BlacklistRuleType.ARTIST -> Triple("Артист", tokens.accentSecondary.copy(alpha = 0.15f), tokens.accentSecondary)
-        BlacklistRuleType.PACKAGE_NAME -> Triple("Приложение", tokens.accentGlow.copy(alpha = 0.25f), tokens.accentPrimary)
+        BlacklistRuleType.TITLE -> Triple(stringResource(R.string.blacklist_type_title), tokens.accentPrimary.copy(alpha = 0.15f), tokens.accentPrimary)
+        BlacklistRuleType.ARTIST -> Triple(stringResource(R.string.blacklist_type_artist), tokens.accentSecondary.copy(alpha = 0.15f), tokens.accentSecondary)
+        BlacklistRuleType.PACKAGE_NAME -> Triple(stringResource(R.string.blacklist_type_package), tokens.accentGlow.copy(alpha = 0.25f), tokens.accentPrimary)
     }
 
-    val statusDesc = if (rule.isEnabled) "Активно" else "На паузе"
+    val statusDesc = if (rule.isEnabled) stringResource(R.string.blacklist_status_active) else stringResource(R.string.blacklist_status_disabled)
 
     val dangerColor = if (tokens.isDark) Color(0xFFE57373) else Color(0xFFC85A5A)
 
@@ -606,7 +608,7 @@ private fun BlacklistRuleCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Удалить правило",
+                        contentDescription = stringResource(R.string.blacklist_delete_rule),
                         tint = dangerColor.copy(alpha = 0.85f),
                         modifier = Modifier.size(20.dp)
                     )
@@ -641,7 +643,7 @@ private fun EmptyStateView(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = if (isFiltered) "Нет правил в этой категории" else "Медиатека не фильтруется",
+                text = if (isFiltered) stringResource(R.string.blacklist_empty_filtered) else stringResource(R.string.blacklist_empty_title),
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold
                 ),
@@ -652,9 +654,9 @@ private fun EmptyStateView(
 
             Text(
                 text = if (isFiltered) {
-                    "Переключитесь на вкладку «Все» или создайте новое правило."
+                    stringResource(R.string.blacklist_empty_filtered_desc)
                 } else {
-                    "Создайте первое правило, чтобы заблокировать рекламу, голосовые сообщения из мессенджеров или нежелательных артистов."
+                    stringResource(R.string.blacklist_empty_desc)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = tokens.textSecondary,

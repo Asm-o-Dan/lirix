@@ -118,7 +118,7 @@ class SongTranslationTest {
                 connection.execSQL("INSERT INTO lyrics_cache VALUES ('key','Original','[00:01.00] Original','Am','notes','USER',2)")
                 connection.execSQL("INSERT INTO music_listening_sessions VALUES (1,'key','test',1,1001,1000,1)")
             }
-            fun open() = Room.databaseBuilder<AppDatabase>(name = file.absolutePath).setDriver(BundledSQLiteDriver()).addMigrations(MIGRATION_11_12).build()
+            fun open() = Room.databaseBuilder<AppDatabase>(name = file.absolutePath).setDriver(BundledSQLiteDriver()).addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14).build()
             var db = open()
             try {
                 assertEquals(7, db.musicDao().getTrackByKey("key")!!.playCount)

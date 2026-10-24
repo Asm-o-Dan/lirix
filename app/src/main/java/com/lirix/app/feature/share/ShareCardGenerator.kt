@@ -25,13 +25,15 @@ import com.lirix.app.storage.TrackEntity
 import java.io.File
 
 /** What to put on the Wrapped poster: one focused topic per card keeps it clean. */
-enum class WrappedShareSection(val titleRu: String, val hintRu: String) {
+enum class WrappedShareSection(private val titleSource: String, private val hintSource: String) {
     ARCHETYPE("Архетип", "Твой тип слушателя и часы в эфире"),
     ARTISTS("Топ артистов", "Любимые исполнители периода"),
     TRACKS("Топ треков", "Что крутилось чаще всего"),
     OBSESSION("Одержимость", "Один трек на репите"),
     PULSE("Пульс суток", "Когда ты слушаешь музыку"),
-    FULL("Всё вместе", "Полный постер со всеми блоками")
+    FULL("Всё вместе", "Полный постер со всеми блоками");
+    val titleRu get() = com.lirix.app.ui.i18n.LirixStrings.message(titleSource)
+    val hintRu get() = com.lirix.app.ui.i18n.LirixStrings.message(hintSource)
 }
 
 enum class CollageMode { TILTED, BLUR, NONE }
@@ -82,9 +84,10 @@ enum class PosterStyle(
     }
 }
 
-enum class ShareCardFormat(val width: Int, val height: Int, val label: String) {
+enum class ShareCardFormat(val width: Int, val height: Int, private val sourceLabel: String) {
     STORIES_9_16(1080, 1920, "Истории (9:16)"),
-    SQUARE_1_1(1080, 1080, "Квадрат (1:1)")
+    SQUARE_1_1(1080, 1080, "Квадрат (1:1)");
+    val label get() = com.lirix.app.ui.i18n.LirixStrings.message(sourceLabel)
 }
 
 /**
@@ -133,9 +136,10 @@ object ShareCardGenerator {
         section: WrappedShareSection = WrappedShareSection.FULL,
         posterStyle: PosterStyle = PosterStyle.OBSIDIAN,
         theme: PosterThemeSnapshot? = null,
-        artworkByTrackKey: Map<String, Bitmap?> = emptyMap()
+        artworkByTrackKey: Map<String, Bitmap?> = emptyMap(),
+        labels: PosterTextSnapshot = PosterTextSnapshot.from(context)
     ): Bitmap {
-        if (theme != null) return EditorialPosterRenderer.wrapped(stats, timeframe, format, theme, artworkByTrackKey, section)
+        if (theme != null) return EditorialPosterRenderer.wrapped(stats, timeframe, format, theme, artworkByTrackKey, section, labels)
         // Local palette shadows the default constants so the whole layout re-colors per style
         val COLOR_HYPER_VIOLET = posterStyle.c1
         val COLOR_CYBER_CYAN = posterStyle.c2
@@ -217,7 +221,7 @@ object ShareCardGenerator {
 
             if (showArchetype) {
             // Hero Archetype Showcase (Bold Editorial Poster, DESIGN_VARIANCE = 10)
-            val archTagText = "★ ВАШ МУЗЫКАЛЬНЫЙ АРХЕТИП"
+            val archTagText = labels.text("★ ВАШ МУЗЫКАЛЬНЫЙ АРХЕТИП")
             val archTagPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = COLOR_AMBER_GOLD
                 textSize = width * 0.027f
@@ -228,7 +232,7 @@ object ShareCardGenerator {
             curY += 92f
 
             // Hero Archetype Title (Massive Scale Contrast)
-            val archTitleText = stats.archetype.titleRu.uppercase()
+            val archTitleText = labels.text(stats.archetype.titleRu).uppercase()
             val archTitlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = COLOR_TEXT_PRIMARY
                 textSize = width * 0.076f
@@ -262,11 +266,11 @@ object ShareCardGenerator {
             val totalHours = totalMinutes / 60
             val heroNumStr = if (totalHours > 0) "$totalHours" else "$totalMinutes"
             val heroUnitWord = if (totalHours > 0) {
-                pluralizeWordOnly(totalHours.toInt(), "ЧАС", "ЧАСА", "ЧАСОВ")
+                labels.unit(totalHours.toInt(), labels.text("ЧАС"), labels.text("ЧАСА"), labels.text("ЧАСОВ"))
             } else {
-                pluralizeWordOnly(totalMinutes.toInt(), "МИНУТА", "МИНУТЫ", "МИНУТ")
+                labels.unit(totalMinutes.toInt(), labels.text("МИНУТА"), labels.text("МИНУТЫ"), labels.text("МИНУТ"))
             }
-            val heroUnitStr = "$heroUnitWord В ЭФИРЕ"
+            val heroUnitStr = labels.text("{0} В ЭФИРЕ", heroUnitWord)
 
             val bigNumPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                 textSize = width * 0.16f
@@ -299,15 +303,15 @@ object ShareCardGenerator {
                 textSize = width * 0.027f
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
             }
-            canvas.drawText("МУЗЫКАЛЬНОГО ПОТОКА", labelX, curY + 98f, subLabelPaint)
+            canvas.drawText(labels.text("МУЗЫКАЛЬНОГО ПОТОКА"), labelX, curY + 98f, subLabelPaint)
 
             val counterPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = COLOR_ELECTRIC_MINT
                 textSize = width * 0.027f
                 typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
             }
-            val tracksCountStr = pluralize(stats.uniqueTracksCount, "трек", "трека", "треков")
-            val artistsCountStr = pluralize(stats.uniqueArtistsCount, "артист", "артиста", "артистов")
+            val tracksCountStr = labels.quantity(stats.uniqueTracksCount, labels.text("трек"), labels.text("трека"), labels.text("треков"))
+            val artistsCountStr = labels.quantity(stats.uniqueArtistsCount, labels.text("артист"), labels.text("артиста"), labels.text("артистов"))
             canvas.drawText("⚡ $tracksCountStr • $artistsCountStr", labelX, curY + 142f, counterPaint)
 
             curY += (width * 0.18f) + 50f
@@ -332,7 +336,7 @@ object ShareCardGenerator {
                     typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                     letterSpacing = 0.04f
                 }
-                canvas.drawText("ТОП ИСПОЛНИТЕЛИ // DNA", padding, curY, sectionTitlePaint)
+                canvas.drawText(labels.text("ТОП ИСПОЛНИТЕЛИ // DNA"), padding, curY, sectionTitlePaint)
                 curY += 42f
 
                 val rowH = 88f
@@ -371,7 +375,7 @@ object ShareCardGenerator {
                         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                     }
                     val nameX = rowRect.left + 116f
-                    val countText = pluralize(artistItem.playCount, "трек", "трека", "треков")
+                    val countText = labels.quantity(artistItem.playCount, labels.text("трек"), labels.text("трека"), labels.text("треков"))
                     val countPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                         color = COLOR_TEXT_MUTED
                         textSize = width * 0.026f
@@ -437,10 +441,10 @@ object ShareCardGenerator {
                     typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                     letterSpacing = 0.06f
                 }
-                canvas.drawText("🔥 ГЛАВНАЯ ОДЕРЖИМОСТЬ ПЕРИОДА", obsRect.left + 26f, obsRect.top + 38f, obsHeaderPaint)
+                canvas.drawText(labels.text("🔥 ГЛАВНАЯ ОДЕРЖИМОСТЬ ПЕРИОДА"), obsRect.left + 26f, obsRect.top + 38f, obsHeaderPaint)
 
                 // Repeat badge with correct Russian grammar (e.g. x4 повтора)
-                val repeatWord = pluralizeWordOnly(obsession.playCountInPeriod, "повтор", "повтора", "повторов")
+                val repeatWord = labels.unit(obsession.playCountInPeriod, labels.text("повтор"), labels.text("повтора"), labels.text("повторов"))
                 val repeatStr = "x${obsession.playCountInPeriod} $repeatWord"
                 val repeatPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = COLOR_AMBER_GOLD
@@ -488,7 +492,7 @@ object ShareCardGenerator {
                 if (section == WrappedShareSection.TRACKS) 5 else if (obsession != null) 2 else 3
             )
             if (topTracksToShow.isNotEmpty()) {
-                val trackSectionTitle = "ТОП ТРЕКИ // HIT ROTATION"
+                val trackSectionTitle = labels.text("ТОП ТРЕКИ // HIT ROTATION")
                 val trackSectionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = COLOR_CYBER_CYAN
                     textSize = width * 0.032f
@@ -552,7 +556,7 @@ object ShareCardGenerator {
                     }
 
                     // Stat pill / badge on right: e.g. "12 раз" or duration
-                    val statBadgeText = if (trackItem.playCount > 0) pluralize(trackItem.playCount, "раз", "раза", "раз") else "${trackItem.durationMs / 60000} мин"
+                    val statBadgeText = if (trackItem.playCount > 0) labels.quantity(trackItem.playCount, labels.text("раз"), labels.text("раза"), labels.text("раз")) else labels.text("{0} мин", trackItem.durationMs / 60000)
                     val statBadgePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                         color = rankColor
                         textSize = width * 0.025f
@@ -613,10 +617,10 @@ object ShareCardGenerator {
             val peakSlot = peakEntry?.key ?: TimeOfDaySlot.NIGHT
             val peakFraction = peakEntry?.value ?: 0.35f
             val (slotIcon, slotTitle) = when (peakSlot) {
-                TimeOfDaySlot.NIGHT -> "🌙" to "НОЧНОЙ ПИК (00-06)"
-                TimeOfDaySlot.MORNING -> "🌅" to "УТРО (06-12)"
-                TimeOfDaySlot.AFTERNOON -> "☀️" to "ДЕНЬ (12-18)"
-                TimeOfDaySlot.EVENING -> "🌆" to "ВЕЧЕР (18-24)"
+                TimeOfDaySlot.NIGHT -> "🌙" to labels.text("НОЧНОЙ ПИК (00-06)")
+                TimeOfDaySlot.MORNING -> "🌅" to labels.text("УТРО (06-12)")
+                TimeOfDaySlot.AFTERNOON -> "☀️" to labels.text("ДЕНЬ (12-18)")
+                TimeOfDaySlot.EVENING -> "🌆" to labels.text("ВЕЧЕР (18-24)")
             }
             val peakPercentStr = "${(peakFraction * 100).toInt()}%"
             val lyricsPercentStr = "${(stats.lyricsCoverageRatio * 100).toInt()}%"
@@ -643,14 +647,14 @@ object ShareCardGenerator {
                     typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
                     letterSpacing = 0.06f
                 }
-                canvas.drawText("🧭 КОМПАС АКТИВНОСТИ // ВРЕМЯ СУТОК", cardRect.left + 24f, cardRect.top + 40f, headPaint)
+                canvas.drawText(labels.text("🧭 КОМПАС АКТИВНОСТИ // ВРЕМЯ СУТОК"), cardRect.left + 24f, cardRect.top + 40f, headPaint)
 
                 // 4 Time of day distribution progress bars
                 val slotList = listOf(
-                    Triple(TimeOfDaySlot.NIGHT, "Ночь (00-06)", COLOR_HYPER_VIOLET),
-                    Triple(TimeOfDaySlot.MORNING, "Утро (06-12)", COLOR_AMBER_GOLD),
-                    Triple(TimeOfDaySlot.AFTERNOON, "День (12-18)", COLOR_CYBER_CYAN),
-                    Triple(TimeOfDaySlot.EVENING, "Вечер (18-24)", COLOR_ELECTRIC_MINT)
+                    Triple(TimeOfDaySlot.NIGHT, labels.text("Ночь (00-06)"), COLOR_HYPER_VIOLET),
+                    Triple(TimeOfDaySlot.MORNING, labels.text("Утро (06-12)"), COLOR_AMBER_GOLD),
+                    Triple(TimeOfDaySlot.AFTERNOON, labels.text("День (12-18)"), COLOR_CYBER_CYAN),
+                    Triple(TimeOfDaySlot.EVENING, labels.text("Вечер (18-24)"), COLOR_ELECTRIC_MINT)
                 )
 
                 var slotY = cardRect.top + 78f
@@ -697,7 +701,7 @@ object ShareCardGenerator {
                     typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
                 }
                 val repeatRatioStr = if (stats.repeatRatio > 0f) String.format(java.util.Locale.US, "%.1f", stats.repeatRatio) else "1.0"
-                canvas.drawText("⚡ $lyricsPercentStr С ТЕКСТАМИ // x$repeatRatioStr ИНДЕКС ПОВТОРОВ", cardRect.left + 24f, cardRect.bottom - 20f, featPaint)
+                canvas.drawText(labels.text("⚡ {0} С ТЕКСТАМИ // x{1} ИНДЕКС ПОВТОРОВ", lyricsPercentStr, repeatRatioStr), cardRect.left + 24f, cardRect.bottom - 20f, featPaint)
 
                 curY += cardH + 28f
             } else {
@@ -725,7 +729,7 @@ object ShareCardGenerator {
                     typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
                     letterSpacing = 0.05f
                 }
-                canvas.drawText("🧭 ПИК ВРЕМЕНИ", leftRect.left + 20f, leftRect.top + 34f, tagPaint)
+                canvas.drawText(labels.text("🧭 ПИК ВРЕМЕНИ"), leftRect.left + 20f, leftRect.top + 34f, tagPaint)
 
                 val bigStatPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = COLOR_TEXT_PRIMARY
@@ -752,7 +756,7 @@ object ShareCardGenerator {
                     typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
                     letterSpacing = 0.05f
                 }
-                canvas.drawText("⚡ С ТЕКСТАМИ", rightRect.left + 20f, rightRect.top + 34f, tagLyricsPaint)
+                canvas.drawText(labels.text("⚡ С ТЕКСТАМИ"), rightRect.left + 20f, rightRect.top + 34f, tagLyricsPaint)
 
                 val bigLyricsPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = COLOR_TEXT_PRIMARY
@@ -767,7 +771,7 @@ object ShareCardGenerator {
                     typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
                 }
                 val repeatRatioStr = if (stats.repeatRatio > 0f) String.format(java.util.Locale.US, "%.1f", stats.repeatRatio) else "1.0"
-                canvas.drawText("x$repeatRatioStr ИНДЕКС ПОВТОРА", rightRect.left + 20f, rightRect.top + 152f, subLyricsPaint)
+                canvas.drawText(labels.text("x{0} ИНДЕКС ПОВТОРА", repeatRatioStr), rightRect.left + 20f, rightRect.top + 152f, subLyricsPaint)
 
                 curY += tileH + 28f
             }
@@ -802,7 +806,7 @@ object ShareCardGenerator {
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 letterSpacing = 0.08f
             }
-            canvas.drawText("★ АРХЕТИП СЛУШАТЕЛЯ", padding, curY, archTagPaint)
+            canvas.drawText(labels.text("★ АРХЕТИП СЛУШАТЕЛЯ"), padding, curY, archTagPaint)
             curY += 48f
 
             val archTitlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -812,7 +816,7 @@ object ShareCardGenerator {
                 letterSpacing = -0.02f
                 setShadowLayer(20f, 0f, 0f, (COLOR_HYPER_VIOLET and 0x00FFFFFF) or 0x88000000.toInt())
             }
-            canvas.drawText(stats.archetype.titleRu.uppercase(), padding, curY, archTitlePaint)
+            canvas.drawText(labels.text(stats.archetype.titleRu).uppercase(), padding, curY, archTitlePaint)
             curY += 70f
 
             // Split Grid: Left = Big Number, Right = Top Artists
@@ -838,9 +842,9 @@ object ShareCardGenerator {
             val totalHours = totalMinutes / 60
             val heroNumStr = if (totalHours > 0) "$totalHours" else "$totalMinutes"
             val heroUnitStr = if (totalHours > 0) {
-                pluralizeWordOnly(totalHours.toInt(), "ЧАС", "ЧАСА", "ЧАСОВ")
+                labels.unit(totalHours.toInt(), labels.text("ЧАС"), labels.text("ЧАСА"), labels.text("ЧАСОВ"))
             } else {
-                pluralizeWordOnly(totalMinutes.toInt(), "МИНУТА", "МИНУТЫ", "МИНУТ")
+                labels.unit(totalMinutes.toInt(), labels.text("МИНУТА"), labels.text("МИНУТЫ"), labels.text("МИНУТ"))
             }
 
             val numPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -867,15 +871,15 @@ object ShareCardGenerator {
                 color = COLOR_TEXT_MUTED
                 textSize = width * 0.024f
             }
-            canvas.drawText("МУЗЫКАЛЬНОГО ПОТОКА", leftRect.left + 24f, leftRect.top + 215f, subPaint)
+            canvas.drawText(labels.text("МУЗЫКАЛЬНОГО ПОТОКА"), leftRect.left + 24f, leftRect.top + 215f, subPaint)
 
             val statPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = COLOR_ELECTRIC_MINT
                 textSize = width * 0.025f
                 typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
             }
-            val sqTracksStr = pluralize(stats.uniqueTracksCount, "трек", "трека", "треков")
-            val sqArtistsStr = pluralize(stats.uniqueArtistsCount, "арт.", "арт.", "арт.")
+            val sqTracksStr = labels.quantity(stats.uniqueTracksCount, labels.text("трек"), labels.text("трека"), labels.text("треков"))
+            val sqArtistsStr = labels.quantity(stats.uniqueArtistsCount, labels.text("арт."), labels.text("арт."), labels.text("арт."))
             canvas.drawText("⚡ $sqTracksStr • $sqArtistsStr", leftRect.left + 24f, leftRect.top + 280f, statPaint)
 
             // Right Col: Top Artists List
@@ -898,7 +902,7 @@ object ShareCardGenerator {
                 textSize = width * 0.028f
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             }
-            canvas.drawText("ТОП АРТИСТЫ", rightLeft + 20f, splitTop + 44f, rightTitlePaint)
+            canvas.drawText(labels.text("ТОП АРТИСТЫ"), rightLeft + 20f, splitTop + 44f, rightTitlePaint)
 
             val top2Artists = stats.topArtists.take(2)
             var artY = splitTop + 84f
@@ -928,7 +932,7 @@ object ShareCardGenerator {
                     textSize = width * 0.023f
                     typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
                 }
-                val sqArtistPlayText = pluralize(artistItem.playCount, "трек", "трека", "треков")
+                val sqArtistPlayText = labels.quantity(artistItem.playCount, labels.text("трек"), labels.text("трека"), labels.text("треков"))
                 canvas.drawText(sqArtistPlayText, rightLeft + 76f, artY + 62f, cPaint)
 
                 artY += 100f
@@ -962,15 +966,15 @@ object ShareCardGenerator {
                     textSize = width * 0.026f
                     typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 }
-                canvas.drawText("🔥 ОДЕРЖИМОСТЬ: ${obsession.title} — ${obsession.artist}", obsRect.left + 24f, obsRect.top + 48f, obsTitlePaint)
+                canvas.drawText(labels.text("🔥 ОДЕРЖИМОСТЬ: {0} — {1}", obsession.title, obsession.artist), obsRect.left + 24f, obsRect.top + 48f, obsTitlePaint)
 
                 val obsSubPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = COLOR_TEXT_MUTED
                     textSize = width * 0.024f
                     typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
                 }
-                val sqRepeatWord = pluralizeWordOnly(obsession.playCountInPeriod, "раз", "раза", "раз")
-                canvas.drawText("ПРОСЛУШАНО ${obsession.playCountInPeriod} $sqRepeatWord В ЭТОМ ПЕРИОДЕ", obsRect.left + 24f, obsRect.top + 84f, obsSubPaint)
+                val sqRepeatWord = labels.unit(obsession.playCountInPeriod, labels.text("раз"), labels.text("раза"), labels.text("раз"))
+                canvas.drawText(labels.text("ПРОСЛУШАНО {0} {1} В ЭТОМ ПЕРИОДЕ", obsession.playCountInPeriod, sqRepeatWord), obsRect.left + 24f, obsRect.top + 84f, obsSubPaint)
             }
         }
 
@@ -990,9 +994,10 @@ object ShareCardGenerator {
         format: ShareCardFormat,
         albumArtBitmap: Bitmap? = null,
         isDark: Boolean = true,
-        theme: PosterThemeSnapshot? = null
+        theme: PosterThemeSnapshot? = null,
+        labels: PosterTextSnapshot = PosterTextSnapshot.from(context)
     ): Bitmap {
-        if (theme != null) return EditorialPosterRenderer.nowPlaying(track, currentLyricLine, format, theme, albumArtBitmap)
+        if (theme != null) return EditorialPosterRenderer.nowPlaying(track, currentLyricLine, format, theme, albumArtBitmap, labels)
         val width = format.width
         val height = format.height
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -1031,7 +1036,7 @@ object ShareCardGenerator {
             typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
             letterSpacing = 0.12f
         }
-        canvas.drawText("● Сейчас играет", padding, curY, headerPaint)
+        canvas.drawText(labels.text("● Сейчас играет"), padding, curY, headerPaint)
 
         val playerTag = track.sourcePackage.substringAfterLast('.').lowercase()
         val tagPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {

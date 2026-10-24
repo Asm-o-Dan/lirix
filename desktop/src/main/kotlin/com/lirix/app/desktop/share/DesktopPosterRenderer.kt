@@ -9,14 +9,14 @@ import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 
-enum class PosterFormat(val height: Int, val label: String) { STORIES(1920, "История 9:16"), SQUARE(1080, "Квадрат 1:1") }
-enum class PosterSection(val label: String) { FULL("Все итоги"), TRACKS("Треки"), ARTISTS("Исполнители"), OBSESSION("На повторе"), PULSE("Ритм дня") }
+enum class PosterFormat(val height: Int, private val sourceLabel: String) { STORIES(1920, "История 9:16"), SQUARE(1080, "Квадрат 1:1"); val label: String get() = com.lirix.app.ui.i18n.LirixStrings.message(sourceLabel) }
+enum class PosterSection(private val sourceLabel: String) { FULL("Все итоги"), TRACKS("Треки"), ARTISTS("Исполнители"), OBSESSION("На повторе"), PULSE("Ритм дня"); val label: String get() = com.lirix.app.ui.i18n.LirixStrings.message(sourceLabel) }
 
 /** Desktop-native export, independent of Android Canvas and Compose runtime state. */
 object DesktopPosterRenderer {
     fun track(track: TrackEntity, lyric: String?, colors: LirixColors, format: PosterFormat): BufferedImage =
         Page(colors, format).apply {
-            text("Lirix · Сейчас играет", 30, secondary)
+            text(com.lirix.app.ui.i18n.LirixStrings.message("Lirix · Сейчас играет"), 30, secondary)
             gap(36)
             cover(track.albumArtUri, if (format == PosterFormat.STORIES) 640 else 320)
             gap(32)
@@ -28,42 +28,42 @@ object DesktopPosterRenderer {
 
     fun wrapped(stats: WrappedStats, timeframe: AnalyticsTimeframe, colors: LirixColors, format: PosterFormat,
                 section: PosterSection = PosterSection.FULL): BufferedImage = Page(colors, format).apply {
-        text("Lirix · Итоги прослушиваний", 30, secondary)
+        text(com.lirix.app.ui.i18n.LirixStrings.message("Lirix · Итоги прослушиваний"), 30, secondary)
         gap(24)
-        text(if (timeframe == AnalyticsTimeframe.MONTH) "Последние 30 дней" else timeframe.labelRu, 42, accent)
+        text(if (timeframe == AnalyticsTimeframe.MONTH) com.lirix.app.ui.i18n.LirixStrings.message("Последние 30 дней") else timeframe.labelRu, 42, accent)
         gap(24)
         when (section) {
             PosterSection.ARTISTS -> {
-                text("Ваши исполнители", 66, serif = true)
+                text(com.lirix.app.ui.i18n.LirixStrings.message("Ваши исполнители"), 66, serif = true)
                 stats.topArtists.take(if (stories) 5 else 3).forEachIndexed { i, artist ->
                     gap(24); text("${i + 1}. ${artist.artist}", 44, maxLines = 2)
-                    text("Запусков: ${artist.playCount}", 28, secondary)
+                    text(com.lirix.app.ui.i18n.LirixStrings.message("Запусков: {0}", artist.playCount), 28, secondary)
                 }
             }
             PosterSection.OBSESSION -> {
-                text("На повторе", 66, serif = true); gap(32)
+                text(com.lirix.app.ui.i18n.LirixStrings.message("На повторе"), 66, serif = true); gap(32)
                 stats.topObsession?.let {
                     text(it.title, 62, serif = true, maxLines = 3); text(it.artist, 36, secondary, maxLines = 2)
-                    gap(24); text("Запусков за период: ${it.playCountInPeriod}", 36, accent)
-                } ?: text("Пока нет трека на повторе", 40, secondary)
+                    gap(24); text(com.lirix.app.ui.i18n.LirixStrings.message("Запусков за период: {0}", it.playCountInPeriod), 36, accent)
+                } ?: text(com.lirix.app.ui.i18n.LirixStrings.message("Пока нет трека на повторе"), 40, secondary)
             }
             PosterSection.PULSE -> {
-                text("Когда звучала музыка", 62, serif = true, maxLines = 2); gap(32)
-                if (stats.timeOfDayDistribution.isEmpty()) text("Пока нет данных", 40, secondary)
+                text(com.lirix.app.ui.i18n.LirixStrings.message("Когда звучала музыка"), 62, serif = true, maxLines = 2); gap(32)
+                if (stats.timeOfDayDistribution.isEmpty()) text(com.lirix.app.ui.i18n.LirixStrings.message("Пока нет данных"), 40, secondary)
                 for ((slot, share) in stats.timeOfDayDistribution) {
-                    val name = when (slot) { TimeOfDaySlot.NIGHT -> "Ночью"; TimeOfDaySlot.MORNING -> "Утром"; TimeOfDaySlot.AFTERNOON -> "Днём"; TimeOfDaySlot.EVENING -> "Вечером" }
-                    text("$name · ${(share * 100).toInt()}% запусков", 42); gap(24)
+                    val name = when (slot) { TimeOfDaySlot.NIGHT -> com.lirix.app.ui.i18n.LirixStrings.message("Ночью"); TimeOfDaySlot.MORNING -> com.lirix.app.ui.i18n.LirixStrings.message("Утром"); TimeOfDaySlot.AFTERNOON -> com.lirix.app.ui.i18n.LirixStrings.message("Днём"); TimeOfDaySlot.EVENING -> com.lirix.app.ui.i18n.LirixStrings.message("Вечером") }
+                    text(com.lirix.app.ui.i18n.LirixStrings.message("{0} · {1}% запусков", name, (share * 100).toInt()), 42); gap(24)
                 }
             }
             else -> {
                 if (section == PosterSection.FULL) {
                     val minutes = stats.totalListeningTimeMs.coerceAtLeast(0) / 60_000
-                    text(if (minutes < 60) "$minutes мин" else "${minutes / 60} ч ${minutes % 60} мин", if (stories) 108 else 92, serif = true)
-                    text("в музыке за выбранный период", 30, secondary); gap(20)
-                    text("Треков: ${stats.uniqueTracksCount} · Артистов: ${stats.uniqueArtistsCount}", 34); gap(28)
+                    text(if (minutes < 60) com.lirix.app.ui.i18n.LirixStrings.message("{0} мин", minutes) else com.lirix.app.ui.i18n.LirixStrings.message("{0} ч {1} мин", minutes / 60, minutes % 60), if (stories) 108 else 92, serif = true)
+                    text(com.lirix.app.ui.i18n.LirixStrings.message("в музыке за выбранный период"), 30, secondary); gap(20)
+                    text(com.lirix.app.ui.i18n.LirixStrings.message("Треков: {0} · Артистов: {1}", stats.uniqueTracksCount, stats.uniqueArtistsCount), 34); gap(28)
                 }
-                text("Любимые треки", 48, serif = true); gap(20)
-                if (stats.topTracks.isEmpty()) text("Здесь появится ваша музыка", 34, secondary)
+                text(com.lirix.app.ui.i18n.LirixStrings.message("Любимые треки"), 48, serif = true); gap(20)
+                if (stats.topTracks.isEmpty()) text(com.lirix.app.ui.i18n.LirixStrings.message("Здесь появится ваша музыка"), 34, secondary)
                 stats.topTracks.take(if (stories) 5 else 3).forEachIndexed { i, t -> row(i + 1, t) }
             }
         }
@@ -134,14 +134,14 @@ object DesktopPosterRenderer {
             }
             label("$rank. ${track.title}", 0, if (stories) 40 else 34, primary)
             label(track.artist, if (stories) 48 else 42, 28, secondary)
-            label("Запусков: ${track.playCount}", if (stories) 86 else 76, 25, accent)
+            label(com.lirix.app.ui.i18n.LirixStrings.message("Запусков: {0}", track.playCount), if (stories) 86 else 76, 25, accent)
             y += height
         }
         fun finish(): BufferedImage {
             val footer = image.height - if (stories) 180 else 72
             g.color = border; g.drawLine(72, footer - 32, 1008, footer - 32)
             g.color = secondary; g.font = font(26, false)
-            g.drawString("Lirix · Музыка, которую вы выбрали", 72, footer)
+            g.drawString(com.lirix.app.ui.i18n.LirixStrings.message("Lirix · Музыка, которую вы выбрали"), 72, footer)
             g.dispose(); return image
         }
     }

@@ -140,7 +140,7 @@ fun DesktopCompactWidget(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = if (lyricsState.displayTitle.isNotBlank()) lyricsState.displayTitle else (playback?.title ?: "Ожидание трека"),
+                        text = if (lyricsState.displayTitle.isNotBlank()) lyricsState.displayTitle else (playback?.title ?: com.lirix.app.ui.i18n.LirixStrings.message("Ожидание трека")),
                         color = colors.textPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
@@ -181,12 +181,12 @@ fun DesktopCompactWidget(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Dashboard,
-                            contentDescription = "Студия",
+                            contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Студия"),
                             tint = colors.textPrimary,
                             modifier = Modifier.size(12.dp)
                         )
                         Text(
-                            text = "Студия",
+                            text = com.lirix.app.ui.i18n.LirixStrings.message("Студия"),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -240,18 +240,18 @@ fun DesktopCompactWidget(
                 ) {
                     CompactIconButton(
                         icon = Icons.Filled.SkipPrevious,
-                        contentDescription = "Предыдущий",
+                        contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Предыдущий"),
                         onClick = { ingressProvider.skipPrevious() }
                     )
                     CompactIconButton(
                         icon = if (playback?.isPlaying == true) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (playback?.isPlaying == true) "Пауза" else "Воспроизведение",
+                        contentDescription = if (playback?.isPlaying == true) com.lirix.app.ui.i18n.LirixStrings.message("Пауза") else com.lirix.app.ui.i18n.LirixStrings.message("Воспроизведение"),
                         isPrimary = true,
                         onClick = { ingressProvider.playPause() }
                     )
                     CompactIconButton(
                         icon = Icons.Filled.SkipNext,
-                        contentDescription = "Следующий",
+                        contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Следующий"),
                         onClick = { ingressProvider.skipNext() }
                     )
                 }

@@ -1,0 +1,6 @@
+Lirix offline lyrics reading dependencies
+
+Kuromoji core/ipadic 0.9.0 — Atilika Inc. and contributors. Apache-2.0 code. IPADIC binary dictionary has additional NAIST/ICOT conditions; full exact artifact notice is KUROMOJI-IPADIC-NOTICE.txt, not Apache alone. https://github.com/atilika/kuromoji
+Wanakana core 1.1.1 — Matthieu Esnault; MIT, WANAKANA-MIT.txt. https://github.com/esnaultdev/wanakana-kt
+Pinyin 0.4.0, heaven 0.2.0, nlp-common 0.0.5 — houbb and contributors; Apache-2.0 (APACHE-2.0.txt). https://github.com/houbb/pinyin https://github.com/houbb/heaven https://github.com/houbb/nlp-common
+The kuromoji lexical supplement v1 is original Lirix-authored data (18 inflection forms for two verbs), licensed with Lirix under GPL-3.0. It supplements the complete upstream IPADIC dictionary and does not replace it.

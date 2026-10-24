@@ -240,14 +240,14 @@ fun DesktopConnectDialog(
             // Seed realistic devices as per SPEC §5.2 for instant rich demonstration
             val d1 = TrustedDevice(
                 endpointId = Bytes(ByteArray(32) { (it + 1).toByte() }),
-                deviceName = "Телефон Daniil (Pixel 8)",
+                deviceName = com.lirix.app.ui.i18n.LirixStrings.message("Телефон Daniil (Pixel 8)"),
                 deviceType = DeviceType.ANDROID_PHONE.name,
                 pairedAtEpochSec = System.currentTimeMillis() / 1000L - 86400,
                 lastSeenEpochSec = System.currentTimeMillis() / 1000L - 12
             )
             val d2 = TrustedDevice(
                 endpointId = Bytes(ByteArray(32) { (it + 33).toByte() }),
-                deviceName = "Рабочий Ноутбук",
+                deviceName = com.lirix.app.ui.i18n.LirixStrings.message("Рабочий Ноутбук"),
                 deviceType = DeviceType.WINDOWS_PC.name,
                 pairedAtEpochSec = System.currentTimeMillis() / 1000L - 172800,
                 lastSeenEpochSec = System.currentTimeMillis() / 1000L - 1200
@@ -371,7 +371,7 @@ fun DesktopConnectDialog(
                             )
                         }
                         Text(
-                            text = "Воспроизвести на устройстве",
+                            text = com.lirix.app.ui.i18n.LirixStrings.message("Воспроизвести на устройстве"),
                             style = typography.trackTitle.copy(fontSize = 17.sp),
                             color = colors.textPrimary
                         )
@@ -383,7 +383,7 @@ fun DesktopConnectDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Закрыть",
+                            contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Закрыть"),
                             tint = colors.textSecondary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -393,7 +393,7 @@ fun DesktopConnectDialog(
                 // ==========================================
                 // 1. БЛОК: ТЕКУЩЕЕ УСТРОЙСТВО (§5.2)
                 // ==========================================
-                SectionHeader(text = "ТЕКУЩЕЕ УСТРОЙСТВО")
+                SectionHeader(text = com.lirix.app.ui.i18n.LirixStrings.message("ТЕКУЩЕЕ УСТРОЙСТВО"))
 
                 Surface(
                     shape = RoundedCornerShape(12.dp),
@@ -428,13 +428,13 @@ fun DesktopConnectDialog(
 
                             Column {
                                 Text(
-                                    text = "Этот компьютер (Windows)",
+                                    text = com.lirix.app.ui.i18n.LirixStrings.message("Этот компьютер (Windows)"),
                                     style = typography.trackTitle.copy(fontSize = 14.sp),
                                     color = colors.textPrimary,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = "Локальный аудиовыход • Источник звука",
+                                    text = com.lirix.app.ui.i18n.LirixStrings.message("Локальный аудиовыход • Источник звука"),
                                     style = typography.timecodeAndBadges.copy(fontSize = 11.sp),
                                     color = colors.textMuted
                                 )
@@ -449,7 +449,7 @@ fun DesktopConnectDialog(
                         ) {
                             Icon(
                                 imageVector = if (localVolume > 0.4f) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeDown,
-                                contentDescription = "Громкость",
+                                contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Громкость"),
                                 tint = colors.textSecondary,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -481,7 +481,7 @@ fun DesktopConnectDialog(
                 // ==========================================
                 // 2. БЛОК: ДОСТУПНЫЕ УСТРОЙСТВА В СЕТИ (§5.2, §5.3)
                 // ==========================================
-                SectionHeader(text = "ДОСТУПНЫЕ УСТРОЙСТВА В СЕТИ")
+                SectionHeader(text = com.lirix.app.ui.i18n.LirixStrings.message("ДОСТУПНЫЕ УСТРОЙСТВА В СЕТИ"))
 
                 if (deviceList.isEmpty()) {
                     Box(
@@ -491,7 +491,7 @@ fun DesktopConnectDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Нет сопряжённых устройств. Отсканируйте QR-код ниже для подключения смартфона.",
+                            text = com.lirix.app.ui.i18n.LirixStrings.message("Нет сопряжённых устройств. Отсканируйте QR-код ниже для подключения смартфона."),
                             style = typography.timecodeAndBadges,
                             color = colors.textMuted,
                             textAlign = TextAlign.Center
@@ -540,7 +540,7 @@ fun DesktopConnectDialog(
                 // ==========================================
                 // 3. БЛОК: ПОДКЛЮЧИТЬ УСТРОЙСТВО (QR-код) (§4.2, §5.2)
                 // ==========================================
-                SectionHeader(text = "ПОДКЛЮЧИТЬ НОВОЕ УСТРОЙСТВО")
+                SectionHeader(text = com.lirix.app.ui.i18n.LirixStrings.message("ПОДКЛЮЧИТЬ НОВОЕ УСТРОЙСТВО"))
 
                 Surface(
                     shape = RoundedCornerShape(12.dp),
@@ -556,7 +556,7 @@ fun DesktopConnectDialog(
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Text(
-                            text = "Отсканируйте камерой смартфона в приложении Lirix",
+                            text = com.lirix.app.ui.i18n.LirixStrings.message("Отсканируйте камерой смартфона в приложении Lirix"),
                             style = typography.timecodeAndBadges.copy(fontSize = 12.sp),
                             color = colors.textSecondary,
                             textAlign = TextAlign.Center
@@ -574,7 +574,7 @@ fun DesktopConnectDialog(
                             if (qrBitmap != null) {
                                 Image(
                                     bitmap = qrBitmap!!,
-                                    contentDescription = "QR-код сопряжения Lirix Connect",
+                                    contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("QR-код сопряжения Lirix Connect"),
                                     modifier = Modifier.fillMaxSize()
                                 )
                             } else {
@@ -599,7 +599,7 @@ fun DesktopConnectDialog(
                                         verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
                                         Text(
-                                            text = "Срок действия QR-кода истёк",
+                                            text = com.lirix.app.ui.i18n.LirixStrings.message("Срок действия QR-кода истёк"),
                                             style = typography.trackTitle.copy(fontSize = 13.sp),
                                             color = Color.White,
                                             textAlign = TextAlign.Center
@@ -622,7 +622,7 @@ fun DesktopConnectDialog(
                                                     modifier = Modifier.size(16.dp)
                                                 )
                                                 Text(
-                                                    text = "Обновить код",
+                                                    text = com.lirix.app.ui.i18n.LirixStrings.message("Обновить код"),
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.SemiBold
                                                 )
@@ -648,7 +648,7 @@ fun DesktopConnectDialog(
                             val mins = remainingSeconds / 60
                             val secs = remainingSeconds % 60
                             Text(
-                                text = "Код действителен: %02d:%02d".format(mins, secs),
+                                text = com.lirix.app.ui.i18n.LirixStrings.message("Код действителен: %02d:%02d").format(mins, secs),
                                 style = typography.timecodeAndBadges.copy(fontSize = 12.sp),
                                 fontFamily = FontFamily.Monospace,
                                 color = if (remainingSeconds < 30) Color(0xFFFFB300) else colors.textPrimary,
@@ -687,7 +687,7 @@ fun DesktopConnectDialog(
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
-                                        text = if (copyNoticeVisible) "Скопировано в буфер" else "Скопировать текстом",
+                                        text = if (copyNoticeVisible) com.lirix.app.ui.i18n.LirixStrings.message("Скопировано в буфер") else com.lirix.app.ui.i18n.LirixStrings.message("Скопировать текстом"),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -714,7 +714,7 @@ fun DesktopConnectDialog(
                                     modifier = Modifier.size(14.dp).padding(top = 2.dp)
                                 )
                                 Text(
-                                    text = "Секрет одноразовый (TTL 120 с) и защищён HMAC-SHA256. Передавайте ссылку только доверенным устройствам.",
+                                    text = com.lirix.app.ui.i18n.LirixStrings.message("Секрет одноразовый (TTL 120 с) и защищён HMAC-SHA256. Передавайте ссылку только доверенным устройствам."),
                                     style = typography.timecodeAndBadges.copy(fontSize = 10.sp),
                                     color = colors.textMuted
                                 )
@@ -734,7 +734,7 @@ fun DesktopConnectDialog(
             onDismissRequest = { deviceToRename = null },
             title = {
                 Text(
-                    text = "Переименовать устройство",
+                    text = com.lirix.app.ui.i18n.LirixStrings.message("Переименовать устройство"),
                     style = typography.trackTitle.copy(fontSize = 16.sp),
                     color = colors.textPrimary
                 )
@@ -742,7 +742,7 @@ fun DesktopConnectDialog(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Введите новое понятное имя для этого устройства:",
+                        text = com.lirix.app.ui.i18n.LirixStrings.message("Введите новое понятное имя для этого устройства:"),
                         style = typography.timecodeAndBadges,
                         color = colors.textSecondary
                     )
@@ -769,12 +769,12 @@ fun DesktopConnectDialog(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentPrimary)
                 ) {
-                    Text("Сохранить")
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Сохранить"))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { deviceToRename = null }) {
-                    Text("Отмена", color = colors.textSecondary)
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Отмена"), color = colors.textSecondary)
                 }
             },
             containerColor = colors.surfaceElevated
@@ -790,14 +790,14 @@ fun DesktopConnectDialog(
             onDismissRequest = { deviceToForget = null },
             title = {
                 Text(
-                    text = "Забыть устройство?",
+                    text = com.lirix.app.ui.i18n.LirixStrings.message("Забыть устройство?"),
                     style = typography.trackTitle.copy(fontSize = 16.sp),
                     color = colors.textPrimary
                 )
             },
             text = {
                 Text(
-                    text = "Связь с устройством «${target.deviceName}» будет аннулирована. Для повторного подключения потребуется отсканировать новый QR-код.",
+                    text = com.lirix.app.ui.i18n.LirixStrings.message("Связь с устройством «{0}» будет аннулирована. Для повторного подключения потребуется отсканировать новый QR-код.", target.deviceName),
                     style = typography.timecodeAndBadges.copy(fontSize = 12.sp),
                     color = colors.textSecondary
                 )
@@ -811,12 +811,12 @@ fun DesktopConnectDialog(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252))
                 ) {
-                    Text("Забыть", color = Color.White)
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Забыть"), color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { deviceToForget = null }) {
-                    Text("Отмена", color = colors.textSecondary)
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Отмена"), color = colors.textSecondary)
                 }
             },
             containerColor = colors.surfaceElevated
@@ -841,7 +841,7 @@ fun DesktopConnectDialog(
                         tint = colors.accentPrimary
                     )
                     Text(
-                        text = "Входящее сопряжение",
+                        text = com.lirix.app.ui.i18n.LirixStrings.message("Входящее сопряжение"),
                         style = typography.trackTitle.copy(fontSize = 16.sp),
                         color = colors.textPrimary
                     )
@@ -854,14 +854,14 @@ fun DesktopConnectDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Добавить устройство «${req.deviceName}» в список доверенных?",
+                        text = com.lirix.app.ui.i18n.LirixStrings.message("Добавить устройство «{0}» в список доверенных?", req.deviceName),
                         style = typography.timecodeAndBadges.copy(fontSize = 13.sp),
                         color = colors.textPrimary,
                         textAlign = TextAlign.Center
                     )
 
                     Text(
-                        text = "Сверьте 6-значный код на экране устройства:",
+                        text = com.lirix.app.ui.i18n.LirixStrings.message("Сверьте 6-значный код на экране устройства:"),
                         style = typography.timecodeAndBadges.copy(fontSize = 11.sp),
                         color = colors.textMuted
                     )
@@ -899,12 +899,12 @@ fun DesktopConnectDialog(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentPrimary)
                 ) {
-                    Text("Подтвердить")
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Подтвердить"))
                 }
             },
             dismissButton = {
                 OutlinedButton(onClick = { onRejectPairing(req) }) {
-                    Text("Отклонить", color = colors.textSecondary)
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Отклонить"), color = colors.textSecondary)
                 }
             },
             containerColor = colors.surfaceElevated
@@ -929,7 +929,7 @@ fun DesktopConnectDialog(
                         tint = colors.accentSecondary
                     )
                     Text(
-                        text = "Передача трека недоступна",
+                        text = com.lirix.app.ui.i18n.LirixStrings.message("Передача трека недоступна"),
                         style = typography.trackTitle.copy(fontSize = 16.sp),
                         color = colors.textPrimary
                     )
@@ -937,7 +937,7 @@ fun DesktopConnectDialog(
             },
             text = {
                 Text(
-                    text = "Не удалось запустить трек на «${device.deviceName}» (устройство офлайн или трек отсутствует в его каталоге). Включить прямую трансляцию звука (Audio Cast) по сети?",
+                    text = com.lirix.app.ui.i18n.LirixStrings.message("Не удалось запустить трек на «{0}» (устройство офлайн или трек отсутствует в его каталоге). Включить прямую трансляцию звука (Audio Cast) по сети?", device.deviceName),
                     style = typography.timecodeAndBadges.copy(fontSize = 12.sp),
                     color = colors.textSecondary
                 )
@@ -950,12 +950,12 @@ fun DesktopConnectDialog(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentPrimary)
                 ) {
-                    Text("Транслировать (Cast)")
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Транслировать (Cast)"))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { handoffErrorDevice = null }) {
-                    Text("Отмена", color = colors.textSecondary)
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Отмена"), color = colors.textSecondary)
                 }
             },
             containerColor = colors.surfaceElevated
@@ -1048,7 +1048,7 @@ private fun DeviceItemCard(
                                 .padding(horizontal = 5.dp, vertical = 1.dp)
                         ) {
                             Text(
-                                text = if (isOnline) "В сети" else "Офлайн",
+                                text = if (isOnline) com.lirix.app.ui.i18n.LirixStrings.message("В сети") else com.lirix.app.ui.i18n.LirixStrings.message("Офлайн"),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (isOnline) Color(0xFF00E676) else colors.textMuted
@@ -1057,12 +1057,12 @@ private fun DeviceItemCard(
                     }
 
                     val subText = when {
-                        isConnecting -> "Подключение..."
-                        isActivePlayer -> "● Воспроизведение активно"
-                        isOnline -> "Играет: Нет • Нажмите для передачи трека"
+                        isConnecting -> com.lirix.app.ui.i18n.LirixStrings.message("Подключение...")
+                        isActivePlayer -> com.lirix.app.ui.i18n.LirixStrings.message("● Воспроизведение активно")
+                        isOnline -> com.lirix.app.ui.i18n.LirixStrings.message("Играет: Нет • Нажмите для передачи трека")
                         else -> {
                             val minsAgo = ((System.currentTimeMillis() / 1000L - device.lastSeenEpochSec) / 60).coerceAtLeast(1)
-                            "Был в сети $minsAgo мин назад"
+                            com.lirix.app.ui.i18n.LirixStrings.message("Был в сети {0} мин назад", minsAgo)
                         }
                     }
 
@@ -1094,7 +1094,7 @@ private fun DeviceItemCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Передать трек",
+                            contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Передать трек"),
                             tint = if (isOnline) colors.accentPrimary else colors.textMuted,
                             modifier = Modifier.size(18.dp)
                         )
@@ -1108,7 +1108,7 @@ private fun DeviceItemCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Опции устройства",
+                            contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Опции устройства"),
                             tint = colors.textSecondary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -1120,7 +1120,7 @@ private fun DeviceItemCard(
                         modifier = Modifier.background(colors.surfaceElevated)
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Переименовать", fontSize = 12.sp, color = colors.textPrimary) },
+                            text = { Text(com.lirix.app.ui.i18n.LirixStrings.message("Переименовать"), fontSize = 12.sp, color = colors.textPrimary) },
                             leadingIcon = {
                                 Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.textPrimary)
                             },
@@ -1130,7 +1130,7 @@ private fun DeviceItemCard(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Забыть устройство", fontSize = 12.sp, color = Color(0xFFFF5252)) },
+                            text = { Text(com.lirix.app.ui.i18n.LirixStrings.message("Забыть устройство"), fontSize = 12.sp, color = Color(0xFFFF5252)) },
                             leadingIcon = {
                                 Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFFFF5252))
                             },

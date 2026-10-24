@@ -32,15 +32,15 @@ internal fun DesktopPersistentPlayer(playback: LivePlaybackSnapshot?, ingress: M
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Column(Modifier.weight(.8f)) {
-                Text(playback?.title ?: "Нет активного трека", color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(playback?.title ?: com.lirix.app.ui.i18n.LirixStrings.message("Нет активного трека"), color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(playback?.artist.orEmpty(), color = c.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            IconButton(onClick = ingress::skipPrevious, enabled = playback != null) { Icon(Icons.Default.SkipPrevious, "Предыдущий трек") }
+            IconButton(onClick = ingress::skipPrevious, enabled = playback != null) { Icon(Icons.Default.SkipPrevious, com.lirix.app.ui.i18n.LirixStrings.message("Предыдущий трек")) }
             FilledIconButton(onClick = ingress::playPause, enabled = playback != null) {
                 Icon(if (playback?.isPlaying == true) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    if (playback?.isPlaying == true) "Пауза" else "Воспроизведение")
+                    if (playback?.isPlaying == true) com.lirix.app.ui.i18n.LirixStrings.message("Пауза") else com.lirix.app.ui.i18n.LirixStrings.message("Воспроизведение"))
             }
-            IconButton(onClick = ingress::skipNext, enabled = playback != null) { Icon(Icons.Default.SkipNext, "Следующий трек") }
+            IconButton(onClick = ingress::skipNext, enabled = playback != null) { Icon(Icons.Default.SkipNext, com.lirix.app.ui.i18n.LirixStrings.message("Следующий трек")) }
             Column(Modifier.weight(1f)) {
                 Slider(value = if (dragging) fraction else if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f,
                     onValueChange = { dragging = true; fraction = it }, enabled = playback != null && duration > 0,
@@ -50,13 +50,13 @@ internal fun DesktopPersistentPlayer(playback: LivePlaybackSnapshot?, ingress: M
                     color = c.textSecondary, fontSize = 11.sp)
             }
             Box {
-                IconButton(onClick = { options = true }) { Icon(Icons.Default.MoreVert, "Сдвиг текста и уровни звука") }
+                IconButton(onClick = { options = true }) { Icon(Icons.Default.MoreVert, com.lirix.app.ui.i18n.LirixStrings.message("Сдвиг текста и уровни звука")) }
                 DropdownMenu(options, { options = false }) {
-                    Text("Сдвиг текста: ${offset / 1000.0} с", color = c.textPrimary, modifier = Modifier.padding(12.dp))
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Сдвиг текста: {0} с", offset / 1000.0), color = c.textPrimary, modifier = Modifier.padding(12.dp))
                     Row {
-                        TextButton(onClick = { DesktopSyncOffsetStore.setOffsetMs(offset - 100L) }) { Text("−0,1 с") }
-                        TextButton(onClick = { DesktopSyncOffsetStore.setOffsetMs(offset + 100L) }) { Text("+0,1 с") }
-                        TextButton(onClick = { DesktopSyncOffsetStore.setOffsetMs(DesktopSyncOffsetStore.DEFAULT_OFFSET_MS) }) { Text("Сбросить") }
+                        TextButton(onClick = { DesktopSyncOffsetStore.setOffsetMs(offset - 100L) }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("−0,1 с")) }
+                        TextButton(onClick = { DesktopSyncOffsetStore.setOffsetMs(offset + 100L) }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("+0,1 с")) }
+                        TextButton(onClick = { DesktopSyncOffsetStore.setOffsetMs(DesktopSyncOffsetStore.DEFAULT_OFFSET_MS) }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Сбросить")) }
                     }
                     if (audioLevels?.isActive == true) AnalogVuMeter(audioLevels, playback?.isPlaying == true, Modifier.width(260.dp).padding(12.dp))
                 }

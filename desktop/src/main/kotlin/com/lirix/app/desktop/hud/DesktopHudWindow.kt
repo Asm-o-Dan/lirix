@@ -56,7 +56,7 @@ fun DesktopHudWindow(
         if (state.position != target) state.position = target
     }
     if (!visible) return
-    Window(onCloseRequest = onCloseRequest, state = state, title = "Lirix — Оверлей",
+    Window(onCloseRequest = onCloseRequest, state = state, title = com.lirix.app.ui.i18n.LirixStrings.message("Lirix — Оверлей"),
         transparent = true, undecorated = true, alwaysOnTop = true, resizable = !settings.locked,
         focusable = !settings.locked) {
         val colors = LirixThemeTokens.colors
@@ -84,7 +84,7 @@ fun DesktopHudWindow(
             }
         }
         val active = lyricsLines.indexOfLast { it.timestampMs <= positionMs }
-        val current = lyricsLines.getOrNull(active)?.text ?: if (lyricsLines.isNotEmpty()) "Скоро начнётся текст…" else playback?.title ?: "Ожидание музыки"
+        val current = lyricsLines.getOrNull(active)?.text ?: if (lyricsLines.isNotEmpty()) com.lirix.app.ui.i18n.LirixStrings.message("Скоро начнётся текст…") else playback?.title ?: com.lirix.app.ui.i18n.LirixStrings.message("Ожидание музыки")
         val previous = lyricsLines.getOrNull(active - 1)?.text
         val next = lyricsLines.getOrNull(active + 1)?.text
         val scale = (minOf(state.size.width.value / 680f, state.size.height.value / 240f) * settings.textScale).coerceIn(.7f, 2.5f)
@@ -95,13 +95,13 @@ fun DesktopHudWindow(
                     if (!settings.locked) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             WindowDraggableArea(modifier = Modifier.weight(1f)) {
-                                Text("Перетащите оверлей", color = colors.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                Text(com.lirix.app.ui.i18n.LirixStrings.message("Перетащите оверлей"), color = colors.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
                             }
-                            TextButton(onClick = { onSettingsChange(settings.copy(textScale = settings.textScale - .1f)) }, contentPadding = PaddingValues(6.dp)) { Text("А−", color = colors.textPrimary) }
-                            TextButton(onClick = { onSettingsChange(settings.copy(textScale = settings.textScale + .1f)) }, contentPadding = PaddingValues(6.dp)) { Text("А+", color = colors.textPrimary) }
-                            TextButton(onClick = { onSettingsChange(settings.copy(locked = true)) }, contentPadding = PaddingValues(6.dp)) { Text("Закрепить", color = colors.accentPrimary) }
-                            TextButton(onClick = onCloseRequest, contentPadding = PaddingValues(6.dp)) { Text("Закрыть", color = colors.textSecondary) }
+                            TextButton(onClick = { onSettingsChange(settings.copy(textScale = settings.textScale - .1f)) }, contentPadding = PaddingValues(6.dp)) { Text(com.lirix.app.ui.i18n.LirixStrings.message("А−"), color = colors.textPrimary) }
+                            TextButton(onClick = { onSettingsChange(settings.copy(textScale = settings.textScale + .1f)) }, contentPadding = PaddingValues(6.dp)) { Text(com.lirix.app.ui.i18n.LirixStrings.message("А+"), color = colors.textPrimary) }
+                            TextButton(onClick = { onSettingsChange(settings.copy(locked = true)) }, contentPadding = PaddingValues(6.dp)) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Закрепить"), color = colors.accentPrimary) }
+                            TextButton(onClick = onCloseRequest, contentPadding = PaddingValues(6.dp)) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Закрыть"), color = colors.textSecondary) }
                         }
                     }
                     Column(Modifier.fillMaxWidth().weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -113,7 +113,7 @@ fun DesktopHudWindow(
                         if (next != null && state.size.height >= 220.dp) Text(next, color = colors.textSecondary,
                             fontSize = (15 * scale).sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                     }
-                    Text("Ctrl+Alt+L — переместить и изменить размер · Ctrl+Alt+H — скрыть",
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Ctrl+Alt+L — переместить и изменить размер · Ctrl+Alt+H — скрыть"),
                         color = colors.textMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (!settings.locked) {

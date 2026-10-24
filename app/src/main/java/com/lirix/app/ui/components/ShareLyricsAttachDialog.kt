@@ -33,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.lirix.app.R
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,7 +77,7 @@ fun ShareLyricsAttachDialog(
                     .padding(20.dp)
             ) {
                 Text(
-                    text = "Привязать текст из буфера",
+                    text = stringResource(R.string.share_attach_title),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = AppColors.TextPrimary
                 )
@@ -90,7 +92,7 @@ fun ShareLyricsAttachDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = lyricsText.lines().take(4).joinToString("\n").ifBlank { "Пустой текст" },
+                        text = lyricsText.lines().take(4).joinToString("\n").ifBlank { stringResource(R.string.share_attach_empty_text) },
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 12.sp,
@@ -108,7 +110,7 @@ fun ShareLyricsAttachDialog(
                 // Быстрый выбор текущего/последнего трека
                 if (topTrack != null) {
                     Text(
-                        text = "Текущий трек:",
+                        text = stringResource(R.string.share_attach_current_track),
                         style = MaterialTheme.typography.labelMedium,
                         color = AppColors.CyberCyan
                     )
@@ -155,7 +157,7 @@ fun ShareLyricsAttachDialog(
                                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.ElectricMint),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                Text("Привязать", color = AppColors.AmoledBlack, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text(stringResource(R.string.share_attach_action), color = AppColors.AmoledBlack, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }
@@ -165,7 +167,7 @@ fun ShareLyricsAttachDialog(
                 if (otherTracks.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        text = "Или выбрать из недавних:",
+                        text = stringResource(R.string.share_attach_recent_tracks),
                         style = MaterialTheme.typography.labelSmall,
                         color = AppColors.TextTertiary
                     )
@@ -220,7 +222,7 @@ fun ShareLyricsAttachDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismissRequest) {
-                        Text("Отмена", color = AppColors.TextSecondary)
+                        Text(stringResource(R.string.share_attach_cancel), color = AppColors.TextSecondary)
                     }
                 }
             }

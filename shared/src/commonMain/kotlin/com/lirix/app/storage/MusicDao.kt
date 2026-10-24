@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -36,6 +37,19 @@ interface MusicDao {
 
     @Query("UPDATE music_tracks SET plainLyrics = :plainLyrics, syncedLyrics = :syncedLyrics WHERE trackKey = :trackKey")
     suspend fun updateLyrics(trackKey: String, plainLyrics: String?, syncedLyrics: String?)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertTrackIfMissing(track: TrackEntity)
+
+    @Query("UPDATE music_tracks SET isFavorite = CASE WHEN isFavorite = 1 THEN 0 ELSE 1 END WHERE trackKey = :trackKey")
+    suspend fun invertFavorite(trackKey: String)
+
+    @Transaction
+    suspend fun toggleFavorite(track: TrackEntity): Boolean {
+        insertTrackIfMissing(track.copy(isFavorite = false))
+        invertFavorite(track.trackKey)
+        return getTrackByKey(track.trackKey)?.isFavorite == true
+    }
 
     @Query("UPDATE music_tracks SET isFavorite = :favorite WHERE trackKey = :trackKey")
     suspend fun setFavorite(trackKey: String, favorite: Boolean)

@@ -4,8 +4,15 @@ import com.lirix.app.desktop.library.*
 import com.lirix.app.storage.TrackEntity
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.Before
+import org.junit.After
+import com.lirix.app.ui.i18n.LirixStrings
+import com.lirix.app.ui.i18n.InterfaceLanguage
 
 class DesktopLibraryViewStateTest {
+    private val previousLanguage = LirixStrings.currentLanguage
+    @Before fun useRussianForLegacyExpectations() { LirixStrings.currentLanguage = InterfaceLanguage.RU }
+    @After fun restoreLanguage() { LirixStrings.currentLanguage = previousLanguage }
     private fun track(key: String, title: String = key, artist: String = "Artist", album: String = "",
                       plain: String? = null, lrc: String? = null, favorite: Boolean = false) =
         TrackEntity(key, title, artist, album, "test", plainLyrics = plain, syncedLyrics = lrc, isFavorite = favorite)

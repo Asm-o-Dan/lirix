@@ -51,6 +51,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.lirix.app.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lirix.app.storage.AppDatabase
 import com.lirix.app.storage.TrackEntity
@@ -109,7 +111,7 @@ fun HistoryScreen(
                             .background(AppColors.CyberCyan)
                     )
                     Text(
-                        text = "ХРОНИКА // ТАЙМЛАЙН",
+                        text = stringResource(R.string.history_title_header),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.ExtraBold,
@@ -120,7 +122,7 @@ fun HistoryScreen(
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "История треков",
+                    text = stringResource(R.string.history_title),
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontSize = 26.sp,
                         fontWeight = FontWeight.Black,
@@ -157,7 +159,7 @@ fun HistoryScreen(
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
                 Text(
-                    text = "Поиск по архиву треков и артистов...",
+                    text = stringResource(R.string.history_search_placeholder),
                     style = MaterialTheme.typography.bodyMedium,
                     color = AppColors.TextTertiary
                 )
@@ -225,7 +227,7 @@ fun HistoryScreen(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "${recentTracks.size} ТРЕКОВ В КЭШЕ",
+                    text = stringResource(R.string.history_tracks_count, recentTracks.size),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -242,7 +244,7 @@ fun HistoryScreen(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "${recentTracks.sumOf { it.playCount }} ПЛЕЕВ",
+                    text = stringResource(R.string.history_play_count, recentTracks.sumOf { it.playCount }),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.ExtraBold,
@@ -271,7 +273,7 @@ fun HistoryScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = if (searchQuery.isBlank()) "История прослушиваний пуста" else "Ничего не найдено по запросу",
+                        text = if (searchQuery.isBlank()) stringResource(R.string.history_empty) else stringResource(R.string.history_no_results),
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
                     )
@@ -310,8 +312,9 @@ private fun HistoryTrackCard(
     onFavoriteClick: () -> Unit,
     onClick: () -> Unit
 ) {
-    val dateFormat = remember { SimpleDateFormat("HH:mm • dd MMM", Locale.getDefault()) }
-    val formattedTime = remember(track.lastPlayedAt) { dateFormat.format(Date(track.lastPlayedAt)) }
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    val dateFormat = remember(locale) { SimpleDateFormat("HH:mm • dd MMM", locale) }
+    val formattedTime = remember(track.lastPlayedAt, dateFormat) { dateFormat.format(Date(track.lastPlayedAt)) }
 
     Row(
         modifier = Modifier
@@ -351,7 +354,7 @@ private fun HistoryTrackCard(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = track.artist.ifBlank { "Неизвестный исполнитель" },
+                text = track.artist.ifBlank { stringResource(R.string.unknown_artist) },
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium

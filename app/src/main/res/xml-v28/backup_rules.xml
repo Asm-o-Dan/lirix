@@ -10,5 +10,6 @@
     <include domain="sharedpref" path="lirix_ui_prompter_prefs.xml" requireFlags="clientSideEncryption" />
     <include domain="sharedpref" path="lirix_sync_prefs.xml" requireFlags="clientSideEncryption" />
     <include domain="sharedpref" path="media_sync_offsets.xml" requireFlags="clientSideEncryption" />
+    <include domain="sharedpref" path="lyrics_reading_preferences.xml" requireFlags="clientSideEncryption" />
     <include domain="file" path="karaoke-studio-drafts/" requireFlags="clientSideEncryption" />
 </full-backup-content>

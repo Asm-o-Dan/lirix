@@ -36,6 +36,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
+import com.lirix.app.R
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -86,7 +88,8 @@ fun LyricsViewerDialog(
 
     var isLoading by remember { mutableStateOf(true) }
     var result by remember { mutableStateOf<LyricsResult?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<Int?>(null) }
+    var errorDetail by remember { mutableStateOf("") }
 
     val parsedInfo = remember(event) { MusicTrackParser.parse(event) }
     val trackTitle = parsedInfo.title
@@ -96,10 +99,11 @@ fun LyricsViewerDialog(
     LaunchedEffect(event.id) {
         isLoading = true
         errorMessage = null
+        errorDetail = ""
         result = null
 
         if (trackTitle.isBlank()) {
-            errorMessage = "Не удалось определить название трека"
+            errorMessage = R.string.viewer_unknown_track
             isLoading = false
             return@LaunchedEffect
         }
@@ -130,10 +134,11 @@ fun LyricsViewerDialog(
                 val fetchResult = provider.getLyrics(track)
                 result = fetchResult
                 if (!fetchResult.hasLyrics) {
-                    errorMessage = "Текст не найден"
+                    errorMessage = R.string.viewer_not_found
                 }
             } catch (e: Exception) {
-                errorMessage = "Ошибка загрузки: ${e.message}"
+                errorMessage = R.string.viewer_load_error
+                errorDetail = e.message.orEmpty()
             } finally {
                 isLoading = false
             }
@@ -153,7 +158,7 @@ fun LyricsViewerDialog(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = trackTitle.ifBlank { "Текст песни" },
+                        text = trackTitle.ifBlank { stringResource(R.string.viewer_title) },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1
@@ -184,7 +189,7 @@ fun LyricsViewerDialog(
 
                     errorMessage != null -> {
                         Text(
-                            text = errorMessage!!,
+                            text = stringResource(errorMessage!!, errorDetail),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center,
@@ -265,7 +270,7 @@ fun LyricsViewerDialog(
                         if (!lyricsResult.source.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Источник: ${lyricsResult.source}",
+                                text = stringResource(R.string.viewer_source, lyricsResult.source.orEmpty()),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 10.sp
@@ -297,13 +302,13 @@ fun LyricsViewerDialog(
                             .padding(end = 4.dp)
                             .height(16.dp)
                     )
-                    Text("Скопировать")
+                    Text(stringResource(R.string.action_copy))
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismissRequest) {
-                Text("Закрыть")
+                Text(stringResource(R.string.action_close))
             }
         }
     )

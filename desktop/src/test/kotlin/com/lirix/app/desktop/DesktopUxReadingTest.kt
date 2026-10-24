@@ -4,8 +4,15 @@ import com.lirix.app.desktop.ui.desktopLibraryLyrics
 import com.lirix.app.desktop.ui.components.playbackSourceLabel
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.Before
+import org.junit.After
+import com.lirix.app.ui.i18n.LirixStrings
+import com.lirix.app.ui.i18n.InterfaceLanguage
 
 class DesktopUxReadingTest {
+    private val previousLanguage = LirixStrings.currentLanguage
+    @Before fun useRussianForLegacyExpectations() { LirixStrings.currentLanguage = InterfaceLanguage.RU }
+    @After fun restoreLanguage() { LirixStrings.currentLanguage = previousLanguage }
     @Test fun sourceLabelsDistinguishPausePlaybackAndNoSession() {
         assertEquals("Играет в Spotify", playbackSourceLabel("spotify.exe", true))
         assertEquals("На паузе · Spotify", playbackSourceLabel("spotify.exe", false))

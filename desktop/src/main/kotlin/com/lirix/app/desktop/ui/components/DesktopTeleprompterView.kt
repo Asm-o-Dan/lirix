@@ -95,7 +95,7 @@ fun DesktopTeleprompterView(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Ничего не играет. Запустите музыку в любом плеере",
+                text = com.lirix.app.ui.i18n.LirixStrings.message("Ничего не играет. Запустите музыку в любом плеере"),
                 style = typography.lyricsFar,
                 color = colors.textSecondary
             )
@@ -231,7 +231,7 @@ private fun TeleprompterLineRow(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.PlayArrow,
-                            contentDescription = "Перемотка",
+                            contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Перемотка"),
                             tint = effectiveAccent,
                             modifier = Modifier.size(11.dp)
                         )

@@ -160,7 +160,7 @@ fun DesktopTransportBar(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Filled.SkipPrevious,
-                        contentDescription = "Предыдущий трек",
+                        contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Предыдущий трек"),
                         tint = if (isDark) LirixThemeTokens.Chalk else LirixThemeTokens.Ink,
                         modifier = Modifier.size(18.dp)
                     )
@@ -180,7 +180,7 @@ fun DesktopTransportBar(
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isPlaying) "Пауза" else "Воспроизведение",
+                    contentDescription = if (isPlaying) com.lirix.app.ui.i18n.LirixStrings.message("Пауза") else com.lirix.app.ui.i18n.LirixStrings.message("Воспроизведение"),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -201,7 +201,7 @@ fun DesktopTransportBar(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Filled.SkipNext,
-                        contentDescription = "Следующий трек",
+                        contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Следующий трек"),
                         tint = if (isDark) LirixThemeTokens.Chalk else LirixThemeTokens.Ink,
                         modifier = Modifier.size(18.dp)
                     )
@@ -259,7 +259,7 @@ fun DesktopTransportBar(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "Сдвиг текста ${formatOffsetString(currentOffsetMs)}",
+                    text = com.lirix.app.ui.i18n.LirixStrings.message("Сдвиг текста {0}", formatOffsetString(currentOffsetMs)),
                     style = typography.timecodeAndBadges,
                     color = if (isDark) LirixThemeTokens.Mist else LirixThemeTokens.Pencil
                 )
@@ -280,7 +280,7 @@ fun DesktopTransportBar(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Filled.Remove,
-                            contentDescription = "Уменьшить сдвиг",
+                            contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Уменьшить сдвиг"),
                             tint = if (isDark) LirixThemeTokens.Chalk else LirixThemeTokens.Ink,
                             modifier = Modifier.size(12.dp)
                         )
@@ -303,7 +303,7 @@ fun DesktopTransportBar(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Filled.Add,
-                            contentDescription = "Увеличить сдвиг",
+                            contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Увеличить сдвиг"),
                             tint = if (isDark) LirixThemeTokens.Chalk else LirixThemeTokens.Ink,
                             modifier = Modifier.size(12.dp)
                         )
@@ -321,6 +321,8 @@ internal fun formatOffsetString(offsetMs: Long): String {
     val sec = offsetMs / 1000.0
     val absSec = kotlin.math.abs(sec)
     val sign = if (offsetMs < 0) "−" else if (offsetMs > 0) "+" else ""
-    val formatted = String.format(Locale.US, "%.1f", absSec).replace('.', ',')
-    return "$sign$formatted с"
+    val locale = if (com.lirix.app.ui.i18n.LirixStrings.currentLanguage == com.lirix.app.ui.i18n.InterfaceLanguage.RU)
+        Locale.forLanguageTag("ru") else Locale.US
+    val formatted = String.format(locale, "%.1f", absSec)
+    return com.lirix.app.ui.i18n.LirixStrings.message("{0}{1} с", sign, formatted)
 }

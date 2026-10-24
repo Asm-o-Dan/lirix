@@ -22,7 +22,7 @@ private data class WrappedPreviewRequest(val stats: WrappedStats, val period: An
 internal fun DesktopWrappedPosterDialog(stats: WrappedStats, period: AnalyticsTimeframe, colors: LirixColors,
     onDismiss: () -> Unit, onMessage: (String) -> Unit) {
     var busy by remember { mutableStateOf(false) }
-    DesktopFeatureDialog("Постер итогов", { if (!busy) onDismiss() }) {
+    DesktopFeatureDialog(com.lirix.app.ui.i18n.LirixStrings.message("Постер итогов"), { if (!busy) onDismiss() }) {
         DesktopWrappedPosterContent(stats, period, colors, busy, { busy = it }, onDismiss, onMessage)
     }
 }
@@ -43,22 +43,22 @@ internal fun ColumnScope.DesktopWrappedPosterContent(stats: WrappedStats, period
             ensureActive()
             ready = request to rendered
         } catch (e: CancellationException) { throw e }
-        catch (e: Exception) { error = "Не удалось создать предпросмотр: ${e.message}" }
+        catch (e: Exception) { error = com.lirix.app.ui.i18n.LirixStrings.message("Не удалось создать предпросмотр: {0}", e.message) }
     }
     // A stale preview can never be exported after format, data or theme changes.
     val image = ready?.takeIf { it.first == request }?.second
     val bitmap = remember(image) { image?.toComposeImageBitmap() }
-    Text("${if (period == AnalyticsTimeframe.MONTH) "Последние 30 дней" else period.labelRu} · предпросмотр", color = colors.textPrimary)
+    Text(com.lirix.app.ui.i18n.LirixStrings.message("{0} · предпросмотр", if (period == AnalyticsTimeframe.MONTH) com.lirix.app.ui.i18n.LirixStrings.message("Последние 30 дней") else period.labelRu), color = colors.textPrimary)
     Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-        ChoiceDropdown("Формат", format.label, PosterFormat.entries.map { it.label }, !busy) { label -> format = PosterFormat.entries.first { it.label == label } }
-        ChoiceDropdown("Содержимое", section.label, PosterSection.entries.map { it.label }, !busy) { label -> section = PosterSection.entries.first { it.label == label } }
+        ChoiceDropdown(com.lirix.app.ui.i18n.LirixStrings.message("Формат"), format.label, PosterFormat.entries.map { it.label }, !busy) { label -> format = PosterFormat.entries.first { it.label == label } }
+        ChoiceDropdown(com.lirix.app.ui.i18n.LirixStrings.message("Содержимое"), section.label, PosterSection.entries.map { it.label }, !busy) { label -> section = PosterSection.entries.first { it.label == label } }
     }
-    if (bitmap != null) Image(bitmap, "Предпросмотр итогов: ${format.label}, ${section.label}",
+    if (bitmap != null) Image(bitmap, com.lirix.app.ui.i18n.LirixStrings.message("Предпросмотр итогов: {0}, {1}", format.label, section.label),
         modifier = Modifier.weight(1f).fillMaxWidth(), contentScale = ContentScale.Fit)
     else Box(Modifier.weight(1f).fillMaxWidth()) { if (error == null) CircularProgressIndicator() }
     error?.let { Text(it, color = colors.accentPrimary) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        TextButton(onClick = onDismiss, enabled = !busy) { Text("Закрыть") }
+        TextButton(onClick = onDismiss, enabled = !busy) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Закрыть")) }
         Button(enabled = !busy && image != null, onClick = {
             val snapshot = image ?: return@Button
             if (busy) return@Button
@@ -66,14 +66,14 @@ internal fun ColumnScope.DesktopWrappedPosterContent(stats: WrappedStats, period
             scope.launch {
                 error = null
                 try {
-                    val destination = withContext(Dispatchers.IO) { DesktopFiles.choose("Сохранить постер итогов", "png", true, "lirix-wrapped.png") } ?: return@launch
-                    withContext(Dispatchers.IO) { check(ImageIO.write(snapshot, "png", destination)) { "PNG не сохранён" } }
-                    onMessage("Постер сохранён: ${destination.name}")
+                    val destination = withContext(Dispatchers.IO) { DesktopFiles.choose(com.lirix.app.ui.i18n.LirixStrings.message("Сохранить постер итогов"), "png", true, "lirix-wrapped.png") } ?: return@launch
+                    withContext(Dispatchers.IO) { check(ImageIO.write(snapshot, "png", destination)) { com.lirix.app.ui.i18n.LirixStrings.message("PNG не сохранён") } }
+                    onMessage(com.lirix.app.ui.i18n.LirixStrings.message("Постер сохранён: {0}", destination.name))
                     onDismiss()
                 } catch (e: CancellationException) { throw e }
-                catch (e: Exception) { error = "Ошибка сохранения: ${e.message}" }
+                catch (e: Exception) { error = com.lirix.app.ui.i18n.LirixStrings.message("Ошибка сохранения: {0}", e.message) }
                 finally { onBusy(false) }
             }
-        }) { Text(if (busy) "Сохранение…" else "Сохранить PNG") }
+        }) { Text(if (busy) com.lirix.app.ui.i18n.LirixStrings.message("Сохранение…") else com.lirix.app.ui.i18n.LirixStrings.message("Сохранить PNG")) }
     }
 }

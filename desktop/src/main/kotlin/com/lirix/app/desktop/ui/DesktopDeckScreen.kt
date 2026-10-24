@@ -181,7 +181,7 @@ fun DesktopDeckScreen(
                     modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)))
                 else Icon(Icons.Filled.MusicNote, "Обложка отсутствует", tint = colors.textMuted, modifier = Modifier.size(40.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(playback?.title?.ifBlank { "Без названия" } ?: "Включите музыку в плеере ПК",
+                    Text(playback?.title?.ifBlank { com.lirix.app.ui.i18n.LirixStrings.message("Без названия") } ?: "Включите музыку в плеере ПК",
                         style = typography.trackTitle, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(playback?.artist.orEmpty().ifBlank { "Lirix покажет текст текущей песни" },
                         style = typography.trackArtistAlbum, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -214,9 +214,9 @@ fun DesktopDeckScreen(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         listOf(
-                            DesktopLyricsMode.TEXT to "Текст",
+                            DesktopLyricsMode.TEXT to com.lirix.app.ui.i18n.LirixStrings.message("Текст"),
                             DesktopLyricsMode.KARAOKE to "Караоке",
-                            DesktopLyricsMode.CHORDS to "Аккорды",
+                            DesktopLyricsMode.CHORDS to com.lirix.app.ui.i18n.LirixStrings.message("Аккорды"),
                             DesktopLyricsMode.ABOUT to "О треке"
                         ).forEach { (mode, label) ->
                             DeckTabButton(label = label, isSelected = selectedRightTab == mode,
@@ -268,7 +268,7 @@ fun DesktopDeckScreen(
                                                     strokeWidth = 2.5.dp
                                                 )
                                                 Text(
-                                                    text = "Поиск аккордов...",
+                                                    text = com.lirix.app.ui.i18n.LirixStrings.message("Поиск аккордов..."),
                                                     style = typography.trackTitle.copy(fontSize = 15.sp),
                                                     color = colors.textPrimary
                                                 )
@@ -281,7 +281,7 @@ fun DesktopDeckScreen(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
-                                                text = "Запустите трек для просмотра аккордов",
+                                                text = com.lirix.app.ui.i18n.LirixStrings.message("Запустите трек для просмотра аккордов"),
                                                 style = typography.timecodeAndBadges,
                                                 color = colors.textMuted
                                             )
@@ -297,12 +297,12 @@ fun DesktopDeckScreen(
                                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
                                                 Text(
-                                                    text = "Аккорды не найдены",
+                                                    text = com.lirix.app.ui.i18n.LirixStrings.message("Аккорды не найдены"),
                                                     style = typography.lyricsNear.copy(fontSize = 18.sp),
                                                     color = colors.textSecondary
                                                 )
                                                 Text(
-                                                    text = "В базах AmDm и MyChords нет гармонии для этого трека",
+                                                    text = com.lirix.app.ui.i18n.LirixStrings.message("В базах AmDm и MyChords нет гармонии для этого трека"),
                                                     style = typography.timecodeAndBadges,
                                                     color = colors.textMuted
                                                 )
@@ -364,7 +364,7 @@ private fun TrackSpecsPanel(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-            text = "Параметры аудиосессии",
+            text = com.lirix.app.ui.i18n.LirixStrings.message("Параметры аудиосессии"),
             style = typography.trackTitle.copy(fontSize = 13.sp),
             color = colors.textMuted
         )
@@ -381,16 +381,16 @@ private fun TrackSpecsPanel(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                SpecRow(label = "Источник аудио", value = playback?.packageName ?: "idle.session")
+                SpecRow(label = com.lirix.app.ui.i18n.LirixStrings.message("Источник аудио"), value = playback?.packageName ?: "idle.session")
                 SpecRow(label = "Источник текста", value = lyricsState.source ?: "Не определён")
-                SpecRow(label = "Текст", value = when {
-                    lyricsState.isLoading -> "Поиск"
-                    lyricsState.errorMessage != null -> "Ошибка получения"
-                    lyricsState.hasLyrics -> "Доступен"
-                    else -> "Не найден"
+                SpecRow(label = com.lirix.app.ui.i18n.LirixStrings.message("Текст"), value = when {
+                    lyricsState.isLoading -> com.lirix.app.ui.i18n.LirixStrings.message("Поиск")
+                    lyricsState.errorMessage != null -> com.lirix.app.ui.i18n.LirixStrings.message("Ошибка получения")
+                    lyricsState.hasLyrics -> com.lirix.app.ui.i18n.LirixStrings.message("Доступен")
+                    else -> com.lirix.app.ui.i18n.LirixStrings.message("Не найден")
                 })
-                SpecRow(label = "Синхронизированных строк", value = "${lyricsState.lrcLines.size} LRC tags")
-                SpecRow(label = "Длительность", value = formatTimeLabel(playback?.durationMs ?: 0L))
+                SpecRow(label = com.lirix.app.ui.i18n.LirixStrings.message("Синхронизированных строк"), value = "${lyricsState.lrcLines.size} LRC tags")
+                SpecRow(label = com.lirix.app.ui.i18n.LirixStrings.message("Длительность"), value = formatTimeLabel(playback?.durationMs ?: 0L))
             }
         }
     }

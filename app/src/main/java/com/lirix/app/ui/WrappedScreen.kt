@@ -47,7 +47,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import com.lirix.app.R
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -63,7 +65,6 @@ import com.lirix.app.feature.share.PosterThemeSnapshot
 import com.lirix.app.feature.share.PosterArtworkLoader
 import com.lirix.app.feature.share.ShareCardGenerator
 import com.lirix.app.feature.share.WrappedShareSection
-import com.lirix.app.ingestion.MediaSessionCollector
 import com.lirix.app.storage.AchievementEntity
 import com.lirix.app.storage.AppDatabase
 import com.lirix.app.ui.components.ShareFormatDialog
@@ -72,8 +73,6 @@ import com.lirix.app.ui.theme.LirixThemeTokens
 import com.lirix.app.ui.theme.LiterataFontFamily
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
 /** Theme-aware listening summary with a screen-owned, system-scaled reveal animation. */
@@ -86,7 +85,7 @@ fun WrappedScreen() {
     val tracks by db.musicDao().observeRecentTracks().collectAsStateWithLifecycle(initialValue = emptyList())
     val sessions by db.musicDao().observeAllSessions().collectAsStateWithLifecycle(initialValue = emptyList())
     val rawAchievements by db.achievementDao().observeAchievements().collectAsStateWithLifecycle(initialValue = emptyList())
-    val livePlayback by MediaSessionCollector.livePlaybackFlow.collectAsStateWithLifecycle(initialValue = null)
+    val livePlayback by com.lirix.app.ingestion.MediaSessionCollector.livePlaybackFlow.collectAsStateWithLifecycle(initialValue = null)
 
     var selectedTimeframe by rememberSaveable { mutableStateOf(AnalyticsTimeframe.MONTH) }
     var calculatedStats by remember { mutableStateOf<Pair<AnalyticsTimeframe, WrappedStats>?>(null) }
@@ -109,8 +108,37 @@ fun WrappedScreen() {
         val currentStats = remember { stats!! }
         val exportTimeframe = remember { selectedTimeframe }
         val exportTheme = remember { PosterThemeSnapshot.fromColors(lirixColors) }
+        val posterLabels = remember { com.lirix.app.feature.share.PosterTextSnapshot.from(context) }
+        val exportLabels = remember {
+            com.lirix.app.feature.share.animation.CounterRollLabels(
+                header = context.getString(R.string.animated_summary_header),
+                minutes = context.getString(R.string.animated_summary_minutes),
+                tracks = context.getString(R.string.animated_summary_tracks),
+                artists = context.getString(R.string.animated_summary_artists),
+                topTracks = context.getString(R.string.animated_summary_top_tracks),
+                plays = context.getString(R.string.animated_summary_plays)
+            )
+        }
         ShareFormatDialog(
             onDismissRequest = { showShareDialog = false },
+            animatorProvider = {
+                val palette = com.lirix.app.feature.share.animation.ThemeAnimationPalette.fromColors(lirixColors)
+                val timeframeStr = when (exportTimeframe) {
+                    com.lirix.app.analytics.AnalyticsTimeframe.WEEK -> context.getString(R.string.wrapped_period_week)
+                    com.lirix.app.analytics.AnalyticsTimeframe.MONTH -> context.getString(R.string.wrapped_period_month)
+                    com.lirix.app.analytics.AnalyticsTimeframe.TODAY -> context.getString(R.string.wrapped_period_today)
+                    com.lirix.app.analytics.AnalyticsTimeframe.ALL_TIME -> context.getString(R.string.wrapped_period_all_time)
+                }
+                com.lirix.app.feature.share.animation.CounterRollAnimator(
+                    palette = palette,
+                    totalMinutes = (currentStats.totalListeningTimeMs / 60000).toInt(),
+                    uniqueTracks = currentStats.uniqueTracksCount,
+                    uniqueArtists = currentStats.uniqueArtistsCount,
+                    periodLabel = timeframeStr,
+                    topTracks = currentStats.topTracks.take(3).map { Triple(it.title, it.artist, it.playCount) },
+                    labels = exportLabels
+                )
+            },
             onFormatSelected = { format ->
                 val artwork = currentStats.topTracks.associate { track ->
                     track.trackKey to PosterArtworkLoader.load(context, track.albumArtUri)
@@ -122,7 +150,8 @@ fun WrappedScreen() {
                     format = format,
                     section = WrappedShareSection.FULL,
                     theme = exportTheme,
-                    artworkByTrackKey = artwork
+                    artworkByTrackKey = artwork,
+                    labels = posterLabels
                 ) }
                 cardBitmap
             }
@@ -136,30 +165,10 @@ fun WrappedScreen() {
                 tracks = tracks,
                 sessions = sessions,
                 timeframe = period,
-                referenceTimestampMs = System.currentTimeMillis(),
-                livePlayback = livePlayback
+                referenceTimestampMs = System.currentTimeMillis()
             )
         }
         calculatedStats = period to result
-    }
-
-    LaunchedEffect(livePlayback?.isPlaying, selectedTimeframe, tracks, sessions) {
-        val period = selectedTimeframe
-        if (livePlayback?.isPlaying == true) {
-            while (isActive) {
-                delay(3000L)
-                val result = withContext(Dispatchers.Default) {
-                    WrappedStatsEngine.calculateStats(
-                        tracks = tracks,
-                        sessions = sessions,
-                        timeframe = period,
-                        referenceTimestampMs = System.currentTimeMillis(),
-                        livePlayback = livePlayback
-                    )
-                }
-                calculatedStats = period to result
-            }
-        }
     }
 
     LaunchedEffect(rawAchievements, tracks, sessions) {
@@ -189,7 +198,7 @@ fun WrappedScreen() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Итоги прослушиваний",
+                    text = stringResource(R.string.wrapped_screen_title),
                     style = LirixMobileTypography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
@@ -208,14 +217,8 @@ fun WrappedScreen() {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        val periodLabel = when (selectedTimeframe) {
-                            AnalyticsTimeframe.TODAY -> "За сегодня"
-                            AnalyticsTimeframe.WEEK -> "За 7 дней"
-                            AnalyticsTimeframe.MONTH -> "За 30 дней"
-                            AnalyticsTimeframe.ALL_TIME -> "За всё время"
-                        }
                         Text(
-                            text = periodLabel,
+                            text = selectedTimeframe.localizedLabel(),
                             style = LirixMobileTypography.labelMedium.copy(
                                 fontWeight = FontWeight.Medium
                             ),
@@ -223,7 +226,7 @@ fun WrappedScreen() {
                         )
                         Icon(
                             imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Выбрать период",
+                            contentDescription = stringResource(R.string.wrapped_period_select_cd),
                             tint = lirixColors.textSecondary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -235,16 +238,10 @@ fun WrappedScreen() {
                         modifier = Modifier.background(lirixColors.surfaceElevated)
                     ) {
                         for (tf in AnalyticsTimeframe.entries) {
-                            val tfLabel = when (tf) {
-                                AnalyticsTimeframe.TODAY -> "За сегодня"
-                                AnalyticsTimeframe.WEEK -> "За 7 дней"
-                                AnalyticsTimeframe.MONTH -> "За 30 дней"
-                                AnalyticsTimeframe.ALL_TIME -> "За всё время"
-                            }
                             DropdownMenuItem(
                                 text = {
                                     Text(
-                                        text = tfLabel,
+                                        text = tf.localizedLabel(),
                                         style = LirixMobileTypography.bodyMedium,
                                         color = if (tf == selectedTimeframe) lirixColors.accentPrimary else lirixColors.textPrimary
                                     )
@@ -265,12 +262,12 @@ fun WrappedScreen() {
             val currentStats = stats
             when {
                 currentStats == null -> Text(
-                    text = "Собираем ваши итоги…",
+                    text = stringResource(R.string.wrapped_gathering_stats),
                     style = LirixMobileTypography.bodyMedium,
                     color = lirixColors.textSecondary
                 )
                 currentStats.totalListeningTimeMs == 0L && currentStats.topTracks.isEmpty() -> Text(
-                    text = "В этом периоде пока нет прослушиваний. Включите музыку — здесь появятся ваши итоги.",
+                    text = stringResource(R.string.wrapped_empty_stats),
                     style = LirixMobileTypography.bodyMedium,
                     color = lirixColors.textSecondary
                 )
@@ -296,11 +293,11 @@ fun WrappedScreen() {
                 val uniqueTracks = stats?.uniqueTracksCount ?: 0
                 val coverageRatio = stats?.lyricsCoverageRatio ?: 0f
                 val viewedWithLyrics = (uniqueTracks * coverageRatio).roundToInt()
-                val songsWord = pluralizeWord(viewedWithLyrics, "песня", "песни", "песен")
+                // lyrics count formatted with stringResource
 
-                FactRow(label = "Уникальных треков", value = "$uniqueTracks")
+                FactRow(label = stringResource(R.string.wrapped_fact_unique_tracks), value = "$uniqueTracks")
                 HorizontalDivider(color = lirixColors.borderSubtle.copy(alpha = 0.5f), thickness = 1.dp)
-                FactRow(label = "С сохранённым текстом", value = "$viewedWithLyrics $songsWord")
+                FactRow(label = stringResource(R.string.wrapped_fact_saved_lyrics), value = stringResource(R.string.wrapped_saved_lyrics_count, viewedWithLyrics))
             }
         }
 
@@ -327,7 +324,7 @@ fun WrappedScreen() {
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Поделиться карточкой итогов",
+                        text = stringResource(R.string.wrapped_share_button),
                         style = LirixMobileTypography.labelLarge.copy(
                             fontWeight = FontWeight.SemiBold
                         ),
@@ -347,7 +344,7 @@ fun WrappedScreen() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Достижения ($unlockedCount из $totalCount)",
+                    text = stringResource(R.string.wrapped_achievements_title, unlockedCount, totalCount),
                     style = LirixMobileTypography.titleMedium.copy(
                         fontWeight = FontWeight.SemiBold
                     ),
@@ -378,7 +375,7 @@ private fun WrappedMotionSummary(
             modifier = Modifier.graphicsLayer { alpha = (progress() * 3f).coerceIn(0f, 1f) },
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text("Время в музыке", style = LirixMobileTypography.labelLarge, color = colors.textSecondary)
+            Text(stringResource(R.string.wrapped_time_in_music), style = LirixMobileTypography.labelLarge, color = colors.textSecondary)
             Text(
                 text = "${stats.totalListeningTimeMs / 60000L}",
                 style = LirixMobileTypography.titleLarge.copy(
@@ -386,15 +383,15 @@ private fun WrappedMotionSummary(
                 ),
                 color = colors.accentPrimary
             )
-            Text("минут прослушивания", style = LirixMobileTypography.bodyMedium, color = colors.textPrimary)
+            Text(stringResource(R.string.wrapped_minutes_listening), style = LirixMobileTypography.bodyMedium, color = colors.textPrimary)
         }
         Column(
             modifier = Modifier.graphicsLayer { alpha = (progress() * 3f - 1f).coerceIn(0f, 1f) },
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text("Любимый исполнитель", style = LirixMobileTypography.labelLarge, color = colors.textSecondary)
+            Text(stringResource(R.string.wrapped_top_artist), style = LirixMobileTypography.labelLarge, color = colors.textSecondary)
             Text(
-                text = stats.topArtists.firstOrNull()?.artist ?: "Пока не определён",
+                text = stats.topArtists.firstOrNull()?.artist ?: stringResource(R.string.wrapped_artist_unknown),
                 style = LirixMobileTypography.titleLarge.copy(fontFamily = LiterataFontFamily),
                 color = colors.textPrimary
             )
@@ -403,9 +400,9 @@ private fun WrappedMotionSummary(
             modifier = Modifier.graphicsLayer { alpha = (progress() * 3f - 2f).coerceIn(0f, 1f) },
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Ваши главные треки", style = LirixMobileTypography.labelLarge, color = colors.textSecondary)
+            Text(stringResource(R.string.wrapped_top_tracks), style = LirixMobileTypography.labelLarge, color = colors.textSecondary)
             if (stats.topTracks.isEmpty()) {
-                Text("Пока нет данных о треках", style = LirixMobileTypography.bodyMedium, color = colors.textSecondary)
+                Text(stringResource(R.string.wrapped_no_tracks), style = LirixMobileTypography.bodyMedium, color = colors.textSecondary)
             }
             stats.topTracks.take(3).forEachIndexed { index, track ->
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
@@ -423,7 +420,7 @@ private fun WrappedMotionSummary(
             }
         }
         TextButton(onClick = onReplay) {
-            Text("Повторить анимацию", color = colors.accentPrimary)
+            Text(stringResource(R.string.wrapped_replay_animation), color = colors.accentPrimary)
         }
     }
 }
@@ -489,14 +486,14 @@ private fun MinimalAchievementRow(achievement: AchievementEntity) {
             if (isUnlocked) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Выполнено",
+                    contentDescription = stringResource(R.string.wrapped_achievement_unlocked_cd),
                     tint = lirixColors.accentPrimary,
                     modifier = Modifier.size(14.dp)
                 )
             } else {
                 Icon(
                     imageVector = Icons.Default.Lock,
-                    contentDescription = "Заблокировано",
+                    contentDescription = stringResource(R.string.wrapped_achievement_locked_cd),
                     tint = lirixColors.textMuted,
                     modifier = Modifier.size(13.dp)
                 )
@@ -556,6 +553,14 @@ private fun MinimalAchievementRow(achievement: AchievementEntity) {
             }
         }
     }
+}
+
+@Composable
+private fun AnalyticsTimeframe.localizedLabel(): String = when (this) {
+    AnalyticsTimeframe.TODAY -> stringResource(R.string.wrapped_period_today)
+    AnalyticsTimeframe.WEEK -> stringResource(R.string.wrapped_period_week)
+    AnalyticsTimeframe.MONTH -> stringResource(R.string.wrapped_period_month)
+    AnalyticsTimeframe.ALL_TIME -> stringResource(R.string.wrapped_period_all_time)
 }
 
 private fun pluralizeWord(count: Int, one: String, few: String, many: String): String {

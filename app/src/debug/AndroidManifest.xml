@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Compose's test host follows MainActivity's locale retention policy. Debug only. -->
+    <application>
+        <activity android:name="androidx.activity.ComponentActivity"
+            android:configChanges="locale|layoutDirection"
+            android:exported="true" />
+    </application>
+</manifest>

@@ -1,6 +1,8 @@
 package com.lirix.app.ui.components
 
 import android.os.SystemClock
+import com.lirix.app.R
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -114,7 +116,7 @@ fun KaraokeStudioDialog(
     val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-                .onFailure { error = "Доступ к аудио временный: после перезапуска может потребоваться выбрать файл снова." }
+                .onFailure { error = context.getString(R.string.studio_audio_access_is_temporary_you_may_need_to_select_83d66) }
             invalidateAudio()
             audioUri = uri.toString()
         }
@@ -137,7 +139,7 @@ fun KaraokeStudioDialog(
                 onDismissRequest()
             } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
-                error = "Не удалось сохранить черновик. Можно повторить или выйти без последних изменений."
+                error = context.getString(R.string.studio_could_not_save_the_draft_retry_or_leave_without__fc89e)
                 discardClose = true
             } finally { busy = false }
         }
@@ -154,7 +156,7 @@ fun KaraokeStudioDialog(
                 error = null
             } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
-                error = "Не удалось сохранить черновик перед сменой режима"
+                error = context.getString(R.string.studio_could_not_save_the_draft_before_switching_modes_6e35c)
             } finally { busy = false }
         }
     }
@@ -166,7 +168,7 @@ fun KaraokeStudioDialog(
             runCatching { KaraokeStudioEngine.createSession(trackKey, initialPlainText, initialLrc, originalDuration) }
         }
         state = initial.getOrElse {
-            error = it.message ?: "Не удалось открыть разметку"
+            error = it.message ?: context.getString(R.string.studio_could_not_open_timings_a3b40)
             KaraokeStudioState(trackKey, emptyList(), emptyList(), 0)
         }
         updateDuration(StudioDurationEvidence(originalDurationMs = originalDuration).source(initialReading.matchesTrack, initialReading.durationMs))
@@ -179,7 +181,7 @@ fun KaraokeStudioDialog(
                 } else {
                     restoreDraft(loaded.draft)
                     ready = true
-                    status = "Черновик восстановлен"
+                    status = context.getString(R.string.studio_draft_restored_8fef0)
                 }
             }
         }
@@ -189,10 +191,10 @@ fun KaraokeStudioDialog(
         if (!ready) return@LaunchedEffect
         autosaveJob = coroutineContext.job
         delay(450)
-        try { store.save(draft(latestState)); status = "Черновик сохранён" }
+        try { store.save(draft(latestState)); status = context.getString(R.string.studio_draft_saved_64ab0) }
         catch (failure: Exception) {
             if (failure is CancellationException) throw failure
-            error = "Не удалось записать черновик. Не закрывайте студию, пока не повторите сохранение."
+            error = context.getString(R.string.studio_could_not_save_the_draft_retry_saving_before_clo_de459)
         }
     }
 
@@ -213,7 +215,7 @@ fun KaraokeStudioDialog(
         } catch (failure: Exception) {
             if (failure is CancellationException) throw failure
             if (audioUri == uri && durationEvidence.fileGeneration == generation)
-                waveError = failure.message ?: "Не удалось прочитать аудио. Выберите файл заново."
+                waveError = failure.message ?: context.getString(R.string.studio_could_not_read_audio_select_the_file_again_75ba5)
         } finally { if (audioUri == uri && durationEvidence.fileGeneration == generation) waveProgress = null }
     }
 
@@ -228,7 +230,7 @@ fun KaraokeStudioDialog(
                     val a = loopA
                     val b = loopB
                     if (a == null || b == null) {
-                        loopEnabled = false; pendingLoopSeek = null; error = "Повтор выключен: источник песни изменился"
+                        loopEnabled = false; pendingLoopSeek = null; error = context.getString(R.string.studio_loop_disabled_the_song_source_changed_88ab3)
                     } else {
                         val tick = KaraokeLoopEngine.tick(KaraokeLoop(a, b, pendingLoopSeek), reading.positionMs,
                             reading.playing, reading.canSeek, reading.matchesTrack, SystemClock.elapsedRealtime())
@@ -237,7 +239,7 @@ fun KaraokeStudioDialog(
                         tick.error?.let { error = it }
                         tick.seekToMs?.let {
                             if (!seekStudioPlayback(trackKey, sourcePackage, it)) {
-                                loopEnabled = false; pendingLoopSeek = null; error = "Источник не поддерживает перемотку"
+                                loopEnabled = false; pendingLoopSeek = null; error = context.getString(R.string.studio_the_source_does_not_support_seeking_8799a)
                             }
                         }
                     }
@@ -256,13 +258,13 @@ fun KaraokeStudioDialog(
                         Text(trackTitle, style = MaterialTheme.typography.titleMedium, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(artist, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    TextButton(onClick = { close() }, enabled = !busy) { Text("Закрыть", color = colors.textSecondary) }
+                    TextButton(onClick = { close() }, enabled = !busy) { Text(context.getString(R.string.studio_close_4ae50), color = colors.textSecondary) }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = state.mode == StudioMode.QUICK, enabled = ready && !busy,
                         onClick = { changeMode(StudioMode.QUICK) }, label = { Text("Tap-to-Sync") })
                     FilterChip(selected = state.mode == StudioMode.PRECISE, enabled = ready && !busy,
-                        onClick = { changeMode(StudioMode.PRECISE) }, label = { Text("Точная студия") })
+                        onClick = { changeMode(StudioMode.PRECISE) }, label = { Text(context.getString(R.string.studio_precise_studio_3d525)) })
                 }
                 if (!ready) {
                     Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -272,17 +274,17 @@ fun KaraokeStudioDialog(
                     LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
                         item {
                             status?.let { Text(it, color = colors.textSecondary, style = MaterialTheme.typography.bodySmall) }
-                            if (!playback.matchesTrack) Text("Откройте эту песню в плеере для управления воспроизведением. Метки можно править без него.", color = colors.textSecondary, style = MaterialTheme.typography.bodySmall)
-                            else if (!playback.canSeek) Text("Источник не разрешает перемотку; курсор студии остаётся независимым.", color = colors.textSecondary, style = MaterialTheme.typography.bodySmall)
+                            if (!playback.matchesTrack) Text(context.getString(R.string.studio_open_this_song_in_your_player_to_control_playbac_bb3e5), color = colors.textSecondary, style = MaterialTheme.typography.bodySmall)
+                            else if (!playback.canSeek) Text(context.getString(R.string.studio_the_source_does_not_allow_seeking_the_studio_cur_96fb4), color = colors.textSecondary, style = MaterialTheme.typography.bodySmall)
                             validation?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary) }
                         }
                         item {
                             val selected = state.lines.getOrNull(state.selectedIndex)
-                            Text(selected?.text ?: "Добавьте текст песни", style = MaterialTheme.typography.headlineSmall,
+                            Text(selected?.text ?: context.getString(R.string.studio_add_lyrics_d0c58), style = MaterialTheme.typography.headlineSmall,
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), color = colors.textPrimary)
-                            Text("Строка ${if (selected == null) 0 else state.selectedIndex + 1} из ${state.lines.size} · ${state.lines.count { it.timeMs != null }} меток",
+                            Text(context.getString(R.string.studio_line_progress, if (selected == null) 0 else state.selectedIndex + 1, state.lines.size, state.lines.count { it.timeMs != null }),
                                 style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
-                            Text("Метка: ${selected?.timeMs?.let { KaraokeStudioEngine.formatTime(it) } ?: "не поставлена"}",
+                            Text(context.getString(R.string.studio_timestamp, selected?.timeMs?.let { KaraokeStudioEngine.formatTime(it) } ?: context.getString(R.string.studio_unstamped)),
                                 fontFamily = FontFamily.Monospace, color = colors.accentPrimary)
                         }
                         if (state.mode == StudioMode.PRECISE) {
@@ -296,31 +298,31 @@ fun KaraokeStudioDialog(
                                     }
                                     TextButton(onClick = { state = state.copy(spanMs = (state.spanMs * 2).coerceAtMost(120000)) }) { Text("−") }
                                     TextButton(onClick = { state = state.copy(spanMs = (state.spanMs / 2).coerceAtLeast(2000)) }) { Text("+") }
-                                    Text("${(state.spanMs / 1000f).toString().replace('.', ',')} с", style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+                                    Text(context.getString(R.string.studio_span_seconds, (state.spanMs / 1000f).toString()), style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
                                 }
                             }
                             item {
                                 TextButton(onClick = {
-                                    runCatching { audioPicker.launch(arrayOf("audio/*")) }.onFailure { waveError = "Не удалось открыть выбор аудиофайла" }
-                                }, enabled = !busy) { Text(if (audioUri == null) "Выбрать аудио для волны" else "Другой аудиофайл") }
+                                    runCatching { audioPicker.launch(arrayOf("audio/*")) }.onFailure { waveError = context.getString(R.string.studio_could_not_open_the_audio_file_picker_6e0b8) }
+                                }, enabled = !busy) { Text(if (audioUri == null) context.getString(R.string.studio_choose_audio_for_waveform_37a5e) else context.getString(R.string.studio_choose_another_audio_file_b5ce1)) }
                                 waveform?.let {
                                     Text("${it.name} · ${KaraokeStudioEngine.formatTime(it.durationMs)}", style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
                                     if (playback.matchesTrack && playback.durationMs > 0 && kotlin.math.abs(it.durationMs - playback.durationMs) > 3000)
-                                        Text("Длительность файла отличается от песни в плеере. Проверьте, что это нужная версия записи.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                        Text(context.getString(R.string.studio_the_file_duration_differs_from_the_song_in_your__9d999), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                                 }
                                 waveProgress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth(), color = colors.accentPrimary) }
                                 waveError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-                                if (audioUri != null) TextButton(onClick = { invalidateAudio(); audioUri = null }, enabled = !busy) { Text("Убрать волну") }
+                                if (audioUri != null) TextButton(onClick = { invalidateAudio(); audioUri = null }, enabled = !busy) { Text(context.getString(R.string.studio_remove_waveform_a5dfb)) }
                             }
                             item {
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    StudioNudgeButton("−50 мс", !busy) { edit(KaraokeStudioEdit.Nudge(state.selectedIndex, -50)) }
-                                    StudioNudgeButton("+50 мс", !busy) { edit(KaraokeStudioEdit.Nudge(state.selectedIndex, 50)) }
+                                    StudioNudgeButton(context.getString(R.string.studio_50_ms_822ce), !busy) { edit(KaraokeStudioEdit.Nudge(state.selectedIndex, -50)) }
+                                    StudioNudgeButton(context.getString(R.string.studio_50_ms_f5f98), !busy) { edit(KaraokeStudioEdit.Nudge(state.selectedIndex, 50)) }
                                 }
-                                TextButton(onClick = { timeEntry = "line:" + KaraokeStudioEngine.formatTime(state.lines.getOrNull(state.selectedIndex)?.timeMs ?: state.cursorMs) }, enabled = !busy) { Text("Ввести время строки") }
+                                TextButton(onClick = { timeEntry = "line:" + KaraokeStudioEngine.formatTime(state.lines.getOrNull(state.selectedIndex)?.timeMs ?: state.cursorMs) }, enabled = !busy) { Text(context.getString(R.string.studio_enter_line_time_142d3)) }
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    TextButton(onClick = { edit(KaraokeStudioEdit.SetTime(state.selectedIndex, state.cursorMs)) }, enabled = !busy) { Text("На курсор") }
-                                    TextButton(onClick = { tailEntry = "+500" }, enabled = !busy) { Text("Сдвинуть фрагмент") }
+                                    TextButton(onClick = { edit(KaraokeStudioEdit.SetTime(state.selectedIndex, state.cursorMs)) }, enabled = !busy) { Text(context.getString(R.string.studio_at_cursor_63db9)) }
+                                    TextButton(onClick = { tailEntry = "+500" }, enabled = !busy) { Text(context.getString(R.string.studio_shift_section_96394)) }
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     TextButton(onClick = { loopA = state.cursorMs; loopEnabled = false }, enabled = !busy) { Text("A: ${loopA?.let { KaraokeStudioEngine.formatTime(it) } ?: "—"}") }
@@ -329,9 +331,9 @@ fun KaraokeStudioDialog(
                                 TextButton(enabled = playback.canSeek && !busy, onClick = {
                                     val a = loopA; val b = loopB
                                     if (loopEnabled) { loopEnabled = false; pendingLoopSeek = null }
-                                    else if (a == null || b == null || KaraokeLoopEngine.start(a, b, state.durationMs, SystemClock.elapsedRealtime()) == null) error = "Выберите фрагмент A–B длиной не меньше 0,5 с"
+                                    else if (a == null || b == null || KaraokeLoopEngine.start(a, b, state.durationMs, SystemClock.elapsedRealtime()) == null) error = context.getString(R.string.studio_choose_an_a_b_section_at_least_0_5_seconds_long_81144)
                                     else if (seekStudioPlayback(trackKey, sourcePackage, a)) { loopEnabled = true; pendingLoopSeek = SystemClock.elapsedRealtime() }
-                                }) { Text(if (loopEnabled) "Выключить повтор A–B" else "Повторять A–B") }
+                                }) { Text(if (loopEnabled) context.getString(R.string.studio_disable_a_b_loop_1730b) else context.getString(R.string.studio_loop_a_b_5eb9f)) }
                             }
                         } else {
                             item {
@@ -343,9 +345,9 @@ fun KaraokeStudioDialog(
                                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             state = state.copy(selectedIndex = (state.selectedIndex + 1).coerceAtMost((state.lines.size - 1).coerceAtLeast(0)))
                                         }
-                                    }) { Text("Поставить метку следующей строки") }
+                                    }) { Text(context.getString(R.string.studio_stamp_the_next_line_41c6e)) }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Реакция: $reactionMs мс", modifier = Modifier.weight(1f), color = colors.textSecondary)
+                                    Text(context.getString(R.string.studio_reaction_ms, reactionMs), modifier = Modifier.weight(1f), color = colors.textSecondary)
                                     TextButton(onClick = { reactionMs = (reactionMs - 50).coerceAtLeast(0); prefs.edit().putLong("reaction_lag_ms", reactionMs).apply() }) { Text("−") }
                                     TextButton(onClick = { reactionMs = (reactionMs + 50).coerceAtMost(1000); prefs.edit().putLong("reaction_lag_ms", reactionMs).apply() }) { Text("+") }
                                 }
@@ -353,33 +355,33 @@ fun KaraokeStudioDialog(
                                     OutlinedButton(enabled = playback.canSeek && !busy, onClick = {
                                         loopEnabled = false
                                         val current = readStudioPlayback(trackKey, sourcePackage)
-                                        if (!current.matchesTrack || !seekStudioPlayback(trackKey, sourcePackage, (current.positionMs - 5000).coerceAtLeast(0))) error = "Не удалось перемотать источник"
-                                    }) { Text("−5 с") }
+                                        if (!current.matchesTrack || !seekStudioPlayback(trackKey, sourcePackage, (current.positionMs - 5000).coerceAtLeast(0))) error = context.getString(R.string.studio_could_not_seek_the_source_27ad6)
+                                    }) { Text(context.getString(R.string.studio_5_s_1bf9a)) }
                                     OutlinedButton(enabled = playback.canSeek && !busy, onClick = {
                                         loopEnabled = false
                                         val current = readStudioPlayback(trackKey, sourcePackage)
-                                        if (!current.matchesTrack || !seekStudioPlayback(trackKey, sourcePackage, current.positionMs + 5000)) error = "Не удалось перемотать источник"
-                                    }) { Text("+5 с") }
+                                        if (!current.matchesTrack || !seekStudioPlayback(trackKey, sourcePackage, current.positionMs + 5000)) error = context.getString(R.string.studio_could_not_seek_the_source_27ad6)
+                                    }) { Text(context.getString(R.string.studio_5_s_06bb6)) }
                                 }
                             }
                         }
                         item {
                             Row {
-                                TextButton(enabled = state.undo.isNotEmpty() && !busy, onClick = { edit(KaraokeStudioEdit.Undo) }) { Text("Отмена") }
-                                TextButton(enabled = state.redo.isNotEmpty() && !busy, onClick = { edit(KaraokeStudioEdit.Redo) }) { Text("Повтор") }
-                                TextButton(enabled = !busy, onClick = { restore = true }) { Text("Исходник") }
+                                TextButton(enabled = state.undo.isNotEmpty() && !busy, onClick = { edit(KaraokeStudioEdit.Undo) }) { Text(context.getString(R.string.studio_cancel_0ec75)) }
+                                TextButton(enabled = state.redo.isNotEmpty() && !busy, onClick = { edit(KaraokeStudioEdit.Redo) }) { Text(context.getString(R.string.studio_redo_e923b)) }
+                                TextButton(enabled = !busy, onClick = { restore = true }) { Text(context.getString(R.string.studio_original_1b2f7)) }
                             }
                             Row {
-                                TextButton(enabled = !busy, onClick = { warnText = true }) { Text("Текст") }
+                                TextButton(enabled = !busy, onClick = { warnText = true }) { Text(context.getString(R.string.studio_lyrics_93970)) }
                                 TextButton(enabled = !busy, onClick = { showLrc = true }) { Text("LRC") }
-                                TextButton(enabled = !busy && state.lines.isNotEmpty(), onClick = { edit(KaraokeStudioEdit.Clear(state.selectedIndex)) }) { Text("Убрать метку") }
+                                TextButton(enabled = !busy && state.lines.isNotEmpty(), onClick = { edit(KaraokeStudioEdit.Clear(state.selectedIndex)) }) { Text(context.getString(R.string.studio_clear_timestamp_47f2f)) }
                             }
                         }
                         itemsIndexed(state.lines, key = { _, line -> line.id }) { index, line ->
                             Column(modifier = Modifier.fillMaxWidth().background(if (index == state.selectedIndex) colors.surfaceCard else colors.appBackground)
                                 .clickable(enabled = !busy) { follow = false; state = state.copy(selectedIndex = index, cursorMs = line.timeMs ?: state.cursorMs) }
                                 .padding(12.dp).heightIn(min = 48.dp)) {
-                                Text("${index + 1} · ${line.timeMs?.let { KaraokeStudioEngine.formatTime(it) } ?: "Без метки"}",
+                                Text("${index + 1} · ${line.timeMs?.let { KaraokeStudioEngine.formatTime(it) } ?: stringResource(R.string.studio_no_marker)}",
                                     style = MaterialTheme.typography.labelMedium, color = colors.accentPrimary)
                                 Text(line.text, style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary)
                             }
@@ -389,12 +391,12 @@ fun KaraokeStudioDialog(
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis) }
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Text(KaraokeStudioEngine.formatTime(playback.positionMs), style = MaterialTheme.typography.bodySmall, color = colors.textSecondary, modifier = Modifier.weight(1f))
-                    TextButton(enabled = playback.canToggle && !busy, onClick = { toggleStudioPlayback(trackKey, sourcePackage) }) { Text(if (playback.playing) "Пауза" else "Играть") }
-                    TextButton(enabled = playback.matchesTrack && !busy, onClick = { follow = true; state = state.copy(cursorMs = playback.positionMs) }) { Text("К плееру") }
+                    TextButton(enabled = playback.canToggle && !busy, onClick = { toggleStudioPlayback(trackKey, sourcePackage) }) { Text(if (playback.playing) context.getString(R.string.studio_pause_03498) else context.getString(R.string.studio_play_c750d)) }
+                    TextButton(enabled = playback.matchesTrack && !busy, onClick = { follow = true; state = state.copy(cursorMs = playback.positionMs) }) { Text(context.getString(R.string.studio_to_player_c9976)) }
                     TextButton(enabled = playback.canSeek && !busy, onClick = {
                         loopEnabled = false; pendingLoopSeek = null
-                        if (!seekStudioPlayback(trackKey, sourcePackage, state.cursorMs)) error = "Не удалось перемотать источник"
-                    }) { Text("К курсору") }
+                        if (!seekStudioPlayback(trackKey, sourcePackage, state.cursorMs)) error = context.getString(R.string.studio_could_not_seek_the_source_27ad6)
+                    }) { Text(context.getString(R.string.studio_to_cursor_61a58)) }
                 }
                 Button(modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = ready && !busy && validation == null,
                     onClick = {
@@ -417,82 +419,82 @@ fun KaraokeStudioDialog(
                                 applied = true
                                 expectedLrc = lrc; expectedPlain = plain
                                 store.save(draft(snapshot))
-                                status = "Разметка применена к песне"
+                                status = context.getString(R.string.studio_timings_applied_to_the_song_f8571)
                                 error = null
                             } catch (failure: Exception) {
                                 if (failure is CancellationException) throw failure
-                                error = if (applied) "Песня сохранена, но черновик не записан. Повторите сохранение перед выходом."
-                                    else failure.message ?: "Не удалось применить разметку"
+                                error = if (applied) context.getString(R.string.studio_the_song_was_saved_but_the_draft_was_not_retry_s_30f6f)
+                                    else failure.message ?: context.getString(R.string.studio_could_not_apply_timings_3f46a)
                             } finally { busy = false }
                         }
-                    }) { Text(if (busy) "Сохраняем…" else "Применить к песне") }
+                    }) { Text(if (busy) context.getString(R.string.studio_saving_73bfb) else context.getString(R.string.studio_apply_to_song_bcfc3)) }
             }
         }
     }
 
     conflictedDraft?.let { recovery ->
-        AlertDialog(onDismissRequest = {}, title = { Text("Есть черновик другой версии текста") },
-            text = { Text(error ?: "Текст песни изменился после создания черновика. Можно начать с сохранённой песни или явно восстановить прежнюю работу.") },
+        AlertDialog(onDismissRequest = {}, title = { Text(context.getString(R.string.studio_a_draft_exists_for_another_lyrics_version_a8480)) },
+            text = { Text(error ?: context.getString(R.string.studio_lyrics_changed_after_this_draft_was_created_star_61a76)) },
             confirmButton = { TextButton(onClick = {
                 restoreDraft(recovery)
-                conflictedDraft = null; ready = true; status = "Черновик восстановлен. Применение заменит текущую разметку песни."
-            }) { Text("Восстановить черновик") } },
+                conflictedDraft = null; ready = true; status = context.getString(R.string.studio_draft_restored_applying_it_will_replace_the_curr_6a8f2)
+            }) { Text(context.getString(R.string.studio_restore_draft_f38a8)) } },
             dismissButton = { TextButton(onClick = { scope.launch {
                 try { store.archive(trackKey); conflictedDraft = null; ready = true }
                 catch (failure: Exception) { if (failure is CancellationException) throw failure; error = failure.message }
-            } }) { Text("Начать с песни") } })
+            } }) { Text(context.getString(R.string.studio_start_from_saved_song_90026)) } })
     }
-    if (corruptDraft) AlertDialog(onDismissRequest = { onDismissRequest() }, title = { Text("Черновик повреждён") },
+    if (corruptDraft) AlertDialog(onDismissRequest = { onDismissRequest() }, title = { Text(context.getString(R.string.studio_draft_is_damaged_ed4ef)) },
         text = { Text(error.orEmpty()) }, confirmButton = { TextButton(onClick = { scope.launch {
             try { store.archive(trackKey); corruptDraft = false; ready = true; error = null }
             catch (failure: Exception) { if (failure is CancellationException) throw failure; error = failure.message }
-        } }) { Text("Сохранить копию и начать заново") } }, dismissButton = { TextButton(onClick = onDismissRequest) { Text("Закрыть") } })
-    if (discardClose) AlertDialog(onDismissRequest = { discardClose = false }, title = { Text("Черновик не записан") },
-        text = { Text("Работа пока остаётся в памяти. Повторите сохранение или выйдите без последних изменений.") },
-        confirmButton = { TextButton(onClick = { discardClose = false; close() }) { Text("Повторить") } },
-        dismissButton = { TextButton(onClick = onDismissRequest) { Text("Выйти без сохранения") } })
-    if (restore) AlertDialog(onDismissRequest = { restore = false }, title = { Text("Вернуть исходную разметку?") },
-        text = { Text("Изменится только черновик. Действие можно отменить; песня изменится после применения.") },
-        confirmButton = { TextButton(onClick = { edit(KaraokeStudioEdit.RestoreOriginal); restore = false }) { Text("Вернуть") } },
-        dismissButton = { TextButton(onClick = { restore = false }) { Text("Отмена") } })
-    if (warnText) AlertDialog(onDismissRequest = { warnText = false }, title = { Text("Изменить текст?") },
-        text = { Text("Если строки изменятся, их временные метки будут сброшены. Это можно отменить.") },
-        confirmButton = { TextButton(onClick = { warnText = false; editText = true }) { Text("Редактировать") } },
-        dismissButton = { TextButton(onClick = { warnText = false }) { Text("Отмена") } })
+        } }) { Text(context.getString(R.string.studio_keep_a_copy_and_start_over_93f00)) } }, dismissButton = { TextButton(onClick = onDismissRequest) { Text(context.getString(R.string.studio_close_4ae50)) } })
+    if (discardClose) AlertDialog(onDismissRequest = { discardClose = false }, title = { Text(context.getString(R.string.studio_draft_not_saved_83cdf)) },
+        text = { Text(context.getString(R.string.studio_your_work_is_still_in_memory_retry_saving_or_lea_41b1e)) },
+        confirmButton = { TextButton(onClick = { discardClose = false; close() }) { Text(context.getString(R.string.studio_retry_9e506)) } },
+        dismissButton = { TextButton(onClick = onDismissRequest) { Text(context.getString(R.string.studio_leave_without_saving_b9a56)) } })
+    if (restore) AlertDialog(onDismissRequest = { restore = false }, title = { Text(context.getString(R.string.studio_restore_original_timings_45b56)) },
+        text = { Text(context.getString(R.string.studio_only_the_draft_will_change_you_can_undo_this_the_ad0bf)) },
+        confirmButton = { TextButton(onClick = { edit(KaraokeStudioEdit.RestoreOriginal); restore = false }) { Text(context.getString(R.string.studio_restore_c7aaa)) } },
+        dismissButton = { TextButton(onClick = { restore = false }) { Text(context.getString(R.string.studio_cancel_0ec75)) } })
+    if (warnText) AlertDialog(onDismissRequest = { warnText = false }, title = { Text(context.getString(R.string.studio_edit_lyrics_5df5b)) },
+        text = { Text(context.getString(R.string.studio_changing_lines_resets_their_timestamps_you_can_u_7a4be)) },
+        confirmButton = { TextButton(onClick = { warnText = false; editText = true }) { Text(context.getString(R.string.studio_edit_901be)) } },
+        dismissButton = { TextButton(onClick = { warnText = false }) { Text(context.getString(R.string.studio_cancel_0ec75)) } })
     if (editText) EditLyricsDialog(trackTitle, artist, state.lines.joinToString("\n") { it.text },
         onDismissRequest = { editText = false }, onSaveLyrics = { if (edit(KaraokeStudioEdit.ReplaceText(it))) editText = false })
-    if (showLrc) AlertDialog(onDismissRequest = { showLrc = false }, title = { Text("LRC · точность 0,01 с") },
-        text = { Text(KaraokeStudioEngine.exportLrc(state) ?: "Сначала разметьте все строки и исправьте порядок меток.",
+    if (showLrc) AlertDialog(onDismissRequest = { showLrc = false }, title = { Text(context.getString(R.string.studio_lrc_precision_0_01_s_ceecc)) },
+        text = { Text(KaraokeStudioEngine.exportLrc(state) ?: context.getString(R.string.studio_stamp_all_lines_and_fix_timestamp_order_first_a15ff),
             modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()), fontFamily = FontFamily.Monospace) },
-        confirmButton = { TextButton(onClick = { showLrc = false }) { Text("Закрыть") } })
+        confirmButton = { TextButton(onClick = { showLrc = false }) { Text(context.getString(R.string.studio_close_4ae50)) } })
     timeEntry?.let { entry ->
         val cursor = entry.startsWith("cursor:")
         var value by remember(entry) { mutableStateOf(entry.substringAfter(':')) }
         var inputError by remember(entry) { mutableStateOf<String?>(null) }
-        AlertDialog(onDismissRequest = { timeEntry = null }, title = { Text(if (cursor) "Время курсора" else "Время строки") },
-            text = { Column { OutlinedTextField(value, onValueChange = { value = it }, label = { Text("мм:сс.мс") }, singleLine = true)
+        AlertDialog(onDismissRequest = { timeEntry = null }, title = { Text(if (cursor) context.getString(R.string.studio_cursor_time_9fef9) else context.getString(R.string.studio_line_time_670fd)) },
+            text = { Column { OutlinedTextField(value, onValueChange = { value = it }, label = { Text(context.getString(R.string.studio_mm_ss_mmm_daf54)) }, singleLine = true)
                 inputError?.let { Text(it, color = MaterialTheme.colorScheme.error) } } },
             confirmButton = { TextButton(onClick = {
                 val parsed = KaraokeStudioEngine.parseTimeInput(value)
-                if (parsed == null) inputError = "Введите время, например 01:23.450"
+                if (parsed == null) inputError = context.getString(R.string.studio_enter_a_time_for_example_01_23_450_a2a57)
                 else if (cursor) { follow = false; state = state.copy(cursorMs = if (state.durationMs > 0) parsed.coerceAtMost(state.durationMs) else parsed); timeEntry = null }
                 else if (edit(KaraokeStudioEdit.SetTime(state.selectedIndex, parsed))) timeEntry = null
                 else inputError = error
-            }) { Text("Готово") } }, dismissButton = { TextButton(onClick = { timeEntry = null }) { Text("Отмена") } })
+            }) { Text(context.getString(R.string.studio_done_398c7)) } }, dismissButton = { TextButton(onClick = { timeEntry = null }) { Text(context.getString(R.string.studio_cancel_0ec75)) } })
     }
     tailEntry?.let { entry ->
         var value by remember(entry) { mutableStateOf(entry) }
         var inputError by remember(entry) { mutableStateOf<String?>(null) }
-        AlertDialog(onDismissRequest = { tailEntry = null }, title = { Text("Сдвиг выбранной и следующих строк") },
-            text = { Column { Text("Плюс — позже, минус — раньше. Сдвиг применяется ко всему фрагменту сразу.")
-                OutlinedTextField(value, onValueChange = { value = it }, label = { Text("Миллисекунды: +500 или −500") }, singleLine = true)
+        AlertDialog(onDismissRequest = { tailEntry = null }, title = { Text(context.getString(R.string.studio_shift_this_line_and_following_lines_eaede)) },
+            text = { Column { Text(context.getString(R.string.studio_positive_moves_later_negative_moves_earlier_the__0a074))
+                OutlinedTextField(value, onValueChange = { value = it }, label = { Text(context.getString(R.string.studio_milliseconds_500_or_500_7f0ac)) }, singleLine = true)
                 inputError?.let { Text(it, color = MaterialTheme.colorScheme.error) } } },
             confirmButton = { TextButton(onClick = {
                 val delta = value.replace('−', '-').trim().toLongOrNull()
-                if (delta == null) inputError = "Введите целое число миллисекунд"
+                if (delta == null) inputError = context.getString(R.string.studio_enter_a_whole_number_of_milliseconds_7101a)
                 else if (edit(KaraokeStudioEdit.ShiftTail(state.selectedIndex, delta))) tailEntry = null
                 else inputError = error
-            }) { Text("Сдвинуть") } }, dismissButton = { TextButton(onClick = { tailEntry = null }) { Text("Отмена") } })
+            }) { Text(context.getString(R.string.studio_shift_8b4ba)) } }, dismissButton = { TextButton(onClick = { tailEntry = null }) { Text(context.getString(R.string.studio_cancel_0ec75)) } })
     }
 }
 

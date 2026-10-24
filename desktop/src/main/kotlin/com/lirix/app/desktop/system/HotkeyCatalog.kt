@@ -3,7 +3,8 @@ package com.lirix.app.desktop.system
 import java.awt.event.KeyEvent
 
 enum class DesktopAction { HUD_TOGGLE, HUD_EDIT, PLAY_PAUSE, NEXT, PREVIOUS, SEEK_BACK, SEEK_FORWARD, SHOW_MAIN, MINI_PLAYER, HELP, HUD_LARGER, HUD_SMALLER, HUD_RESET }
-data class HotkeyBinding(val action: DesktopAction, val keyCode: Int, val keys: String, val title: String) {
+data class HotkeyBinding(val action: DesktopAction, val keyCode: Int, val keys: String, private val sourceTitle: String) {
+    val title: String get() = com.lirix.app.ui.i18n.LirixStrings.message(sourceTitle)
     val id: Int get() = 2001 + action.ordinal
 }
 object HotkeyCatalog {
@@ -22,15 +23,15 @@ object HotkeyCatalog {
         HotkeyBinding(DesktopAction.HUD_SMALLER, KeyEvent.VK_SUBTRACT, "Ctrl+Alt+Num −", "Уменьшить текст оверлея"),
         HotkeyBinding(DesktopAction.HUD_RESET, KeyEvent.VK_R, "Ctrl+Alt+R", "Вернуть оверлей на видимое место")
     )
-    val local = listOf(
-        "F1" to "Справка по сочетаниям",
-        "Ctrl+1 / Ctrl+2 / Ctrl+3" to "Плеер / медиатека / итоги",
-        "Ctrl+F" to "Поиск в медиатеке",
-        "Ctrl+E" to "Редактор текста текущего трека",
-        "Ctrl+T" to "Tap-to-Sync текущего трека",
-        "Ctrl+Shift+S" to "Экспорт постера",
-        "Ctrl+Shift+D" to "Устройства Connect",
-        "Space / Enter в студии" to "Отметить начало строки",
-        "Ctrl+Z в студии" to "Отменить последнюю отметку"
+    val local get() = listOf(
+        "F1" to com.lirix.app.ui.i18n.LirixStrings.message("Справка по сочетаниям"),
+        "Ctrl+1 / Ctrl+2 / Ctrl+3" to com.lirix.app.ui.i18n.LirixStrings.message("Плеер / медиатека / итоги"),
+        "Ctrl+F" to com.lirix.app.ui.i18n.LirixStrings.message("Поиск в медиатеке"),
+        "Ctrl+E" to com.lirix.app.ui.i18n.LirixStrings.message("Редактор текста текущего трека"),
+        "Ctrl+T" to com.lirix.app.ui.i18n.LirixStrings.message("Tap-to-Sync текущего трека"),
+        "Ctrl+Shift+S" to com.lirix.app.ui.i18n.LirixStrings.message("Экспорт постера"),
+        "Ctrl+Shift+D" to com.lirix.app.ui.i18n.LirixStrings.message("Устройства Connect"),
+        com.lirix.app.ui.i18n.LirixStrings.message("Space / Enter в студии") to com.lirix.app.ui.i18n.LirixStrings.message("Отметить начало строки"),
+        com.lirix.app.ui.i18n.LirixStrings.message("Ctrl+Z в студии") to com.lirix.app.ui.i18n.LirixStrings.message("Отменить последнюю отметку")
     )
 }

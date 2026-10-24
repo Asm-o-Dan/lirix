@@ -15,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,7 +29,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Brush
+import androidx.annotation.StringRes
+import com.lirix.app.R
+import com.lirix.app.ui.components.NavigationCapsule
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -78,12 +81,12 @@ import kotlinx.coroutines.launch
  */
 enum class AppTab(
     val route: String,
-    val title: String,
+    @StringRes val titleRes: Int,
     val icon: ImageVector
 ) {
-    NOW_PLAYING("now_playing", "Плеер", Icons.Default.PlayArrow),
-    LIBRARY("library", "Медиатека", Icons.Default.MusicNote),
-    WRAPPED("wrapped", "Итоги", Icons.Default.EmojiEvents)
+    NOW_PLAYING("now_playing", R.string.tab_now_playing, Icons.Default.PlayArrow),
+    LIBRARY("library", R.string.tab_library, Icons.Default.MusicNote),
+    WRAPPED("wrapped", R.string.tab_wrapped, Icons.Default.EmojiEvents)
 }
 
 /**
@@ -154,79 +157,10 @@ fun AppScaffold(
                     animationSpec = tween(240)
                 ) + fadeOut(animationSpec = tween(200))
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val capsuleRadius = lirixColors.pillCornerRadius.coerceAtLeast(16.dp)
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(capsuleRadius))
-                            .background(lirixColors.surfacePrimary.copy(alpha = 0.94f))
-                            .border(
-                                BorderStroke(
-                                    1.2.dp,
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            lirixColors.accentPrimary.copy(alpha = 0.8f),
-                                            lirixColors.accentSecondary.copy(alpha = 0.8f)
-                                        )
-                                    )
-                                ),
-                                RoundedCornerShape(capsuleRadius)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        AppTab.entries.forEach { tab ->
-                            val isSelected = currentTab == tab
-                            val tabRadius = (capsuleRadius - 6.dp).coerceAtLeast(10.dp)
-                            val bgModifier = if (isSelected) {
-                                Modifier
-                                    .clip(RoundedCornerShape(tabRadius))
-                                    .background(lirixColors.surfaceCard)
-                                    .border(1.dp, lirixColors.accentSecondary.copy(alpha = 0.4f), RoundedCornerShape(tabRadius))
-                            } else {
-                                Modifier.clip(RoundedCornerShape(tabRadius))
-                            }
-
-                            Row(
-                                modifier = Modifier
-                                    .then(bgModifier)
-                                    .clickable {
-                                        if (currentTab != tab) {
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            currentTab = tab
-                                        }
-                                    }
-                                    .padding(horizontal = 14.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = tab.icon,
-                                    contentDescription = tab.title,
-                                    tint = if (isSelected) lirixColors.accentSecondary else lirixColors.textMuted,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                if (isSelected) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = tab.title,
-                                        color = lirixColors.textPrimary,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
-                                            fontSize = 12.sp
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                NavigationCapsule(
+                    currentTab = currentTab,
+                    onTabSelected = { currentTab = it }
+                )
             }
         }
     ) { innerPadding ->
@@ -234,6 +168,7 @@ fun AppScaffold(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
         ) {
             AnimatedContent(
                 targetState = currentTab,

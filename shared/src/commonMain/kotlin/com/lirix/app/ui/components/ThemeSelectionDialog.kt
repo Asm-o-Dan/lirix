@@ -70,14 +70,14 @@ fun ThemeSelectionDialog(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Palette,
-                        contentDescription = "Тема оформления",
+                        contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Тема оформления"),
                         tint = lirixColors.accentPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Column {
                     Text(
-                        text = "Тема оформления",
+                        text = com.lirix.app.ui.i18n.LirixStrings.message("Тема оформления"),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -85,7 +85,7 @@ fun ThemeSelectionDialog(
                         color = lirixColors.textPrimary
                     )
                     Text(
-                        text = "Визуальный стиль плеера и караоке",
+                        text = com.lirix.app.ui.i18n.LirixStrings.message("Визуальный стиль плеера и караоке"),
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontSize = 12.sp
                         ),
@@ -117,7 +117,7 @@ fun ThemeSelectionDialog(
         confirmButton = {
             TextButton(onClick = onDismissRequest) {
                 Text(
-                    text = "Готово",
+                    text = com.lirix.app.ui.i18n.LirixStrings.message("Готово"),
                     color = lirixColors.accentPrimary,
                     fontWeight = FontWeight.Bold
                 )
@@ -203,14 +203,14 @@ fun ThemeCardPreview(
                         if (isSelected) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Выбрано",
+                                contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Выбрано"),
                                 tint = tokens.accentPrimary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
                     }
                     Text(
-                        text = theme.subtitle,
+                        text = com.lirix.app.ui.i18n.LirixStrings.message(theme.subtitle),
                         color = tokens.textSecondary,
                         fontSize = 12.sp,
                         lineHeight = 14.sp

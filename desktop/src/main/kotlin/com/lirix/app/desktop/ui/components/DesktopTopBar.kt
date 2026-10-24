@@ -165,7 +165,7 @@ fun DesktopTopBar(
                 onClick = onOpenConnect
             )
 
-            val themeLabel = "Тема оформления: ${selectedTheme.title}"
+            val themeLabel = com.lirix.app.ui.i18n.LirixStrings.message("Тема оформления: {0}", selectedTheme.title)
             TooltipArea(tooltip = {
                 Surface(color = colors.surfaceElevated, shape = RoundedCornerShape(6.dp), border = BorderStroke(1.dp, colors.borderSubtle)) {
                     Text("$themeLabel\nВыбрать одну из шести тем", color = colors.textPrimary, fontSize = 11.sp, modifier = Modifier.padding(8.dp))
@@ -184,7 +184,7 @@ fun DesktopTopBar(
             // HUD Toggle Button
             TopBarActionButton(
                 icon = Icons.Filled.PictureInPicture,
-                label = if (isHudVisible) "Скрыть HUD" else "Караоке HUD",
+                label = if (isHudVisible) com.lirix.app.ui.i18n.LirixStrings.message("Скрыть HUD") else com.lirix.app.ui.i18n.LirixStrings.message("Караоке HUD"),
                 isActive = isHudVisible,
                 onClick = onToggleHud
             )
@@ -192,7 +192,7 @@ fun DesktopTopBar(
             // Compact Mode Toggle Button
             TopBarActionButton(
                 icon = Icons.Filled.ViewCompact,
-                label = if (isCompactMode) "Студия" else "Мини-пульт",
+                label = if (isCompactMode) com.lirix.app.ui.i18n.LirixStrings.message("Студия") else com.lirix.app.ui.i18n.LirixStrings.message("Мини-пульт"),
                 isActive = isCompactMode,
                 onClick = onToggleCompactMode
             )
@@ -246,17 +246,17 @@ private fun TopBarActionButton(
  * Converts a raw process name (e.g. chrome.exe, yandexmusic.exe) to human-readable string.
  */
 internal fun formatHumanSourceName(rawPackage: String?): String {
-    if (rawPackage.isNullOrBlank()) return "Нет активного плеера"
+    if (rawPackage.isNullOrBlank()) return com.lirix.app.ui.i18n.LirixStrings.message("Нет активного плеера")
     val lower = rawPackage.lowercase()
     return when {
-        lower.contains("yandex") -> "Играет в Яндекс Музыке"
-        lower.contains("spotify") -> "Играет в Spotify"
-        lower.contains("chrome") || lower.contains("firefox") || lower.contains("msedge") || lower.contains("opera") || lower.contains("browser") -> "Играет в Браузере"
-        lower.contains("aimp") -> "Играет в AIMP"
-        lower.contains("vlc") -> "Играет в VLC"
-        lower.contains("telegram") || lower.contains("ayugram") -> "Играет в Telegram"
-        lower.contains("foobar") -> "Играет в foobar2000"
-        else -> "Играет в " + rawPackage.removeSuffix(".exe").replaceFirstChar { it.uppercase() }
+        lower.contains("yandex") -> com.lirix.app.ui.i18n.LirixStrings.message("Играет в Яндекс Музыке")
+        lower.contains("spotify") -> com.lirix.app.ui.i18n.LirixStrings.message("Играет в Spotify")
+        lower.contains("chrome") || lower.contains("firefox") || lower.contains("msedge") || lower.contains("opera") || lower.contains("browser") -> com.lirix.app.ui.i18n.LirixStrings.message("Играет в Браузере")
+        lower.contains("aimp") -> com.lirix.app.ui.i18n.LirixStrings.message("Играет в AIMP")
+        lower.contains("vlc") -> com.lirix.app.ui.i18n.LirixStrings.message("Играет в VLC")
+        lower.contains("telegram") || lower.contains("ayugram") -> com.lirix.app.ui.i18n.LirixStrings.message("Играет в Telegram")
+        lower.contains("foobar") -> com.lirix.app.ui.i18n.LirixStrings.message("Играет в foobar2000")
+        else -> com.lirix.app.ui.i18n.LirixStrings.message("Играет в ") + rawPackage.removeSuffix(".exe").replaceFirstChar { it.uppercase() }
     }
 }
 
@@ -280,9 +280,9 @@ private fun TopBarConnectButton(
             ) {
                 Text(
                     text = if (hasActiveDevice && !activeDeviceName.isNullOrBlank()) {
-                        "Воспроизведение: $activeDeviceName"
+                        com.lirix.app.ui.i18n.LirixStrings.message("Воспроизведение: {0}", activeDeviceName)
                     } else {
-                        "Воспроизвести на устройстве"
+                        com.lirix.app.ui.i18n.LirixStrings.message("Воспроизвести на устройстве")
                     },
                     style = typography.timecodeAndBadges.copy(fontSize = 11.sp),
                     color = colors.textPrimary,
@@ -313,7 +313,7 @@ private fun TopBarConnectButton(
             ) {
                 Icon(
                     imageVector = Icons.Default.DevicesOther,
-                    contentDescription = "Воспроизвести на устройстве",
+                    contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Воспроизвести на устройстве"),
                     tint = if (hasActiveDevice) colors.accentPrimary else colors.textPrimary,
                     modifier = Modifier.size(15.dp)
                 )
@@ -333,5 +333,5 @@ private fun TopBarConnectButton(
 
 internal fun playbackSourceLabel(rawPackage: String?, isPlaying: Boolean): String {
     val source = formatHumanSourceName(rawPackage)
-    return if (!rawPackage.isNullOrBlank() && !isPlaying) "На паузе · ${source.removePrefix("Играет в ")}" else source
+    return if (!rawPackage.isNullOrBlank() && !isPlaying) com.lirix.app.ui.i18n.LirixStrings.message("На паузе · {0}", source.removePrefix(com.lirix.app.ui.i18n.LirixStrings.message("Играет в "))) else source
 }

@@ -3,6 +3,7 @@ package com.lirix.app.ui
 import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.provider.Settings
 import androidx.compose.runtime.collectAsState
@@ -98,9 +99,10 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
@@ -136,6 +138,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.lirix.app.R
+import com.lirix.app.ui.components.LanguageSelectionDialog
+import com.lirix.app.feature.lyrics.romanization.*
+import com.lirix.app.ui.i18n.findHostActivity
+import com.lirix.app.ui.components.RomanizationModeDialog
+import com.lirix.app.ui.components.RomanizedKaraokeLine
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lirix.app.feature.lyrics.ChordAutoscrollCalculator
 import com.lirix.app.feature.lyrics.ChordTransposer
@@ -186,11 +196,11 @@ import java.io.File
 /**
  * 4 modes of NowPlayingScreen deck (SPEC-UI-MOBILE-2.0 / ADR-023).
  */
-enum class NowPlayingMode(val label: String) {
-    KARAOKE("Караоке"),
-    CHORDS("Аккорды"),
-    LYRICS("Текст"),
-    NOTES("Заметки")
+enum class NowPlayingMode(@StringRes val labelRes: Int) {
+    KARAOKE(R.string.karaoke_mode_karaoke),
+    CHORDS(R.string.karaoke_mode_chords),
+    LYRICS(R.string.karaoke_mode_lyrics),
+    NOTES(R.string.karaoke_mode_notes)
 }
 
 typealias KaraokeLine = com.lirix.app.feature.lyrics.KaraokeLine
@@ -248,7 +258,10 @@ fun NowPlayingScreen(
             val cleanArtist = livePlayback!!.artist.ifBlank { "Unknown Artist" }
             val cleanAlbum = livePlayback!!.album
             val trackKey = MusicFeatureEngine.computeTrackKey(livePlayback!!.title, cleanArtist, cleanAlbum)
-            TrackEntity(
+            (recentTracks.find { it.trackKey == trackKey } ?: TrackEntity(
+                trackKey = trackKey, title = livePlayback!!.title, artist = cleanArtist,
+                sourcePackage = livePlayback!!.packageName
+            )).copy(
                 trackKey = trackKey,
                 title = livePlayback!!.title,
                 artist = cleanArtist,
@@ -260,7 +273,7 @@ fun NowPlayingScreen(
                 userNotes = recentTracks.find { it.trackKey == trackKey }?.userNotes.orEmpty()
             )
         } else if (selectedTrack != null) {
-            selectedTrack
+            recentTracks.find { it.trackKey == selectedTrack.trackKey } ?: selectedTrack
         } else if (livePlayback != null && livePlayback!!.title.isNotBlank()) {
             val cleanArtist = livePlayback!!.artist.ifBlank { "Unknown Artist" }
             val cleanAlbum = livePlayback!!.album
@@ -411,7 +424,7 @@ fun NowPlayingScreen(
 
     val shouldKeepScreenOn = keepScreenOnSetting && (isPlaying || pausedDurationMs < 300_000L)
     DisposableEffect(shouldKeepScreenOn) {
-        val window = (context as? Activity)?.window
+        val window = context.findHostActivity()?.window
         if (shouldKeepScreenOn) {
             window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
@@ -428,7 +441,7 @@ fun NowPlayingScreen(
             if (!hasShownFocusHint) {
                 delay(1000L)
                 snackbarHostState.showSnackbar(
-                    message = "Двойной тап по тексту — режим максимального фокуса",
+                    message = context.getString(R.string.hint_double_tap_focus),
                     duration = SnackbarDuration.Short
                 )
                 prefs.edit().putBoolean("hint_focus_shown", true).apply()
@@ -436,7 +449,7 @@ fun NowPlayingScreen(
             } else if (!hasShownSeekHint && canSeek) {
                 delay(2000L)
                 snackbarHostState.showSnackbar(
-                    message = "Удерживайте строку для перемотки",
+                    message = context.getString(R.string.hint_hold_line_to_seek),
                     duration = SnackbarDuration.Short
                 )
                 prefs.edit().putBoolean("hint_seek_shown", true).apply()
@@ -454,10 +467,21 @@ fun NowPlayingScreen(
                 lyricsCache?.syncedLyricsLrc ?: track.syncedLyrics)
         }
     }
+    var favoriteSaving by remember(currentTrack?.trackKey) { mutableStateOf(false) }
     var showEditLyricsDialog by remember { mutableStateOf(false) }
     var showTranslationSettings by remember { mutableStateOf(false) }
     var showCalibrationDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    val readingPreferences = remember(context.applicationContext) { LyricsReadingPreferences(context) }
+    var romanizationDisplayMode by remember { mutableStateOf(readingPreferences.mode()) }
+    var lyricsReadingLanguage by remember(currentTrack?.trackKey) { mutableStateOf(readingPreferences.language(currentTrack?.trackKey)) }
+    val readingCache = lyricsCache?.takeIf { it.trackKey == currentTrack?.trackKey }
+    val readingResults = rememberDocumentReadings(currentTrack?.trackKey,
+        readingCache?.syncedLyricsLrc ?: currentTrack?.syncedLyrics,
+        readingCache?.plainLyrics ?: currentTrack?.plainLyrics,
+        romanizationDisplayMode, lyricsReadingLanguage)
+    var showRomanizationDialog by remember { mutableStateOf(false) }
     val connectManager = remember { AndroidConnectManager.getInstance(context) }
     var showConnectBottomSheet by remember { mutableStateOf(false) }
     val isLocalPlayback by connectManager.handoffStateMachine.isLocalPlayback.collectAsStateWithLifecycle()
@@ -552,12 +576,12 @@ fun NowPlayingScreen(
     val screenHeightDp = configuration.screenHeightDp
     val isCompactPortrait = !isLandscape && screenHeightDp < 700
 
-    val sourceLabel = remember(currentTrack?.sourcePackage) {
+    val sourceLabel = remember(currentTrack?.sourcePackage, context) {
         when {
-            currentTrack?.sourcePackage?.contains("yandex") == true -> "Яндекс Музыке"
+            currentTrack?.sourcePackage?.contains("yandex") == true -> context.getString(R.string.source_yandex)
             currentTrack?.sourcePackage?.contains("spotify") == true -> "Spotify"
-            currentTrack?.sourcePackage?.contains("vk") == true -> "VK Музыке"
-            else -> "плеере"
+            currentTrack?.sourcePackage?.contains("vk") == true -> context.getString(R.string.source_vk)
+            else -> context.getString(R.string.source_generic)
         }
     }
 
@@ -572,6 +596,7 @@ fun NowPlayingScreen(
                 onEditLyrics = { showEditLyricsDialog = true },
                 onSync = { openTapSync() },
                 onTranslations = { showTranslationSettings = true },
+                onRomanization = { showRomanizationDialog = true },
                 onSaveNotes = saveNotes,
                 onToggleOverlay = {
                     if (!FloatingLyricsService.isPermissionGranted(context)) {
@@ -581,7 +606,7 @@ fun NowPlayingScreen(
                         FloatingLyricsService.toggle(context)
                         scope.launch {
                             snackbarHostState.showSnackbar(
-                                message = if (willEnable) "Плавающий оверлей включён" else "Плавающий оверлей выключен",
+                                message = if (willEnable) context.getString(R.string.overlay_enabled) else context.getString(R.string.overlay_disabled),
                                 duration = SnackbarDuration.Short
                             )
                         }
@@ -590,6 +615,9 @@ fun NowPlayingScreen(
                 onCalibrate = { showCalibrationDialog = true },
                 onTheme = {
                     showThemeDialog = true
+                },
+                onLanguage = {
+                    showLanguageDialog = true
                 },
                 onTeach = onOpenTeachMode?.let { callback -> { callback(currentTrack) } },
                 onBlacklist = {
@@ -693,13 +721,13 @@ fun NowPlayingScreen(
                         IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Назад",
+                                contentDescription = stringResource(R.string.action_back),
                                 tint = lirixColors.textPrimary
                             )
                         }
 
                         Text(
-                            text = "В $sourceLabel ▾",
+                            text = stringResource(R.string.player_in_source, sourceLabel),
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                             color = lirixColors.accentPrimary,
                             maxLines = 1,
@@ -783,6 +811,7 @@ fun NowPlayingScreen(
                         }
                     }
 
+
                     // Панель транспорта (Connect, ⏮, ▶ 56x56, ⏭)
                     Row(
                         modifier = Modifier
@@ -798,7 +827,7 @@ fun NowPlayingScreen(
                                     .size(48.dp)
                                     .semantics {
                                         role = Role.Button
-                                        contentDescription = "Воспроизвести на устройстве"
+                                        contentDescription = context.getString(R.string.action_play_on_device)
                                     }
                             ) {
                                 Icon(
@@ -826,7 +855,7 @@ fun NowPlayingScreen(
                             },
                             modifier = Modifier.size(48.dp)
                         ) {
-                            Icon(Icons.Default.SkipPrevious, "Предыдущий", tint = lirixColors.textPrimary)
+                            Icon(Icons.Default.SkipPrevious, stringResource(R.string.action_previous), tint = lirixColors.textPrimary)
                         }
 
                         Surface(
@@ -837,6 +866,7 @@ fun NowPlayingScreen(
                                 .clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     val newPlaying = !isPlaying
+
                                     localIsPlaying = newPlaying
                                     MediaSessionCollector.togglePlayPause()
                                 }
@@ -844,7 +874,7 @@ fun NowPlayingScreen(
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (isPlaying) "Пауза" else "Играть",
+                                    contentDescription = if (isPlaying) stringResource(R.string.action_pause) else stringResource(R.string.action_play),
                                     tint = lirixColors.appBackground,
                                     modifier = Modifier.size(28.dp)
                                 )
@@ -858,10 +888,10 @@ fun NowPlayingScreen(
                             },
                             modifier = Modifier.size(48.dp)
                         ) {
-                            Icon(Icons.Default.SkipNext, "Следующий", tint = lirixColors.textPrimary)
+                            Icon(Icons.Default.SkipNext, stringResource(R.string.action_next), tint = lirixColors.textPrimary)
                         }
                         IconButton(onClick = { showShareDialog = true }, modifier = Modifier.size(48.dp)) {
-                            Icon(Icons.Default.Share, "Поделиться карточкой", tint = lirixColors.textSecondary)
+                            Icon(Icons.Default.Share, stringResource(R.string.action_share_card), tint = lirixColors.textSecondary)
                         }
                     }
 
@@ -882,7 +912,7 @@ fun NowPlayingScreen(
 
                             // Степпер Аа
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Аа", style = MaterialTheme.typography.labelSmall, color = lirixColors.textSecondary)
+                                Text("Aa", style = MaterialTheme.typography.labelSmall, color = lirixColors.textSecondary)
                                 IconButton(
                                     onClick = { textScaleFactor = (textScaleFactor - 0.1f).coerceIn(0.8f, 1.5f) },
                                     modifier = Modifier.size(32.dp)
@@ -910,7 +940,7 @@ fun NowPlayingScreen(
                     ) {
                         NowPlayingMode.entries.forEach { mode ->
                             val isSelected = selectedMode == mode
-                            val shortLabel = if (mode == NowPlayingMode.NOTES) "Зам." else mode.label
+                            val shortLabel = if (mode == NowPlayingMode.NOTES) stringResource(R.string.now_playing_mode_notes_short) else stringResource(mode.labelRes)
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -972,7 +1002,9 @@ fun NowPlayingScreen(
                         totalTrackDuration = totalTrackDuration,
                         automaticTranslations = automaticTranslations,
                         showTranslationSettings = showTranslationSettings,
-                        onDismissTranslationSettings = { showTranslationSettings = false }
+                        onDismissTranslationSettings = { showTranslationSettings = false },
+                        romanizationMode = romanizationDisplayMode,
+                        readingResults = readingResults
                     )
                 }
             }
@@ -1002,7 +1034,7 @@ fun NowPlayingScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "В медиатеку",
+                            contentDescription = stringResource(R.string.action_to_library),
                             tint = lirixColors.textPrimary
                         )
                     }
@@ -1010,7 +1042,7 @@ fun NowPlayingScreen(
                     val headerText = if (isCompactPortrait || isFocusMode) {
                         "${currentTrack.title} — ${currentTrack.artist} ▾"
                     } else {
-                        "В $sourceLabel ▾"
+                        stringResource(R.string.player_in_source, sourceLabel)
                     }
 
                     Text(
@@ -1036,13 +1068,13 @@ fun NowPlayingScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Check,
-                                contentDescription = "Готово",
+                                contentDescription = stringResource(R.string.action_done),
                                 tint = lirixColors.accentPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Готово",
+                                text = stringResource(R.string.action_done),
                                 color = lirixColors.accentPrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
@@ -1095,10 +1127,10 @@ fun NowPlayingScreen(
                             )
                             Text(
                                 text = when {
-                                    isLoadingLyrics -> "Поиск текста..."
-                                    lyricsCache?.trackKey == currentTrack.trackKey && !lyricsCache?.syncedLyricsLrc.isNullOrBlank() -> "Текст: синхронно"
-                                    lyricsCache?.trackKey == currentTrack.trackKey && !lyricsCache?.plainLyrics.isNullOrBlank() -> "Текст: статично"
-                                    else -> "Текст не найден"
+                                    isLoadingLyrics -> stringResource(R.string.lyrics_status_searching)
+                                    lyricsCache?.trackKey == currentTrack.trackKey && !lyricsCache?.syncedLyricsLrc.isNullOrBlank() -> stringResource(R.string.lyrics_status_synced)
+                                    lyricsCache?.trackKey == currentTrack.trackKey && !lyricsCache?.plainLyrics.isNullOrBlank() -> stringResource(R.string.lyrics_status_static)
+                                    else -> stringResource(R.string.lyrics_status_not_found)
                                 },
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                                 color = if (isLoadingLyrics) lirixColors.textSecondary else lirixColors.accentPrimary
@@ -1108,15 +1140,25 @@ fun NowPlayingScreen(
                         IconButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                scope.launch(Dispatchers.IO) {
-                                    db.musicDao().setFavorite(currentTrack.trackKey, !currentTrack.isFavorite)
+                                favoriteSaving = true
+                                scope.launch {
+                                    try {
+                                        withContext(Dispatchers.IO) { db.musicDao().toggleFavorite(currentTrack) }
+                                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                        throw cancelled
+                                    } catch (_: Exception) {
+                                        snackbarHostState.showSnackbar(context.getString(R.string.favorite_save_failed_error))
+                                    } finally {
+                                        favoriteSaving = false
+                                    }
                                 }
                             },
+                            enabled = !favoriteSaving,
                             modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 imageVector = if (currentTrack.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = "Избранное",
+                                contentDescription = stringResource(R.string.action_favorite),
                                 tint = if (currentTrack.isFavorite) lirixColors.accentSecondary else lirixColors.textSecondary
                             )
                         }
@@ -1132,7 +1174,7 @@ fun NowPlayingScreen(
                         .weight(1f)
                         .semantics {
                             customActions = listOf(
-                                CustomAccessibilityAction("Скрыть метаданные / Переключить фокус") {
+                                CustomAccessibilityAction(context.getString(R.string.action_toggle_focus)) {
                                     isFocusMode = !isFocusMode
                                     true
                                 }
@@ -1179,7 +1221,9 @@ fun NowPlayingScreen(
                         totalTrackDuration = totalTrackDuration,
                         automaticTranslations = automaticTranslations,
                         showTranslationSettings = showTranslationSettings,
-                        onDismissTranslationSettings = { showTranslationSettings = false }
+                        onDismissTranslationSettings = { showTranslationSettings = false },
+                        romanizationMode = romanizationDisplayMode,
+                        readingResults = readingResults
                     )
                 }
 
@@ -1244,6 +1288,7 @@ fun NowPlayingScreen(
                             color = lirixColors.textMuted
                         )
                     }
+
                 }
 
                 // 5. Контекстная строка сдвига и размера текста (48dp): только для караоке с синхронизацией
@@ -1265,7 +1310,7 @@ fun NowPlayingScreen(
                         // Степпер Аа
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Аа ${(textScaleFactor * 100).toInt()}%",
+                                text = "Aa ${(textScaleFactor * 100).toInt()}%",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = lirixColors.textSecondary
                             )
@@ -1327,7 +1372,7 @@ fun NowPlayingScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = mode.label,
+                                    text = stringResource(mode.labelRes),
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                     ),
@@ -1350,6 +1395,7 @@ fun NowPlayingScreen(
                         onTogglePlayback = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             val newPlaying = !isPlaying
+
                             localIsPlaying = newPlaying
                             MediaSessionCollector.togglePlayPause()
                         },
@@ -1407,6 +1453,12 @@ fun NowPlayingScreen(
             )
         }
 
+        if (showLanguageDialog) {
+            LanguageSelectionDialog(
+                onDismiss = { showLanguageDialog = false }
+            )
+        }
+
         tapSyncTarget?.let { target ->
             KaraokeStudioDialog(
                 trackTitle = target.title,
@@ -1423,7 +1475,7 @@ fun NowPlayingScreen(
                         selectedMode = NowPlayingMode.KARAOKE
                     }
                     tapSyncTarget = target.copy(plainLyrics = generatedPlain, initialLrc = generatedLrc)
-                    scope.launch { snackbarHostState.showSnackbar("Караоке синхронизировано и сохранено!") }
+                    scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.snackbar_karaoke_synced)) }
                 }
             )
         }
@@ -1455,7 +1507,7 @@ fun NowPlayingScreen(
                         db.musicDao().updateLyrics(track.trackKey, updatedLyrics, updatedEntity.syncedLyricsLrc)
                         withContext(Dispatchers.Main) {
                             lyricsCache = updatedEntity
-                            snackbarHostState.showSnackbar("Текст песни сохранён")
+                            snackbarHostState.showSnackbar(context.getString(R.string.snackbar_lyrics_saved))
                         }
                     }
                 }
@@ -1465,6 +1517,12 @@ fun NowPlayingScreen(
         if (showShareDialog && currentTrack != null) {
             val track = remember { requireNotNull(currentTrack) }
             val exportTheme = remember { com.lirix.app.feature.share.PosterThemeSnapshot.fromColors(lirixColors) }
+            val exportLabels = remember { com.lirix.app.feature.share.PosterTextSnapshot.from(context) }
+            val animationPalette = remember { com.lirix.app.feature.share.animation.ThemeAnimationPalette.fromColors(lirixColors) }
+            var shareArtBmp by remember(track.albumArtUri) { mutableStateOf<Bitmap?>(null) }
+            LaunchedEffect(track.albumArtUri) {
+                shareArtBmp = com.lirix.app.feature.share.PosterArtworkLoader.load(context, track.albumArtUri)
+            }
             val activeLyricLine = remember {
                 val lrc = lyricsCache?.syncedLyricsLrc
                 if (!lrc.isNullOrBlank()) {
@@ -1477,15 +1535,25 @@ fun NowPlayingScreen(
             }
             ShareFormatDialog(
                 onDismissRequest = { showShareDialog = false },
+                animatorProvider = {
+                    com.lirix.app.feature.share.animation.VinylSpinAnimator(
+                        palette = animationPalette,
+                        albumArt = shareArtBmp,
+                        trackTitle = track.title,
+                        artistName = track.artist,
+                        lyricLine = activeLyricLine
+                    )
+                },
                 onFormatSelected = { format ->
-                    val artBmp = com.lirix.app.feature.share.PosterArtworkLoader.load(context, track.albumArtUri)
+                    val artBmp = shareArtBmp
                     val cardBitmap = withContext(Dispatchers.Default) { ShareCardGenerator.generateNowPlayingCard(
                         context = context,
                         track = track,
                         currentLyricLine = activeLyricLine,
                         format = format,
                         albumArtBitmap = artBmp,
-                        theme = exportTheme
+                        theme = exportTheme,
+                        labels = exportLabels
                     ) }
                     cardBitmap
                 }
@@ -1495,10 +1563,20 @@ fun NowPlayingScreen(
         if (showConnectBottomSheet) {
             DeviceConnectBottomSheet(
                 onDismissRequest = { showConnectBottomSheet = false },
-                currentTrackTitle = currentTrack?.title ?: "Lirix Connect",
-                currentTrackArtist = currentTrack?.artist ?: "Беспроводное сопряжение",
+                currentTrackTitle = currentTrack?.title ?: stringResource(R.string.connect_title),
+                currentTrackArtist = currentTrack?.artist ?: stringResource(R.string.connect_wireless_pairing),
                 playbackPositionMs = playbackPositionMs,
                 connectManager = connectManager
+            )
+        }
+
+        if (showRomanizationDialog) {
+            RomanizationModeDialog(
+                currentMode = romanizationDisplayMode,
+                onModeSelected = { romanizationDisplayMode = it; readingPreferences.saveMode(it) },
+                currentLanguage = lyricsReadingLanguage,
+                onLanguageSelected = { lyricsReadingLanguage = it; readingPreferences.saveLanguage(currentTrack?.trackKey, it) },
+                onDismissRequest = { showRomanizationDialog = false }
             )
         }
     }
@@ -1534,7 +1612,9 @@ private fun RenderTeleprompterContent(
     totalTrackDuration: Long = 0L,
     automaticTranslations: com.lirix.app.translations.AutomaticSongTranslations? = null,
     showTranslationSettings: Boolean = false,
-    onDismissTranslationSettings: () -> Unit = {}
+    onDismissTranslationSettings: () -> Unit = {},
+    romanizationMode: RomanizationDisplayMode = RomanizationDisplayMode.ORIGINAL_ONLY,
+    readingResults: Map<String, ReadingResult> = emptyMap()
 ) {
     val tokens = LirixThemeTokens.colors
 
@@ -1555,7 +1635,7 @@ private fun RenderTeleprompterContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Личные заметки к песне",
+                    text = stringResource(R.string.notes_title),
                     style = MaterialTheme.typography.labelMedium,
                     color = tokens.textSecondary
                 )
@@ -1569,13 +1649,13 @@ private fun RenderTeleprompterContent(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Готово",
+                        contentDescription = stringResource(R.string.action_done),
                         tint = tokens.accentPrimary,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Готово",
+                        text = stringResource(R.string.action_done),
                         color = tokens.accentPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
@@ -1592,7 +1672,7 @@ private fun RenderTeleprompterContent(
                         onNotesFocusChange(focusState.isFocused)
                     },
                 placeholder = {
-                    Text("Личные заметки к песне (тональность, каподастр, структура)...")
+                    Text(stringResource(R.string.notes_placeholder))
                 },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = tokens.surfacePrimary,
@@ -1638,14 +1718,19 @@ private fun RenderTeleprompterContent(
                     isLandscape = isLandscape,
                     canSeek = canSeek,
                     isReducedMotion = isReducedMotion,
+                    romanizationMode = romanizationMode,
+                    readingResults = readingResults,
                     modifier = Modifier.fillMaxSize()
                 )
+
             } else if (hasPlain) {
                 PlainLyricsReadingView(
                     lyricsText = effectivePlain.orEmpty(),
                     onStartTapSync = onStartTapSync,
                     onEditLyrics = onEditLyrics,
                     fontScale = fontScale,
+                    romanizationMode = romanizationMode,
+                        readingResults = readingResults,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -1667,7 +1752,11 @@ private fun RenderTeleprompterContent(
                 com.lirix.app.translations.TranslationPanel(currentTrack.trackKey, "${currentTrack.artist} — ${currentTrack.title}",
                     effectivePlain ?: effectiveSynced?.let { LrcSyncEngine.parseLrcLinesStrict(it).joinToString("\n") { line -> line.text } }.orEmpty(),
                     database.songTranslationDao(), provider::load, Modifier.weight(1f), automaticTranslations, currentTrack.title, currentTrack.artist,
-                    compact = true, settingsExpanded = showTranslationSettings, onDismissSettings = onDismissTranslationSettings)
+                    compact = true, settingsExpanded = showTranslationSettings, onDismissSettings = onDismissTranslationSettings,
+                    originalLineContent = if (romanizationMode == RomanizationDisplayMode.ORIGINAL_ONLY) null else { raw ->
+                        RomanizedKaraokeLine(raw, romanizationMode, reading = readingResults[raw],
+                            fontFamily = LiterataFontFamily, fontSize = (18 * fontScale).sp)
+                    })
             }
         }
 
@@ -1719,6 +1808,8 @@ fun HighFidelityKaraokePlayer(
     isLandscape: Boolean = false,
     canSeek: Boolean = true,
     isReducedMotion: Boolean = false,
+    romanizationMode: RomanizationDisplayMode = RomanizationDisplayMode.ORIGINAL_ONLY,
+    readingResults: Map<String, ReadingResult> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val tokens = LirixThemeTokens.colors
@@ -1732,6 +1823,8 @@ fun HighFidelityKaraokePlayer(
                 lyricsText = plainText,
                 onStartTapSync = onStartTapSync,
                 fontScale = fontScale,
+                romanizationMode = romanizationMode,
+                        readingResults = readingResults,
                 modifier = modifier
             )
         }
@@ -1820,13 +1913,17 @@ fun HighFidelityKaraokePlayer(
 
                     Spacer(modifier = Modifier.width(9.dp))
 
-                    Text(
-                        text = line.text.toSentenceCase(),
+                    RomanizedKaraokeLine(
+                        originalText = line.text,
+                        reading = readingResults[line.text],
+                        displayMode = romanizationMode,
                         fontFamily = LiterataFontFamily,
                         fontWeight = FontWeight.Normal,
                         fontSize = fontSize,
                         lineHeight = (fontSize.value * 1.35f).sp,
-                        color = tokens.textPrimary.copy(alpha = lineAlpha),
+                        textColor = tokens.textPrimary,
+                        alpha = lineAlpha,
+                        rubyColor = tokens.accentPrimary.copy(alpha = 0.9f * lineAlpha),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -1844,6 +1941,8 @@ fun PlainLyricsReadingView(
     onStartTapSync: (() -> Unit)? = null,
     onEditLyrics: (() -> Unit)? = null,
     fontScale: Float = 1.0f,
+    romanizationMode: RomanizationDisplayMode = RomanizationDisplayMode.ORIGINAL_ONLY,
+    readingResults: Map<String, ReadingResult> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val tokens = LirixThemeTokens.colors
@@ -1868,7 +1967,7 @@ fun PlainLyricsReadingView(
                 border = androidx.compose.foundation.BorderStroke(1.dp, tokens.borderSubtle)
             ) {
                 Text(
-                    text = "Текст песни без таймингов",
+                    text = stringResource(R.string.lyrics_unsynced_badge),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Medium,
                         fontSize = 11.sp
@@ -1886,7 +1985,7 @@ fun PlainLyricsReadingView(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Редактировать текст",
+                            contentDescription = stringResource(R.string.action_edit_lyrics),
                             tint = tokens.accentPrimary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -1904,7 +2003,7 @@ fun PlainLyricsReadingView(
                         shape = RoundedCornerShape(tokens.pillCornerRadius),
                         modifier = Modifier.height(34.dp)
                     ) {
-                        Text("Синхронизировать", fontSize = 11.sp)
+                        Text(stringResource(R.string.action_sync), fontSize = 11.sp)
                     }
                     Spacer(modifier = Modifier.width(6.dp))
                 }
@@ -1919,7 +2018,7 @@ fun PlainLyricsReadingView(
                 ) {
                     Icon(
                         imageVector = if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy,
-                        contentDescription = "Копировать",
+                        contentDescription = stringResource(R.string.action_copy),
                         tint = if (isCopied) tokens.accentPrimary else tokens.textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
@@ -1930,14 +2029,36 @@ fun PlainLyricsReadingView(
         Spacer(modifier = Modifier.height(14.dp))
 
         val sanitizedLyrics = remember(lyricsText) { LrcSyncEngine.sanitizePlainText(lyricsText) }
-        Text(
-            text = sanitizedLyrics.lines().joinToString("\n") { it.toSentenceCase() },
-            fontFamily = LiterataFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = (18 * fontScale).sp,
-            lineHeight = (26 * fontScale).sp,
-            color = tokens.textPrimary,
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (romanizationMode == RomanizationDisplayMode.ORIGINAL_ONLY) {
+            Text(
+                text = sanitizedLyrics.lines().joinToString("\n") { it.toSentenceCase() },
+                fontFamily = LiterataFontFamily,
+                fontWeight = FontWeight.Normal,
+                fontSize = (18 * fontScale).sp,
+                lineHeight = (26 * fontScale).sp,
+                color = tokens.textPrimary,
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                sanitizedLyrics.lines().forEach { rawLine ->
+                    RomanizedKaraokeLine(
+                        originalText = rawLine,
+                        reading = readingResults[rawLine],
+                        displayMode = romanizationMode,
+                        fontFamily = LiterataFontFamily,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = (18 * fontScale).sp,
+                        lineHeight = (26 * fontScale).sp,
+                        textColor = tokens.textPrimary,
+                        rubyColor = tokens.accentPrimary.copy(alpha = 0.85f),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
     }
 }

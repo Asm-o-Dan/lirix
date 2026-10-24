@@ -43,6 +43,7 @@ import com.lirix.app.ui.theme.LocalLirixColors
 import com.lirix.app.ui.theme.LocalLirixTypography
 
 fun main() = application {
+    remember { com.lirix.app.desktop.i18n.DesktopLanguageSettings.preferences }
     val coroutineScope = rememberCoroutineScope()
     val ingressProvider = remember { DesktopGsmtcIngressProvider() }
     val audioMeterService = remember { DesktopAudioMeterService(ingressProvider.bridgeProcessManager, coroutineScope) }
@@ -105,7 +106,7 @@ fun main() = application {
         while (isActive) {
             try { repository.record(ingressProvider.currentPlayback.value) }
             catch (e: CancellationException) { throw e }
-            catch (e: Exception) { com.lirix.app.platform.logError("DesktopLibrary", "Не удалось записать прослушивание", e) }
+            catch (e: Exception) { com.lirix.app.platform.logError("DesktopLibrary", com.lirix.app.ui.i18n.LirixStrings.message("Не удалось записать прослушивание"), e) }
             delay(1000)
         }
     }
@@ -202,10 +203,10 @@ fun main() = application {
         LocalLirixTypography provides desktopTypography
     ) {
         MaterialTheme(colorScheme = desktopPalette.material) {
-            if (confirmExit) com.lirix.app.desktop.ui.DesktopFeatureDialog("Несохранённые изменения", { confirmExit = false }) {
-                Text("Остались несохранённые правки текста, разметки или заметок. Вернитесь в редактор или медиатеку, чтобы сохранить их.")
-                TextButton(onClick = { confirmExit = false }) { Text("Вернуться к работе") }
-                TextButton(onClick = ::exitApplication) { Text("Выйти без сохранения") }
+            if (confirmExit) com.lirix.app.desktop.ui.DesktopFeatureDialog(com.lirix.app.ui.i18n.LirixStrings.message("Несохранённые изменения"), { confirmExit = false }) {
+                Text(com.lirix.app.ui.i18n.LirixStrings.message("Остались несохранённые правки текста, разметки или заметок. Вернитесь в редактор или медиатеку, чтобы сохранить их."))
+                TextButton(onClick = { confirmExit = false }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Вернуться к работе")) }
+                TextButton(onClick = ::exitApplication) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Выйти без сохранения")) }
             }
             DesktopHudWindow(
                 visible = isHudVisible,
