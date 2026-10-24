@@ -329,3 +329,6 @@
 
 ## Android GitHub updates — 2026-10-24
 - IMPLEMENTED / AUTOMATED PASS: GitHub update delivery; seven tests, debug APK and release lint pass. Daily foreground check, manual player menu, verified APK and system consent. Physical update acceptance pending: ADB empty. Contract: specs/android-ui/github_updates_v1.md; report: reports/ANDROID_UPDATES_20261024.md. No release or desktop updater changes.
+
+## Player and precise studio polish — 2026-10-24
+- IN_PROGRESS: preserve Material themes and Tap-to-Sync; adaptive player/search/studio layouts, mode transitions, live reduced-motion setting, precise shared ruler geometry and real waveform corpus. Scope: specs/android-ui/player_studio_polish_v1.md. Full Android329/shared249 unit suites pass; final debug/test APK and release lint pass. Native UI/gesture/codec tests compile but have not run: ADB empty, device acceptance requested. Exact-ms export/100+ minute playback fixed. Audit: reports/PLAYER_STUDIO_POLISH_20261024.md. Goal stays active.

@@ -1,0 +1,9 @@
+<resources>
+  <string name="studio_timeline_description">Timeline. Drag line markers or move the track beneath the cursor.</string>
+  <string name="studio_cursor_position">Cursor: %1$s</string>
+  <string name="studio_cursor_back">Move cursor back 100 ms</string>
+  <string name="studio_cursor_forward">Move cursor forward 100 ms</string>
+  <string name="studio_undo_action">Undo edit</string>
+  <string name="studio_zoom_out">Zoom out timeline</string>
+  <string name="studio_zoom_in">Zoom in timeline</string>
+</resources>

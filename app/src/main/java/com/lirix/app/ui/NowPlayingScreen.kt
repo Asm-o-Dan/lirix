@@ -369,14 +369,7 @@ fun NowPlayingScreen(
     var hasShownSeekHint by remember { mutableStateOf(prefs.getBoolean("hint_seek_shown", false)) }
     var keepScreenOnSetting by rememberSaveable { mutableStateOf(prefs.getBoolean("keep_screen_on", true)) }
 
-    // Reduced motion check
-    val isReducedMotion = remember(context) {
-        try {
-            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
-        } catch (_: Exception) {
-            false
-        }
-    }
+    val isReducedMotion = com.lirix.app.ui.components.rememberReducedMotion()
 
     // Playback state and seek availability
     var localPlaybackPositionMs by remember { mutableLongStateOf(0L) }
@@ -1093,8 +1086,8 @@ fun NowPlayingScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(64.dp)
-                            .padding(horizontal = 16.dp),
+                            .heightIn(min = 64.dp)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         AlbumArtImage(
@@ -1348,39 +1341,11 @@ fun NowPlayingScreen(
                     }
                 }
 
-                // 6. Селектор режимов (48dp): Караоке │ Аккорды │ Текст │ Заметки
                 AnimatedVisibility(visible = !isHideControlsForNotes) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .padding(horizontal = 16.dp)
-                            .clip(RoundedCornerShape(lirixColors.pillCornerRadius))
-                            .background(lirixColors.surfaceCard)
-                            .padding(3.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        NowPlayingMode.entries.forEach { mode ->
-                            val isSelected = selectedMode == mode
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .clip(RoundedCornerShape(lirixColors.pillCornerRadius))
-                                    .background(if (isSelected) lirixColors.accentPrimary else Color.Transparent)
-                                    .clickable { selectedMode = mode },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = stringResource(mode.labelRes),
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                    ),
-                                    color = if (isSelected) lirixColors.appBackground else lirixColors.textSecondary
-                                )
-                            }
-                        }
-                    }
+                    com.lirix.app.ui.components.PlayerModeSelector(
+                        selected = selectedMode, onSelect = { selectedMode = it },
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
                 }
 
                 // 7. Панель транспорта (56dp)
@@ -1616,173 +1581,176 @@ private fun RenderTeleprompterContent(
     romanizationMode: RomanizationDisplayMode = RomanizationDisplayMode.ORIGINAL_ONLY,
     readingResults: Map<String, ReadingResult> = emptyMap()
 ) {
-    val tokens = LirixThemeTokens.colors
+    Crossfade(targetState = selectedMode, animationSpec = tween(if (isReducedMotion) 0 else 280),
+        modifier = Modifier.fillMaxSize(), label = "PlayerReadingMode") { presentedMode ->
+        val tokens = LirixThemeTokens.colors
 
-    if (selectedMode == NowPlayingMode.NOTES) {
-        val keyboardController = LocalSoftwareKeyboardController.current
-        val focusManager = LocalFocusManager.current
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding()
-                .padding(8.dp)
-        ) {
-            Row(
+        if (presentedMode == NowPlayingMode.NOTES) {
+            val keyboardController = LocalSoftwareKeyboardController.current
+            val focusManager = LocalFocusManager.current
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .imePadding()
+                    .padding(8.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.notes_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = tokens.textSecondary
-                )
-                TextButton(
-                    onClick = {
-                        keyboardController?.hide()
-                        focusManager.clearFocus()
-                        onNotesFocusChange(false)
-                        onSaveNotes()
-                    }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = stringResource(R.string.action_done),
-                        tint = tokens.accentPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = stringResource(R.string.action_done),
-                        color = tokens.accentPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        text = stringResource(R.string.notes_title),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = tokens.textSecondary
+                    )
+                    TextButton(
+                        onClick = {
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                            onNotesFocusChange(false)
+                            onSaveNotes()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = stringResource(R.string.action_done),
+                            tint = tokens.accentPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.action_done),
+                            color = tokens.accentPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = notesText,
+                    onValueChange = onNotesChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .onFocusChanged { focusState ->
+                            onNotesFocusChange(focusState.isFocused)
+                        },
+                    placeholder = {
+                        Text(stringResource(R.string.notes_placeholder))
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = tokens.surfacePrimary,
+                        unfocusedContainerColor = tokens.surfacePrimary,
+                        focusedTextColor = tokens.textPrimary,
+                        unfocusedTextColor = tokens.textPrimary,
+                        focusedBorderColor = tokens.accentPrimary,
+                        unfocusedBorderColor = tokens.borderSubtle
+                    )
+                )
+            }
+            return@Crossfade
+        }
+
+        if (isLoadingLyrics) {
+            EmptyPlayerStateView(
+                stateType = PlayerEmptyStateType.SEARCHING_LYRICS,
+                trackTitle = currentTrack.title,
+                trackArtist = currentTrack.artist,
+                modifier = Modifier.fillMaxSize()
+            )
+            return@Crossfade
+        }
+
+        val validCache = if (lyricsCache?.trackKey == currentTrack.trackKey) lyricsCache else null
+        val effectivePlain = validCache?.plainLyrics ?: currentTrack.plainLyrics
+        val effectiveSynced = validCache?.syncedLyricsLrc ?: currentTrack.syncedLyrics
+
+        when (presentedMode) {
+            NowPlayingMode.KARAOKE -> {
+                val hasLrc = !effectiveSynced.isNullOrBlank()
+                val hasPlain = !effectivePlain.isNullOrBlank()
+
+                if (hasLrc) {
+                    HighFidelityKaraokePlayer(
+                        lrcText = effectiveSynced,
+                        plainText = effectivePlain,
+                        playbackPositionMs = playbackPositionMs,
+                        isPlaying = isPlaying,
+                        onSeekTo = onSeekTo,
+                        onStartTapSync = onStartTapSync,
+                        fontScale = fontScale,
+                        isLandscape = isLandscape,
+                        canSeek = canSeek,
+                        isReducedMotion = isReducedMotion,
+                        romanizationMode = romanizationMode,
+                        readingResults = readingResults,
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                } else if (hasPlain) {
+                    PlainLyricsReadingView(
+                        lyricsText = effectivePlain.orEmpty(),
+                        onStartTapSync = onStartTapSync,
+                        onEditLyrics = onEditLyrics,
+                        fontScale = fontScale,
+                        romanizationMode = romanizationMode,
+                            readingResults = readingResults,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    EmptyPlayerStateView(
+                        stateType = PlayerEmptyStateType.LYRICS_NOT_FOUND,
+                        trackTitle = currentTrack.title,
+                        trackArtist = currentTrack.artist,
+                        onSearchManual = onOpenTeachMode,
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             }
-            OutlinedTextField(
-                value = notesText,
-                onValueChange = onNotesChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .onFocusChanged { focusState ->
-                        onNotesFocusChange(focusState.isFocused)
-                    },
-                placeholder = {
-                    Text(stringResource(R.string.notes_placeholder))
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = tokens.surfacePrimary,
-                    unfocusedContainerColor = tokens.surfacePrimary,
-                    focusedTextColor = tokens.textPrimary,
-                    unfocusedTextColor = tokens.textPrimary,
-                    focusedBorderColor = tokens.accentPrimary,
-                    unfocusedBorderColor = tokens.borderSubtle
-                )
-            )
-        }
-        return
-    }
 
-    if (isLoadingLyrics) {
-        EmptyPlayerStateView(
-            stateType = PlayerEmptyStateType.SEARCHING_LYRICS,
-            trackTitle = currentTrack.title,
-            trackArtist = currentTrack.artist,
-            modifier = Modifier.fillMaxSize()
-        )
-        return
-    }
-
-    val validCache = if (lyricsCache?.trackKey == currentTrack.trackKey) lyricsCache else null
-    val effectivePlain = validCache?.plainLyrics ?: currentTrack.plainLyrics
-    val effectiveSynced = validCache?.syncedLyricsLrc ?: currentTrack.syncedLyrics
-
-    when (selectedMode) {
-        NowPlayingMode.KARAOKE -> {
-            val hasLrc = !effectiveSynced.isNullOrBlank()
-            val hasPlain = !effectivePlain.isNullOrBlank()
-
-            if (hasLrc) {
-                HighFidelityKaraokePlayer(
-                    lrcText = effectiveSynced,
-                    plainText = effectivePlain,
-                    playbackPositionMs = playbackPositionMs,
-                    isPlaying = isPlaying,
-                    onSeekTo = onSeekTo,
-                    onStartTapSync = onStartTapSync,
-                    fontScale = fontScale,
-                    isLandscape = isLandscape,
-                    canSeek = canSeek,
-                    isReducedMotion = isReducedMotion,
-                    romanizationMode = romanizationMode,
-                    readingResults = readingResults,
-                    modifier = Modifier.fillMaxSize()
-                )
-
-            } else if (hasPlain) {
-                PlainLyricsReadingView(
-                    lyricsText = effectivePlain.orEmpty(),
-                    onStartTapSync = onStartTapSync,
-                    onEditLyrics = onEditLyrics,
-                    fontScale = fontScale,
-                    romanizationMode = romanizationMode,
-                        readingResults = readingResults,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                EmptyPlayerStateView(
-                    stateType = PlayerEmptyStateType.LYRICS_NOT_FOUND,
-                    trackTitle = currentTrack.title,
-                    trackArtist = currentTrack.artist,
-                    onSearchManual = onOpenTeachMode,
-                    modifier = Modifier.fillMaxSize()
-                )
+            NowPlayingMode.LYRICS -> {
+                val context = LocalContext.current
+                val database = remember(context) { AppDatabase.getInstance(context) }
+                val provider = remember { com.lirix.app.translations.SongTranslationProviders() }
+                Column(Modifier.fillMaxSize()) {
+                    com.lirix.app.translations.TranslationPanel(currentTrack.trackKey, "${currentTrack.artist} — ${currentTrack.title}",
+                        effectivePlain ?: effectiveSynced?.let { LrcSyncEngine.parseLrcLinesStrict(it).joinToString("\n") { line -> line.text } }.orEmpty(),
+                        database.songTranslationDao(), provider::load, Modifier.weight(1f), automaticTranslations, currentTrack.title, currentTrack.artist,
+                        compact = true, settingsExpanded = showTranslationSettings, onDismissSettings = onDismissTranslationSettings,
+                        originalLineContent = if (romanizationMode == RomanizationDisplayMode.ORIGINAL_ONLY) null else { raw ->
+                            RomanizedKaraokeLine(raw, romanizationMode, reading = readingResults[raw],
+                                fontFamily = LiterataFontFamily, fontSize = (18 * fontScale).sp)
+                        })
+                }
             }
-        }
 
-        NowPlayingMode.LYRICS -> {
-            val context = LocalContext.current
-            val database = remember(context) { AppDatabase.getInstance(context) }
-            val provider = remember { com.lirix.app.translations.SongTranslationProviders() }
-            Column(Modifier.fillMaxSize()) {
-                com.lirix.app.translations.TranslationPanel(currentTrack.trackKey, "${currentTrack.artist} — ${currentTrack.title}",
-                    effectivePlain ?: effectiveSynced?.let { LrcSyncEngine.parseLrcLinesStrict(it).joinToString("\n") { line -> line.text } }.orEmpty(),
-                    database.songTranslationDao(), provider::load, Modifier.weight(1f), automaticTranslations, currentTrack.title, currentTrack.artist,
-                    compact = true, settingsExpanded = showTranslationSettings, onDismissSettings = onDismissTranslationSettings,
-                    originalLineContent = if (romanizationMode == RomanizationDisplayMode.ORIGINAL_ONLY) null else { raw ->
-                        RomanizedKaraokeLine(raw, romanizationMode, reading = readingResults[raw],
-                            fontFamily = LiterataFontFamily, fontSize = (18 * fontScale).sp)
-                    })
+            NowPlayingMode.CHORDS -> {
+                val chords = validCache?.chordsAmDm
+                    ?: AmDmChordParser.detectAndFormatInlineChords(effectivePlain.orEmpty())
+                if (!chords.isNullOrBlank()) {
+                    ChordsTabContent(
+                        chordsText = chords,
+                        durationMs = totalTrackDuration,
+                        initialTransposeSemitones = transposeSemitones,
+                        onTransposeChange = onTransposeChange,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    EmptyPlayerStateView(
+                        stateType = PlayerEmptyStateType.LYRICS_NOT_FOUND,
+                        trackTitle = currentTrack.title,
+                        trackArtist = currentTrack.artist,
+                        onSearchManual = onOpenTeachMode,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
-        }
 
-        NowPlayingMode.CHORDS -> {
-            val chords = validCache?.chordsAmDm
-                ?: AmDmChordParser.detectAndFormatInlineChords(effectivePlain.orEmpty())
-            if (!chords.isNullOrBlank()) {
-                ChordsTabContent(
-                    chordsText = chords,
-                    durationMs = totalTrackDuration,
-                    initialTransposeSemitones = transposeSemitones,
-                    onTransposeChange = onTransposeChange,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                EmptyPlayerStateView(
-                    stateType = PlayerEmptyStateType.LYRICS_NOT_FOUND,
-                    trackTitle = currentTrack.title,
-                    trackArtist = currentTrack.artist,
-                    onSearchManual = onOpenTeachMode,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+            NowPlayingMode.NOTES -> { /* Handled above */ }
         }
-
-        NowPlayingMode.NOTES -> { /* Handled above */ }
     }
 }
 

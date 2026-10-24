@@ -232,7 +232,7 @@ fun LibraryScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .heightIn(min = 56.dp)
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -241,7 +241,7 @@ fun LibraryScreen(
                     onValueChange = { searchQuery = it },
                     modifier = Modifier
                         .weight(1f)
-                        .height(48.dp),
+                        .heightIn(min = 56.dp),
                     placeholder = {
                         Text(
                             text = stringResource(R.string.library_search_placeholder),

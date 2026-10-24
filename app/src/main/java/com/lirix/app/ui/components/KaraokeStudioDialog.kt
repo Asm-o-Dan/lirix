@@ -25,6 +25,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -39,6 +41,7 @@ import kotlinx.coroutines.*
 import java.io.File
 
 /** Quick tapping and precise editing use one captured document, not two LRC round trips. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun KaraokeStudioDialog(
     trackTitle: String,
@@ -52,6 +55,8 @@ fun KaraokeStudioDialog(
 ) {
     val colors = LirixThemeTokens.colors
     val context = LocalContext.current
+    val pinTimeline = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp >= 700 &&
+        androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.3f
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val store = remember { KaraokeStudioDraftStore(File(context.filesDir, "karaoke-studio-drafts")) }
@@ -260,7 +265,7 @@ fun KaraokeStudioDialog(
                     }
                     TextButton(onClick = { close() }, enabled = !busy) { Text(context.getString(R.string.studio_close_4ae50), color = colors.textSecondary) }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = state.mode == StudioMode.QUICK, enabled = ready && !busy,
                         onClick = { changeMode(StudioMode.QUICK) }, label = { Text("Tap-to-Sync") })
                     FilterChip(selected = state.mode == StudioMode.PRECISE, enabled = ready && !busy,
@@ -288,19 +293,22 @@ fun KaraokeStudioDialog(
                                 fontFamily = FontFamily.Monospace, color = colors.accentPrimary)
                         }
                         if (state.mode == StudioMode.PRECISE) {
-                            item {
+                            val timeline: @Composable () -> Unit = {
+                                Column(Modifier.fillMaxWidth().background(colors.appBackground)) {
                                 KaraokeStudioTimeline(state, onCursor = { state = state.copy(cursorMs = it) },
                                     onSelect = { state = state.copy(selectedIndex = it) }, onCommit = { i, time -> edit(KaraokeStudioEdit.SetTime(i, time)) },
                                     onInteraction = { follow = false }, waveform = waveform?.peaks.orEmpty(), waveformDurationMs = waveform?.durationMs ?: 0)
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     TextButton(onClick = { timeEntry = "cursor:" + KaraokeStudioEngine.formatTime(state.cursorMs) }, enabled = !busy) {
                                         Text(KaraokeStudioEngine.formatTime(state.cursorMs), fontFamily = FontFamily.Monospace, color = colors.accentPrimary)
                                     }
-                                    TextButton(onClick = { state = state.copy(spanMs = (state.spanMs * 2).coerceAtMost(120000)) }) { Text("−") }
-                                    TextButton(onClick = { state = state.copy(spanMs = (state.spanMs / 2).coerceAtLeast(2000)) }) { Text("+") }
-                                    Text(context.getString(R.string.studio_span_seconds, (state.spanMs / 1000f).toString()), style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+                                    TextButton(enabled = !busy && state.spanMs < 120000, modifier = Modifier.semantics { contentDescription = context.getString(R.string.studio_zoom_out) }, onClick = { state = state.copy(spanMs = (state.spanMs * 2).coerceAtMost(120000)) }) { Text("−") }
+                                    TextButton(enabled = !busy && state.spanMs > 2000, modifier = Modifier.semantics { contentDescription = context.getString(R.string.studio_zoom_in) }, onClick = { state = state.copy(spanMs = (state.spanMs / 2).coerceAtLeast(2000)) }) { Text("+") }
+                                    Text(context.getString(R.string.studio_span_seconds, java.text.NumberFormat.getNumberInstance(context.resources.configuration.locales[0]).format(state.spanMs / 1000.0)), style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+                                }
                                 }
                             }
+                            if (pinTimeline) stickyHeader { timeline() } else item { timeline() }
                             item {
                                 TextButton(onClick = {
                                     runCatching { audioPicker.launch(arrayOf("audio/*")) }.onFailure { waveError = context.getString(R.string.studio_could_not_open_the_audio_file_picker_6e0b8) }
@@ -315,16 +323,16 @@ fun KaraokeStudioDialog(
                                 if (audioUri != null) TextButton(onClick = { invalidateAudio(); audioUri = null }, enabled = !busy) { Text(context.getString(R.string.studio_remove_waveform_a5dfb)) }
                             }
                             item {
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     StudioNudgeButton(context.getString(R.string.studio_50_ms_822ce), !busy) { edit(KaraokeStudioEdit.Nudge(state.selectedIndex, -50)) }
                                     StudioNudgeButton(context.getString(R.string.studio_50_ms_f5f98), !busy) { edit(KaraokeStudioEdit.Nudge(state.selectedIndex, 50)) }
                                 }
                                 TextButton(onClick = { timeEntry = "line:" + KaraokeStudioEngine.formatTime(state.lines.getOrNull(state.selectedIndex)?.timeMs ?: state.cursorMs) }, enabled = !busy) { Text(context.getString(R.string.studio_enter_line_time_142d3)) }
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     TextButton(onClick = { edit(KaraokeStudioEdit.SetTime(state.selectedIndex, state.cursorMs)) }, enabled = !busy) { Text(context.getString(R.string.studio_at_cursor_63db9)) }
                                     TextButton(onClick = { tailEntry = "+500" }, enabled = !busy) { Text(context.getString(R.string.studio_shift_section_96394)) }
                                 }
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     TextButton(onClick = { loopA = state.cursorMs; loopEnabled = false }, enabled = !busy) { Text("A: ${loopA?.let { KaraokeStudioEngine.formatTime(it) } ?: "—"}") }
                                     TextButton(onClick = { loopB = state.cursorMs; loopEnabled = false }, enabled = !busy) { Text("B: ${loopB?.let { KaraokeStudioEngine.formatTime(it) } ?: "—"}") }
                                 }
@@ -351,7 +359,7 @@ fun KaraokeStudioDialog(
                                     TextButton(onClick = { reactionMs = (reactionMs - 50).coerceAtLeast(0); prefs.edit().putLong("reaction_lag_ms", reactionMs).apply() }) { Text("−") }
                                     TextButton(onClick = { reactionMs = (reactionMs + 50).coerceAtMost(1000); prefs.edit().putLong("reaction_lag_ms", reactionMs).apply() }) { Text("+") }
                                 }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     OutlinedButton(enabled = playback.canSeek && !busy, onClick = {
                                         loopEnabled = false
                                         val current = readStudioPlayback(trackKey, sourcePackage)
@@ -366,12 +374,12 @@ fun KaraokeStudioDialog(
                             }
                         }
                         item {
-                            Row {
-                                TextButton(enabled = state.undo.isNotEmpty() && !busy, onClick = { edit(KaraokeStudioEdit.Undo) }) { Text(context.getString(R.string.studio_cancel_0ec75)) }
+                            FlowRow {
+                                TextButton(enabled = state.undo.isNotEmpty() && !busy, onClick = { edit(KaraokeStudioEdit.Undo) }) { Text(context.getString(R.string.studio_undo_action)) }
                                 TextButton(enabled = state.redo.isNotEmpty() && !busy, onClick = { edit(KaraokeStudioEdit.Redo) }) { Text(context.getString(R.string.studio_redo_e923b)) }
                                 TextButton(enabled = !busy, onClick = { restore = true }) { Text(context.getString(R.string.studio_original_1b2f7)) }
                             }
-                            Row {
+                            FlowRow {
                                 TextButton(enabled = !busy, onClick = { warnText = true }) { Text(context.getString(R.string.studio_lyrics_93970)) }
                                 TextButton(enabled = !busy, onClick = { showLrc = true }) { Text("LRC") }
                                 TextButton(enabled = !busy && state.lines.isNotEmpty(), onClick = { edit(KaraokeStudioEdit.Clear(state.selectedIndex)) }) { Text(context.getString(R.string.studio_clear_timestamp_47f2f)) }
@@ -389,8 +397,8 @@ fun KaraokeStudioDialog(
                     }
                 }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis) }
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Text(KaraokeStudioEngine.formatTime(playback.positionMs), style = MaterialTheme.typography.bodySmall, color = colors.textSecondary, modifier = Modifier.weight(1f))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+                    Text(KaraokeStudioEngine.formatTime(playback.positionMs), style = MaterialTheme.typography.bodySmall, color = colors.textSecondary, modifier = Modifier.padding(vertical = 12.dp))
                     TextButton(enabled = playback.canToggle && !busy, onClick = { toggleStudioPlayback(trackKey, sourcePackage) }) { Text(if (playback.playing) context.getString(R.string.studio_pause_03498) else context.getString(R.string.studio_play_c750d)) }
                     TextButton(enabled = playback.matchesTrack && !busy, onClick = { follow = true; state = state.copy(cursorMs = playback.positionMs) }) { Text(context.getString(R.string.studio_to_player_c9976)) }
                     TextButton(enabled = playback.canSeek && !busy, onClick = {

@@ -1,5 +1,7 @@
 package com.lirix.app.ui
 
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.slideInHorizontally
@@ -137,6 +139,7 @@ fun AppScaffold(
     var isBlacklistSettingsOpen by rememberSaveable { mutableStateOf(false) }
 
     val lirixColors = LirixThemeTokens.colors
+    val reducedMotion = com.lirix.app.ui.components.rememberReducedMotion()
     val tabStateHolder = rememberSaveableStateHolder()
 
     Scaffold(
@@ -148,14 +151,14 @@ fun AppScaffold(
         bottomBar = {
             AnimatedVisibility(
                 visible = currentTab != AppTab.NOW_PLAYING && isCapsuleVisible,
-                enter = slideInVertically(
-                    initialOffsetY = { it },
-                    animationSpec = tween(280)
-                ) + fadeIn(animationSpec = tween(240)),
-                exit = slideOutVertically(
-                    targetOffsetY = { it },
-                    animationSpec = tween(240)
-                ) + fadeOut(animationSpec = tween(200))
+                enter = expandVertically(
+                    expandFrom = Alignment.Bottom,
+                    animationSpec = tween(if (reducedMotion) 0 else 320)
+                ) + fadeIn(animationSpec = tween(if (reducedMotion) 0 else 240)),
+                exit = shrinkVertically(
+                    shrinkTowards = Alignment.Bottom,
+                    animationSpec = tween(if (reducedMotion) 0 else 280)
+                ) + fadeOut(animationSpec = tween(if (reducedMotion) 0 else 200))
             ) {
                 NavigationCapsule(
                     currentTab = currentTab,
@@ -175,9 +178,9 @@ fun AppScaffold(
                 modifier = Modifier.fillMaxSize(),
                 transitionSpec = {
                     val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
-                    (fadeIn(tween(300, delayMillis = 60)) +
-                        slideInHorizontally(tween(360)) { width -> direction * width / 16 })
-                        .togetherWith(fadeOut(tween(180)))
+                    (fadeIn(tween(if (reducedMotion) 0 else 320)) +
+                        slideInHorizontally(tween(if (reducedMotion) 0 else 360)) { width -> direction * width / 16 })
+                        .togetherWith(fadeOut(tween(if (reducedMotion) 0 else 180)))
                         .using(null)
                 },
                 label = "TabSwitch"
@@ -251,8 +254,8 @@ fun AppScaffold(
             // Teach Mode WebView overlay
             AnimatedVisibility(
                 visible = isTeachModeOpen,
-                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 24 },
-                exit = fadeOut(tween(180))
+                enter = fadeIn(tween(if (reducedMotion) 0 else 300)) + slideInVertically(tween(if (reducedMotion) 0 else 300)) { it / 24 },
+                exit = fadeOut(tween(if (reducedMotion) 0 else 180))
             ) {
                 TeachModeScreen(
                     initialUrl = activeTeachUrl,
@@ -273,8 +276,8 @@ fun AppScaffold(
             // Blacklist Settings overlay
             AnimatedVisibility(
                 visible = isBlacklistSettingsOpen,
-                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 24 },
-                exit = fadeOut(tween(180))
+                enter = fadeIn(tween(if (reducedMotion) 0 else 300)) + slideInVertically(tween(if (reducedMotion) 0 else 300)) { it / 24 },
+                exit = fadeOut(tween(if (reducedMotion) 0 else 180))
             ) {
                 BlacklistSettingsScreen(
                     onBack = {

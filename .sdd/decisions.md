@@ -872,3 +872,8 @@ Approved bounded contract .sdd/specs/media-ui/player_gold_repair_v1.md: favorite
 ## Android GitHub delivery — 2026-10-24
 - Daily foreground checks and an explicit download/installation screen; stable numeric tags and one APK with GitHub SHA-256. Exact size/hash, package, versionCode and signer checks precede scoped FileProvider handoff. Never uninstall or clear data to bypass signing incompatibility. Existing permanent release key remains required.
 - Seven tests, APK and release lint pass; physical installer acceptance pending, device absent. No silent installation promise or release publication.
+
+## Player/studio native UI preservation — 2026-10-24
+- Native Material 3 and existing theme/type tokens remain authoritative; design-taste-frontend explicitly excludes native mobile, so web redesign prescriptions do not apply. Preserve three-tab IA and four player mode labels.
+- Exact timing uses one tested millisecond geometry for draw/seek/drag/hit test. Real PCM fixture includes silence and opposite-phase stereo; nonempty output is not waveform acceptance. Tall portrait pins timeline, short/large-font layout keeps normal scrolling. No changes to quick stamping/history/raw timestamp contracts.
+- Exact studio export intentionally upgrades its prior centisecond contract to three decimal places: the exact-time editor must not silently discard 1-9 ms. Legacy quick formatter stays unchanged and old LRC imports remain supported; playback now supports representable 100+ minute stamps. Whole public-domain corpora validate export/import/playback preservation.

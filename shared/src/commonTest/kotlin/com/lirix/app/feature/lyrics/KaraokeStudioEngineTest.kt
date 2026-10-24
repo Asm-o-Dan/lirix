@@ -79,9 +79,9 @@ class KaraokeStudioEngineTest {
         }
     }
 
-    @Test fun exportPreservesOrderAndDocumentsCentisecondPrecision() {
+    @Test fun exportPreservesOrderAndExactMillisecondPrecision() {
         val state = accepted(session(), KaraokeStudioEdit.SetTime(1, 2059))
-        assertEquals("[00:01.00] First\n[00:02.05] Repeat\n[00:03.00] Repeat", KaraokeStudioEngine.exportLrc(state))
+        assertEquals("[00:01.000] First\n[00:02.059] Repeat\n[00:03.000] Repeat", KaraokeStudioEngine.exportLrc(state))
     }
 
     @Test fun multipleImportConflictsCanBeRepairedOneAtATime() {

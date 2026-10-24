@@ -12,7 +12,8 @@ class AndroidBackupPolicyTest {
     private val androidNs = "http://schemas.android.com/apk/res/android"
     private val userPrefs = setOf("lirix_preferences", "lirix_translations", "lirix_ui_prompter_prefs",
         "lirix_sync_prefs", "media_sync_offsets", "lyrics_reading_preferences")
-    private val devicePrefs = setOf("lirix_trusted_devices", "lirix_device_addrs")
+    // Update-check throttling belongs to this installation, not the user's restored library/settings.
+    private val devicePrefs = setOf("lirix_trusted_devices", "lirix_device_addrs", "updates")
 
     private fun xml(path: String): Element = DocumentBuilderFactory.newInstance().apply {
         isNamespaceAware = true

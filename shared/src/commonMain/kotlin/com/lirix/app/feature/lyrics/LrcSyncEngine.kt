@@ -204,11 +204,11 @@ object LrcSyncEngine {
      */
     fun parseLrcLinesStrict(rawLrc: String): List<KaraokeLine> {
         if (rawLrc.isBlank()) return emptyList()
-        val regex = Regex("""^\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\](.*)$""")
+        val regex = Regex("""^\[(\d+):(\d{2})(?:[.:](\d{1,3}))?\](.*)$""")
         return rawLrc.lines().mapNotNull { line ->
             val trimmed = line.trim()
             val match = regex.find(trimmed) ?: return@mapNotNull null
-            val m = match.groupValues[1].toLongOrNull() ?: 0L
+            val m = match.groupValues[1].toLongOrNull() ?: return@mapNotNull null
             val s = match.groupValues[2].toLongOrNull() ?: 0L
             val fracStr = match.groupValues[3]
             val ms = when (fracStr.length) {
@@ -217,6 +217,7 @@ object LrcSyncEngine {
                 3 -> fracStr.toLongOrNull() ?: 0L
                 else -> 0L
             }
+            if (m > (Long.MAX_VALUE - s * 1000L - ms) / 60000L) return@mapNotNull null
             val text = match.groupValues[4].trim()
             if (text.isBlank()) null else KaraokeLine(m * 60000L + s * 1000L + ms, text)
         }.sortedBy { it.timestampMs }

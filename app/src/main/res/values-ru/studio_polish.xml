@@ -1,0 +1,9 @@
+<resources>
+  <string name="studio_timeline_description">Шкала времени. Перетаскивай метки строк или двигай дорожку под курсором.</string>
+  <string name="studio_cursor_position">Курсор: %1$s</string>
+  <string name="studio_cursor_back">Курсор назад на 100 мс</string>
+  <string name="studio_cursor_forward">Курсор вперёд на 100 мс</string>
+  <string name="studio_undo_action">Отменить правку</string>
+  <string name="studio_zoom_out">Уменьшить масштаб шкалы</string>
+  <string name="studio_zoom_in">Увеличить масштаб шкалы</string>
+</resources>

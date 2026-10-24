@@ -98,7 +98,7 @@ object KaraokeStudioEngine {
 
     fun exportLrc(state: KaraokeStudioState): String? {
         if (validationError(state) != null) return null
-        return state.lines.joinToString("\n") { "${LrcSyncEngine.formatTimestamp(it.timeMs!!)} ${it.text}" }
+        return state.lines.joinToString("\n") { "[${formatTime(it.timeMs!!)}] ${it.text}" }
     }
 
     fun reduce(state: KaraokeStudioState, edit: KaraokeStudioEdit): KaraokeStudioResult {
