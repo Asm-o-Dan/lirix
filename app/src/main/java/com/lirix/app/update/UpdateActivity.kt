@@ -6,19 +6,16 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.withResumed
 import com.lirix.app.R
-import com.lirix.app.ui.LirixTheme
+import com.lirix.app.ui.theme.LirixTheme
 import com.lirix.app.ui.i18n.LocalizedAppContent
 import com.lirix.app.storage.ThemePreferencesRepository
 import kotlinx.coroutines.CancellationException
@@ -39,31 +36,28 @@ class UpdateActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
             LocalizedAppContent {
                 val theme by ThemePreferencesRepository.getInstance(applicationContext).selectedTheme.collectAsState()
+                SideEffect {
+                    val bars = if (theme.isDark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                        else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                    enableEdgeToEdge(statusBarStyle = bars, navigationBarStyle = bars)
+                }
                 LirixTheme(themeType = theme) {
-                    Surface(Modifier.fillMaxSize()) {
-                        Column(Modifier.safeDrawingPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Text(stringResource(R.string.update_title), style = MaterialTheme.typography.headlineSmall)
-                            Text(stringResource(message))
-                            release?.let { Text(stringResource(R.string.update_version, it.version)) }
-                            if (busy) {
-                                progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) }
-                                    ?: CircularProgressIndicator()
-                                TextButton(onClick = { operation?.cancel() }) { Text(stringResource(R.string.update_cancel)) }
-                            } else {
-                                release?.let { candidate ->
-                                    Button(onClick = { if (downloaded != null) install() else download(candidate) }) {
-                                        Text(stringResource(if (downloaded == null) R.string.update_download else R.string.update_install))
-                                    }
-                                }
-                                TextButton(onClick = { checkRelease() }) { Text(stringResource(R.string.update_check)) }
-                            }
-                            TextButton(onClick = { finish() }) { Text(stringResource(R.string.action_close)) }
-                        }
-                    }
+                    UpdateScreen(
+                        state = UpdateScreenState(
+                            installedVersion = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty(),
+                            message = message, releaseVersion = release?.version, busy = busy,
+                            progress = progress, downloadReady = downloaded != null),
+                        onBack = { onBackPressedDispatcher.onBackPressed() },
+                        onPrimary = {
+                            if (message == R.string.update_signature) checkRelease()
+                            else release?.let { if (downloaded != null) install() else download(it) } ?: checkRelease()
+                        },
+                        onCancel = { operation?.cancel() })
                 }
             }
         }

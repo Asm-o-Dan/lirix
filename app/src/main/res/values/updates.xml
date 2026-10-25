@@ -1,17 +1,26 @@
 <resources>
-  <string name="update_title">Lirix updates</string>
-  <string name="update_checking">Checking GitHub…</string>
+  <string name="update_title">Updates</string>
+  <string name="update_checking">Checking for updates…</string>
   <string name="update_version">Version %1$s</string>
   <string name="update_cancel">Cancel</string>
   <string name="update_download">Download update</string>
   <string name="update_install">Install</string>
   <string name="update_check">Check again</string>
-  <string name="update_current">The Android app is up to date.</string>
-  <string name="update_available">An update is available. Tap to download.</string>
-  <string name="update_downloading">Downloading APK…</string>
-  <string name="update_ready">APK verified. Confirm installation in the Android system dialog.</string>
-  <string name="update_permission">Allow Lirix to install updates, then return to the app.</string>
-  <string name="update_failed">Could not fetch or verify the update. Check your connection and retry.</string>
-  <string name="update_cancelled">Download cancelled.</string>
-  <string name="update_signature">This APK has a different signing certificate. It cannot update this installed build. Your data is preserved; do not uninstall the app.</string>
+  <string name="update_current">Up to date</string>
+  <string name="update_available">An update is available</string>
+  <string name="update_downloading">Downloading update…</string>
+  <string name="update_ready">Ready to install</string>
+  <string name="update_permission">Installation permission needed</string>
+  <string name="update_failed">Could not update Lirix</string>
+  <string name="update_cancelled">Update cancelled</string>
+  <string name="update_signature">Cannot install this update</string>
+  <string name="update_installed">Lirix %1$s</string>
+  <string name="update_release_version">Available version: %1$s</string>
+  <string name="update_retry">Try again</string>
+  <string name="update_download_percentage">Downloaded %1$d%%</string>
+  <string name="update_failed_detail">Check your connection and try again. The installed app and your data have not changed.</string>
+  <string name="update_signature_detail">This update has a different signing certificate and cannot replace this build. Your data is preserved; do not uninstall Lirix.</string>
+  <string name="update_permission_detail">Allow Lirix to install updates in Android settings, then return here.</string>
+  <string name="update_ready_detail">The file has been verified. Confirm installation in the Android system dialog.</string>
+  <string name="update_current_detail">The latest available version is installed.</string>
 </resources>

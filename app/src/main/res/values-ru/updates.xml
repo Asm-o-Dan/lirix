@@ -1,17 +1,26 @@
 <resources>
-  <string name="update_title">Обновления Lirix</string>
-  <string name="update_checking">Проверяем GitHub…</string>
+  <string name="update_title">Обновления</string>
+  <string name="update_checking">Проверяем обновления…</string>
   <string name="update_version">Версия %1$s</string>
   <string name="update_cancel">Отмена</string>
   <string name="update_download">Скачать обновление</string>
   <string name="update_install">Установить</string>
   <string name="update_check">Проверить ещё раз</string>
-  <string name="update_current">Установлена актуальная версия Android.</string>
-  <string name="update_available">Доступно обновление. Загрузка начнётся после нажатия кнопки.</string>
-  <string name="update_downloading">Загружаем APK…</string>
-  <string name="update_ready">Файл проверен. Подтверди установку в системном окне Android.</string>
-  <string name="update_permission">Разреши установку обновлений из Lirix, затем вернись в приложение.</string>
-  <string name="update_failed">Не удалось получить или проверить обновление. Проверь соединение и повтори.</string>
-  <string name="update_cancelled">Загрузка отменена.</string>
-  <string name="update_signature">Подпись APK отличается от установленного приложения. Обновление поверх этой сборки невозможно. Данные сохранены; удалять приложение не нужно.</string>
+  <string name="update_current">Обновлений нет</string>
+  <string name="update_available">Доступно обновление</string>
+  <string name="update_downloading">Загружаем обновление…</string>
+  <string name="update_ready">Всё готово к установке</string>
+  <string name="update_permission">Нужно разрешение на установку</string>
+  <string name="update_failed">Не удалось обновить Lirix</string>
+  <string name="update_cancelled">Обновление отменено</string>
+  <string name="update_signature">Не получается установить обновление</string>
+  <string name="update_installed">Lirix %1$s</string>
+  <string name="update_release_version">Доступная версия: %1$s</string>
+  <string name="update_retry">Повторить попытку</string>
+  <string name="update_download_percentage">Загружено %1$d%%</string>
+  <string name="update_failed_detail">Проверь соединение и повтори попытку. Установленное приложение и твои данные не изменились.</string>
+  <string name="update_signature_detail">Подпись обновления отличается от установленной сборки. Данные сохранены; удалять Lirix не нужно.</string>
+  <string name="update_permission_detail">Разреши Lirix устанавливать обновления в настройках Android, затем вернись сюда.</string>
+  <string name="update_ready_detail">Файл проверен. Подтверди установку в системном окне Android.</string>
+  <string name="update_current_detail">Установлена последняя доступная версия.</string>
 </resources>
