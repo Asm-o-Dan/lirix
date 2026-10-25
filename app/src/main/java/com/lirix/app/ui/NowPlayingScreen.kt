@@ -46,6 +46,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -227,7 +229,7 @@ fun formatMs(ms: Long): String {
  * 6. FLAG_KEEP_SCREEN_ON active on player screen in portrait & landscape; cleared after 5 min pause.
  * 7. Reduced motion: ANIMATOR_DURATION_SCALE == 0 disables springs and animations.
  * 8. Font scale stepper 'Аа' (80%..150%) + delay shift ±0.1s + 4 tabs.
- * 9. Landscape prompter 800x360: 280dp left column with verticalScroll(), 520dp prompter right column.
+ * 9. Landscape prompter: fixed 280dp left deck without scrolling; remaining width for lyrics.
  * 10. All 5 empty/error states implemented.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -688,261 +690,38 @@ fun NowPlayingScreen(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
-                    .padding(WindowInsets.displayCutout.asPaddingValues())
-                    .padding(WindowInsets.navigationBars.asPaddingValues())
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
             ) {
-                // Левая колонка органов управления (280dp) с verticalScroll()
-                Column(
-                    modifier = Modifier
-                        .width(280.dp)
-                        .fillMaxHeight()
-                        .background(lirixColors.surfacePrimary)
-                        .border(BorderStroke(1.dp, lirixColors.borderSubtle))
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // TopBar: Назад, Источник, Меню
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.action_back),
-                                tint = lirixColors.textPrimary
-                            )
-                        }
-
-                        Text(
-                            text = stringResource(R.string.player_in_source, sourceLabel),
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = lirixColors.accentPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        overflow()
-                    }
-
-                    // Блок метаданных
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AlbumArtImage(
-                            artUri = currentTrack.albumArtUri,
-                            size = 48.dp,
-                            shape = RoundedCornerShape(6.dp),
-                            contentDescription = currentTrack.title
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = currentTrack.title,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = lirixColors.textPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = currentTrack.artist,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
-                                color = lirixColors.textSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    // Трекбар времени
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = formatMs(karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration)),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFeatureSettings = FontFeature.tabularFigures()
-                                ),
-                                color = lirixColors.textSecondary
-                            )
-                            Text(
-                                text = if (totalTrackDuration > 0L) formatMs(totalTrackDuration) else "--:--",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFeatureSettings = FontFeature.tabularFigures()
-                                ),
-                                color = lirixColors.textMuted
-                            )
-                        }
-                        if (totalTrackDuration > 0L) {
-                            Slider(
-                                value = karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration).toFloat(),
-                                onValueChange = { newPos ->
-                                    val target = newPos.toLong()
+                com.lirix.app.ui.components.LandscapePlayerPanel(
+                    modifier = Modifier.width(280.dp),
+                    title = currentTrack.title, artist = currentTrack.artist, albumArtUri = currentTrack.albumArtUri,
+                    sourceLabel = sourceLabel, isPlaying = isPlaying, isRemotePlaying = isRemotePlaying,
+                    selectedMode = selectedMode, onSelectMode = { selectedMode = it }, onBack = onBack,
+                    onConnect = { showConnectBottomSheet = true },
+                    onPrevious = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        MediaSessionCollector.skipToPrevious()
+                    },
+                    onTogglePlaying = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        localIsPlaying = !isPlaying
+                        MediaSessionCollector.togglePlayPause()
+                    },
+                    onNext = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        MediaSessionCollector.skipToNext()
+                    },
+                    onShare = { showShareDialog = true }, overflow = overflow,
+                    seek = {
+                            com.lirix.app.ui.components.LandscapePlayerSeekBar(
+                                positionMs = karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration),
+                                durationMs = totalTrackDuration,
+                                onSeek = { target ->
                                     localPlaybackPositionMs = target
                                     playbackPositionMs = karaokeLyricPosition(target, syncOffsetMs)
                                     MediaSessionCollector.seekTo(target)
-                                },
-                                valueRange = 0f..totalTrackDuration.toFloat(),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = lirixColors.accentPrimary,
-                                    activeTrackColor = lirixColors.accentPrimary,
-                                    inactiveTrackColor = lirixColors.borderSubtle
-                                ),
-                                modifier = Modifier.height(36.dp)
-                            )
-                        }
-                    }
-
-
-                    // Панель транспорта (Connect, ⏮, ▶ 56x56, ⏭)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(contentAlignment = Alignment.TopEnd) {
-                            IconButton(
-                                onClick = { showConnectBottomSheet = true },
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .semantics {
-                                        role = Role.Button
-                                        contentDescription = context.getString(R.string.action_play_on_device)
-                                    }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.DevicesOther,
-                                    contentDescription = null,
-                                    tint = if (isRemotePlaying) lirixColors.accentPrimary else lirixColors.textSecondary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            if (isRemotePlaying) {
-                                Box(
-                                    modifier = Modifier
-                                        .padding(top = 8.dp, end = 8.dp)
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF00E676))
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                MediaSessionCollector.skipToPrevious()
-                            },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(Icons.Default.SkipPrevious, stringResource(R.string.action_previous), tint = lirixColors.textPrimary)
-                        }
-
-                        Surface(
-                            shape = CircleShape,
-                            color = lirixColors.accentPrimary,
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clickable {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    val newPlaying = !isPlaying
-
-                                    localIsPlaying = newPlaying
-                                    MediaSessionCollector.togglePlayPause()
-                                }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (isPlaying) stringResource(R.string.action_pause) else stringResource(R.string.action_play),
-                                    tint = lirixColors.appBackground,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                MediaSessionCollector.skipToNext()
-                            },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(Icons.Default.SkipNext, stringResource(R.string.action_next), tint = lirixColors.textPrimary)
-                        }
-                        IconButton(onClick = { showShareDialog = true }, modifier = Modifier.size(48.dp)) {
-                            Icon(Icons.Default.Share, stringResource(R.string.action_share_card), tint = lirixColors.textSecondary)
-                        }
-                    }
-
-                    // Компактный сдвиг ⏱ и степпер 'Аа' (только в караоке при наличии текста)
-                    AnimatedVisibility(visible = isKaraokeWithLyrics) {
-                        FlowRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            TimingCorrectionControls(
-                                offsetMs = syncOffsetMs,
-                                onChange = { syncOffsetMs = syncOffsetStore.setOffsetAndGet(currentTrack.trackKey, it) },
-                                onDetails = { showCalibrationDialog = true }
-                            )
-
-                            com.lirix.app.ui.components.TextSizeControls(
-                                scale = textScaleFactor, onChange = { textScaleFactor = it }
-                            )
-                        }
-                    }
-
-                    // Селектор режимов (Караоке │ Аккорды │ Текст │ Зам.)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(lirixColors.surfaceCard)
-                            .padding(2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        NowPlayingMode.entries.forEach { mode ->
-                            val isSelected = selectedMode == mode
-                            val shortLabel = if (mode == NowPlayingMode.NOTES) stringResource(R.string.now_playing_mode_notes_short) else stringResource(mode.labelRes)
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .heightIn(min = 36.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (isSelected) lirixColors.accentPrimary else Color.Transparent)
-                                    .clickable { selectedMode = mode }
-                                    .padding(vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = shortLabel,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                    ),
-                                    color = if (isSelected) lirixColors.appBackground else lirixColors.textSecondary
-                                )
-                            }
-                        }
-                    }
-                }
+                                })
+                    })
 
                 // Правая колонка суфлёра (520dp)
                 Box(
