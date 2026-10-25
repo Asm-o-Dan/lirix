@@ -81,3 +81,10 @@ Known pre-existing limitations remain open under the full UI objective: blacklis
 - Final same 12 native checks after selecting English in the real settings UI: `OK (12 tests)`, 58.556s (`settings-final-native-en.log`). The original combined four-failure log is retained, not overwritten.
 - Independent final scoped review and isolated staged-source comparison: PASS. No foreign clock/source/desktop edits were included. Final source/test manifest is in the ignored delivery directory.
 - APK SHA256: `135455cbd9386baa1eb3d13a01090bba61135f6e20377252afef9edb18f2d4db`. Package `com.lirix.app`, versionName1.5.1/versionCode19; debug certificate above. Private-preview publication is the remaining delivery step; the public stable release/version is unchanged.
+
+## Private delivery completed
+
+- Source commit `773434b` pushed to `codex/release-1.5.1`, including the reviewed11 source/test files, scoped process notes and five explicitly requested backlog items. Foreign dirty source/clock/desktop/other process edits were preserved outside the commit.
+- Private repository verified `private=true`: https://github.com/Asm-o-Dan/lirix-testing/releases/tag/android-preview-2026-10-25-settings . Published as prerelease; public stable1.5.1 was not modified.
+- Seven release assets verified against local byte sizes and GitHub server SHA256 digests: APK, SHA256SUMS, CHECKLIST-RU, RU settings screenshot, EN light settings screenshot, actual corrected dark/RU large-font blacklist screenshot, source manifest. Receipt: `build/android-settings-screen/private-release.json`.
+- Root private-repository CHECKLIST-RU.md also updated. Physical/live external-player acceptance remains requested through that checklist. No phone installation, uninstall, data wipe or destructive blacklist operation was performed. No next backlog item started as part of delivery.

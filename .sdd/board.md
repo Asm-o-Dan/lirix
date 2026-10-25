@@ -335,7 +335,7 @@
 
 ## Последовательная очередь Android — 2026-10-25
 
-- Единственная текущая задача: завершить доставку общих настроек Android (Theme/Language/Updates/Blacklist). Debug APK, instrumentation APK и release lint PASS; финальные12 UI-тестов PASS отдельно RU57.412s и EN58.556s. Независимое ревью PASS; реальный Back и восемь состояний безопасных системных отступов чёрного списка проверены на эмуляторе. Приватная доставка — следующий гейт. Отчёт: reports/ANDROID_SETTINGS_SCREEN_20261025.md.
+- Общие настройки Android (Theme/Language/Updates/Blacklist): DELIVERED / пользовательская проверка живого плеера на телефоне ожидается. Source773434b отправлен; debug/test APK и release lint PASS; финальные12 UI-тестов PASS отдельно RU57.412s и EN58.556s; независимое ревью PASS. Реальный Back и восемь состояний системных отступов проверены. Приватная сборка: https://github.com/Asm-o-Dan/lirix-testing/releases/tag/android-preview-2026-10-25-settings (7 файлов проверены по размеру и серверному SHA256). Отчёт: reports/ANDROID_SETTINGS_SCREEN_20261025.md. Новая задача из backlog ещё не начата.
 - Пользователь потребовал заканчивать предыдущую задачу перед началом следующей. Новые запросы сохранены в backlog; в работу не взяты.
 - Очередь после настроек: 1) offline-lookup-recovery; 2) duplicate-player-editor-actions (/dialectic); 3) library-swipe-semantics; 4) remove-wrapped-replay-action; 5) profile-avatar-summary-dialectic (/dialectic, анализ до решения о реализации).
 - Запись backlog в текущую codex/release-1.5.1 явно подтверждена пользователем. Пять файлов в .sdd/backlog/; исходное требование пользователя сохранять собственные изменения коммитами действует. Посторонние незакоммиченные изменения не включать в поставку.
