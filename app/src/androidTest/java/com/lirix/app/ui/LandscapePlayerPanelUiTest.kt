@@ -59,7 +59,7 @@ class LandscapePlayerPanelUiTest {
                                 PlayerContextOverflow(selected.value, "fixture", true, false,
                                     onToggleOverlay = {}, onEditLyrics = {}, onSync = {}, onTranslations = {},
                                     onSaveNotes = {}, onCalibrate = {}, onTeach = null, onTrackInfo = null,
-                                    onTheme = {}, onBlacklist = {})
+                                    onSettings = {})
                             },
                             seek = { LandscapePlayerSeekBar(position.value, 180_000L, { position.value = it }) },
                             modifier = Modifier.width(280.dp).height(248.dp))

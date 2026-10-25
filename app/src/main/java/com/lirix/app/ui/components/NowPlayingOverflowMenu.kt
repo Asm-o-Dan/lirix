@@ -36,12 +36,12 @@ fun PlayerContextOverflow(
     onCalibrate: () -> Unit,
     onTeach: (() -> Unit)?,
     onTrackInfo: (() -> Unit)?,
-    onTheme: () -> Unit,
-    onBlacklist: () -> Unit,
-    onLanguage: () -> Unit = {},
-    onRomanization: (() -> Unit)? = null
+    onRomanization: (() -> Unit)? = null,
+    onSettings: (() -> Unit)? = null
 ) {
     var expanded by remember(mode, trackKey, landscape) { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settings = onSettings ?: { com.lirix.app.ui.settings.SettingsActivity.open(context) }
     val lyrics = trackKey != null && (mode == NowPlayingMode.LYRICS || mode == NowPlayingMode.KARAOKE)
     PlayerOverflowAnchor(onOpen = { expanded = true }) {
         NowPlayingOverflowMenu(expanded, { expanded = false }, isOverlayActive, onToggleOverlay,
@@ -53,7 +53,7 @@ fun PlayerContextOverflow(
             onCalibrateClick = onCalibrate.takeIf { trackKey != null && mode == NowPlayingMode.KARAOKE },
             onTeachModeClick = onTeach.takeIf { trackKey != null && mode != NowPlayingMode.NOTES },
             onRomanizationClick = onRomanization.takeIf { lyrics },
-            onThemeSelectClick = onTheme, onOpenLanguageDialog = onLanguage, onOpenBlacklistSettings = onBlacklist)
+            onSettingsClick = settings)
     }
 }
 
@@ -82,13 +82,10 @@ fun NowPlayingOverflowMenu(
     onCalibrateClick: (() -> Unit)? = null,
     onTeachModeClick: (() -> Unit)? = null,
     onRomanizationClick: (() -> Unit)? = null,
-    onThemeSelectClick: () -> Unit = {},
-    onOpenLanguageDialog: () -> Unit = {},
-    onOpenBlacklistSettings: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val tokens = LirixThemeTokens.colors
-    val updateContext = androidx.compose.ui.platform.LocalContext.current
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
@@ -115,10 +112,7 @@ fun NowPlayingOverflowMenu(
         onTrackInfoClick?.let { Action(stringResource(R.string.menu_track_info), Icons.Default.Info, it) }
         HorizontalDivider(color = tokens.borderSubtle)
         Action(stringResource(if (isOverlayActive) R.string.menu_floating_overlay_enabled else R.string.menu_floating_overlay), Icons.Default.PictureInPictureAlt, onToggleOverlay)
-        Action(stringResource(R.string.menu_theme), Icons.Default.Palette, onThemeSelectClick)
-        Action(stringResource(R.string.menu_language), Icons.Default.Language, onOpenLanguageDialog)
-        Action(stringResource(R.string.update_title), Icons.Default.SystemUpdate) { com.lirix.app.update.UpdateActivity.open(updateContext) }
-        Action(stringResource(R.string.menu_blacklist), Icons.Default.Shield, onOpenBlacklistSettings)
+        Action(stringResource(R.string.settings_title), Icons.Default.Settings, onSettingsClick)
     }
 }
 

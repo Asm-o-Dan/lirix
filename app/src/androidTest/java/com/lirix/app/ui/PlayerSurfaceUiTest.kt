@@ -91,7 +91,7 @@ class PlayerSurfaceUiTest {
         ui.setContent { LirixTheme {
             PlayerContextOverflow(mode.value, "test-song", false, false,
                 onToggleOverlay = {}, onEditLyrics = {}, onSync = {}, onTranslations = {}, onSaveNotes = {},
-                onCalibrate = {}, onTeach = null, onTrackInfo = {}, onTheme = {}, onBlacklist = {})
+                onCalibrate = {}, onTeach = null, onTrackInfo = {}, onSettings = {})
         } }
         fun open() = ui.onNodeWithContentDescription(ui.activity.getString(R.string.menu_overflow)).performClick()
         fun has(resource: Int) = ui.onNodeWithText(ui.activity.getString(resource)).assertExists()
@@ -100,10 +100,10 @@ class PlayerSurfaceUiTest {
         has(R.string.menu_translations); has(R.string.menu_edit_lyrics); has(R.string.menu_sync_studio)
         missing(R.string.menu_calibrate_timing)
         ui.runOnIdle { mode.value = NowPlayingMode.KARAOKE }
-        missing(R.string.menu_theme)
+        missing(R.string.settings_title)
         open(); has(R.string.menu_calibrate_timing); has(R.string.menu_sync_studio); missing(R.string.menu_translations)
         ui.runOnIdle { mode.value = NowPlayingMode.CHORDS }
-        missing(R.string.menu_theme)
+        missing(R.string.settings_title)
         open(); has(R.string.menu_track_info); missing(R.string.menu_translations); missing(R.string.menu_calibrate_timing); missing(R.string.menu_edit_lyrics)
         ui.runOnIdle { mode.value = NowPlayingMode.NOTES }
         open(); has(R.string.menu_save_notes); missing(R.string.menu_sync_studio); missing(R.string.menu_edit_lyrics)

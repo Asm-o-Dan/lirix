@@ -16,6 +16,7 @@ import android.content.res.Configuration
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.lirix.app.R
 import com.lirix.app.ui.components.*
 import com.lirix.app.ui.theme.LirixTheme
 import org.junit.Assert.*
@@ -24,6 +25,10 @@ import org.junit.Test
 
 class PlayerContextUiTest {
     @get:Rule val ui = createAndroidComposeRule<ComponentActivity>()
+
+    // These component fixtures inherit the Activity context; use its actual resources
+    // so persisted app language or system locale cannot invalidate semantic lookups.
+    private fun label(resource: Int): String = ui.activity.getString(resource)
 
     @Test fun portraitPopupStaysBesideTopRightTriggerInsideViewport() {
         assertPopupGeometry(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT, Configuration.ORIENTATION_PORTRAIT)
@@ -39,11 +44,12 @@ class PlayerContextUiTest {
         ui.setContent { LirixTheme {
             Box(Modifier.fillMaxSize().testTag("viewport"), contentAlignment = Alignment.TopEnd) {
                 PlayerContextOverflow(NowPlayingMode.LYRICS, "geometry", expected == Configuration.ORIENTATION_LANDSCAPE,
-                    false, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+                    false, onToggleOverlay = {}, onEditLyrics = {}, onSync = {}, onTranslations = {},
+                    onSaveNotes = {}, onCalibrate = {}, onTeach = {}, onTrackInfo = {}, onSettings = {})
             }
         } }
-        val trigger = ui.onNodeWithContentDescription("Меню").fetchSemanticsNode()
-        ui.onNodeWithContentDescription("Меню").performClick()
+        val trigger = ui.onNodeWithContentDescription(label(R.string.menu_overflow)).fetchSemanticsNode()
+        ui.onNodeWithContentDescription(label(R.string.menu_overflow)).performClick()
         val popup = ui.onNode(isPopup()).fetchSemanticsNode()
         val root = ui.onNodeWithTag("viewport").fetchSemanticsNode()
         // Screen coordinates are essential: a popup owns a different Compose root/window.
@@ -70,39 +76,40 @@ class PlayerContextUiTest {
             LirixTheme {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
                     PlayerContextOverflow(mode.value, track.value, landscape.value, false,
-                        {}, {}, {}, { translations++ }, { saved++ }, {}, {}, {}, {}, {})
+                        onToggleOverlay = {}, onEditLyrics = {}, onSync = {}, onTranslations = { translations++ },
+                        onSaveNotes = { saved++ }, onCalibrate = {}, onTeach = {}, onTrackInfo = {}, onSettings = {})
                 }
             }
         }
-        ui.onNodeWithContentDescription("Меню").performClick()
-        ui.onNodeWithText("Перевод и язык").assertIsDisplayed().performClick()
+        ui.onNodeWithContentDescription(label(R.string.menu_overflow)).performClick()
+        ui.onNodeWithText(label(R.string.menu_translations)).assertIsDisplayed().performClick()
         ui.runOnIdle { assertEquals(1, translations) }
-        ui.onNodeWithText("Перевод и язык").assertDoesNotExist()
-        ui.onNodeWithContentDescription("Меню").performClick()
+        ui.onNodeWithText(label(R.string.menu_translations)).assertDoesNotExist()
+        ui.onNodeWithContentDescription(label(R.string.menu_overflow)).performClick()
         ui.runOnIdle { mode.value = NowPlayingMode.KARAOKE }
-        ui.onNodeWithText("Редактировать текст песни").assertDoesNotExist()
-        ui.onNodeWithContentDescription("Меню").performClick()
-        ui.onNodeWithText("Калибровка задержки").assertIsDisplayed()
-        ui.onNodeWithText("Перевод и язык").assertDoesNotExist()
+        ui.onNodeWithText(label(R.string.menu_edit_lyrics)).assertDoesNotExist()
+        ui.onNodeWithContentDescription(label(R.string.menu_overflow)).performClick()
+        ui.onNodeWithText(label(R.string.menu_calibrate_timing)).assertIsDisplayed()
+        ui.onNodeWithText(label(R.string.menu_translations)).assertDoesNotExist()
         ui.runOnIdle { mode.value = NowPlayingMode.CHORDS }
-        ui.onNodeWithContentDescription("Меню").performClick()
-        ui.onNodeWithText("Найти текст или аккорды (Teach)").assertIsDisplayed()
-        ui.onNodeWithText("Калибровка задержки").assertDoesNotExist()
-        ui.onNodeWithText("Редактировать текст песни").assertDoesNotExist()
+        ui.onNodeWithContentDescription(label(R.string.menu_overflow)).performClick()
+        ui.onNodeWithText(label(R.string.menu_teach_mode)).assertIsDisplayed()
+        ui.onNodeWithText(label(R.string.menu_calibrate_timing)).assertDoesNotExist()
+        ui.onNodeWithText(label(R.string.menu_edit_lyrics)).assertDoesNotExist()
         ui.runOnIdle { mode.value = NowPlayingMode.NOTES }
-        ui.onNodeWithContentDescription("Меню").performClick()
-        ui.onNodeWithText("Сохранить заметки").performClick()
+        ui.onNodeWithContentDescription(label(R.string.menu_overflow)).performClick()
+        ui.onNodeWithText(label(R.string.menu_save_notes)).performClick()
         ui.runOnIdle { assertEquals(1, saved); track.value = null }
-        ui.onNodeWithContentDescription("Меню").performClick()
-        ui.onNodeWithText("Сохранить заметки").assertDoesNotExist()
-        ui.onNodeWithText("О треке и источниках").assertDoesNotExist()
-        ui.onNodeWithText("Плавающий оверлей").assertIsDisplayed()
-        ui.onNodeWithText("Подключить ПК (Lirix Connect)").assertDoesNotExist()
+        ui.onNodeWithContentDescription(label(R.string.menu_overflow)).performClick()
+        ui.onNodeWithText(label(R.string.menu_save_notes)).assertDoesNotExist()
+        ui.onNodeWithText(label(R.string.menu_track_info)).assertDoesNotExist()
+        ui.onNodeWithText(label(R.string.menu_floating_overlay)).assertIsDisplayed()
+        ui.onNodeWithText(label(R.string.player_empty_connect_pc)).assertDoesNotExist()
         ui.runOnIdle { track.value = "different-track" }
-        ui.onNodeWithText("Плавающий оверлей").assertDoesNotExist()
-        ui.onNodeWithContentDescription("Меню").performClick()
+        ui.onNodeWithText(label(R.string.menu_floating_overlay)).assertDoesNotExist()
+        ui.onNodeWithContentDescription(label(R.string.menu_overflow)).performClick()
         ui.runOnIdle { landscape.value = true }
-        ui.onNodeWithText("Плавающий оверлей").assertDoesNotExist()
+        ui.onNodeWithText(label(R.string.menu_floating_overlay)).assertDoesNotExist()
     }
 
     @Test fun transportHasOneConnectAndCenteredPlayWithDisabledSkipSlots() {
@@ -113,6 +120,8 @@ class PlayerContextUiTest {
                 PlayerTransportRow(false, false, { connects++ }, {}, {}, {}, { shares++ }, false, false)
             } }
         }
+        // Canonical transport still exposes fixed Russian descriptions. This fixture
+        // checks geometry/callbacks, not transport localization.
         ui.onAllNodesWithContentDescription("Подключить устройство (ПК)").assertCountEquals(1)
         ui.onNodeWithContentDescription("Подключить устройство (ПК)").performClick()
         ui.onNodeWithContentDescription("Поделиться карточкой").performClick()
@@ -127,19 +136,20 @@ class PlayerContextUiTest {
     }
 
     @Test fun rtlLargeTypePopupIsScrollableAndKeepsCallbacksReachable() {
-        var blacklist = 0
+        var settings = 0
         ui.setContent {
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl,
                 LocalDensity provides Density(LocalDensity.current.density, 1.8f)) {
                 LirixTheme { Box(Modifier.fillMaxSize().testTag("viewport"), contentAlignment = Alignment.TopEnd) {
                     PlayerContextOverflow(NowPlayingMode.LYRICS, "rtl", true, false,
-                        {}, {}, {}, {}, {}, {}, {}, {}, {}, { blacklist++ })
+                        onToggleOverlay = {}, onEditLyrics = {}, onSync = {}, onTranslations = {},
+                        onSaveNotes = {}, onCalibrate = {}, onTeach = {}, onTrackInfo = {}, onSettings = { settings++ })
                 } }
             }
         }
-        ui.onNodeWithContentDescription("Меню").performClick()
-        ui.onNodeWithText("Чёрный список фонотеки").performScrollTo().assertIsDisplayed().performClick()
-        ui.runOnIdle { assertEquals(1, blacklist) }
-        ui.onNodeWithText("Перевод и язык").assertDoesNotExist()
+        ui.onNodeWithContentDescription(label(R.string.menu_overflow)).performClick()
+        ui.onNodeWithText(label(R.string.settings_title)).performScrollTo().assertIsDisplayed().performClick()
+        ui.runOnIdle { assertEquals(1, settings) }
+        ui.onNodeWithText(label(R.string.menu_translations)).assertDoesNotExist()
     }
 }

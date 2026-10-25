@@ -332,3 +332,10 @@
 
 ## Player and precise studio polish — 2026-10-24
 - IN_PROGRESS: preserve Material themes and Tap-to-Sync; adaptive player/search/studio layouts, mode transitions, live reduced-motion setting, precise shared ruler geometry and real waveform corpus. Scope: specs/android-ui/player_studio_polish_v1.md. Full Android329/shared249 unit suites pass; final debug/test APK and release lint pass. Native UI/gesture/codec tests compile but have not run: ADB empty, device acceptance requested. Exact-ms export/100+ minute playback fixed. Audit: reports/PLAYER_STUDIO_POLISH_20261024.md. Goal stays active.
+
+## Последовательная очередь Android — 2026-10-25
+
+- Единственная текущая задача: завершить доставку общих настроек Android (Theme/Language/Updates/Blacklist). Debug APK, instrumentation APK и release lint PASS; финальные12 UI-тестов PASS отдельно RU57.412s и EN58.556s. Независимое ревью PASS; реальный Back и восемь состояний безопасных системных отступов чёрного списка проверены на эмуляторе. Приватная доставка — следующий гейт. Отчёт: reports/ANDROID_SETTINGS_SCREEN_20261025.md.
+- Пользователь потребовал заканчивать предыдущую задачу перед началом следующей. Новые запросы сохранены в backlog; в работу не взяты.
+- Очередь после настроек: 1) offline-lookup-recovery; 2) duplicate-player-editor-actions (/dialectic); 3) library-swipe-semantics; 4) remove-wrapped-replay-action; 5) profile-avatar-summary-dialectic (/dialectic, анализ до решения о реализации).
+- Запись backlog в текущую codex/release-1.5.1 явно подтверждена пользователем. Пять файлов в .sdd/backlog/; исходное требование пользователя сохранять собственные изменения коммитами действует. Посторонние незакоммиченные изменения не включать в поставку.

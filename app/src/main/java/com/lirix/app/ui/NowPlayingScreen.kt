@@ -143,7 +143,6 @@ import androidx.compose.ui.unit.sp
 import androidx.annotation.StringRes
 import androidx.compose.ui.res.stringResource
 import com.lirix.app.R
-import com.lirix.app.ui.components.LanguageSelectionDialog
 import com.lirix.app.feature.lyrics.romanization.*
 import com.lirix.app.ui.i18n.findHostActivity
 import com.lirix.app.ui.components.RomanizationModeDialog
@@ -166,7 +165,6 @@ import com.lirix.app.ingestion.MediaSessionCollector
 import com.lirix.app.ingestion.NotificationListener
 import com.lirix.app.storage.AppDatabase
 import com.lirix.app.storage.LyricsCacheEntity
-import com.lirix.app.storage.ThemePreferencesRepository
 import com.lirix.app.connect.AndroidConnectManager
 import com.lirix.app.service.FloatingLyricsService
 import com.lirix.app.storage.TrackEntity
@@ -181,7 +179,6 @@ import com.lirix.app.ui.components.OverlayPermissionDialog
 import com.lirix.app.ui.components.PermissionRequestBanner
 import com.lirix.app.ui.components.PlayerEmptyStateType
 import com.lirix.app.ui.components.ShareFormatDialog
-import com.lirix.app.ui.components.ThemeSelectionDialog
 import com.lirix.app.ui.components.TimingCalibrationDialog
 import com.lirix.app.ui.theme.FontFeature
 import com.lirix.app.ui.theme.GolosTextFontFamily
@@ -466,8 +463,6 @@ fun NowPlayingScreen(
     var showEditLyricsDialog by remember { mutableStateOf(false) }
     var showTranslationSettings by remember { mutableStateOf(false) }
     var showCalibrationDialog by remember { mutableStateOf(false) }
-    var showThemeDialog by remember { mutableStateOf(false) }
-    var showLanguageDialog by remember { mutableStateOf(false) }
     val readingPreferences = remember(context.applicationContext) { LyricsReadingPreferences(context) }
     var romanizationDisplayMode by remember { mutableStateOf(readingPreferences.mode()) }
     var lyricsReadingLanguage by remember(currentTrack?.trackKey) { mutableStateOf(readingPreferences.language(currentTrack?.trackKey)) }
@@ -483,8 +478,6 @@ fun NowPlayingScreen(
     val isRemotePlaying = !isLocalPlayback
     val isOverlayRunning by FloatingLyricsService.isRunning.collectAsStateWithLifecycle()
     var showOverlayPermissionDialog by remember { mutableStateOf(false) }
-    val themeRepo = remember { ThemePreferencesRepository.getInstance(context) }
-    val currentTheme by themeRepo.selectedTheme.collectAsStateWithLifecycle()
 
     var isNotificationPermissionGranted by remember {
         mutableStateOf(NotificationListener.isPermissionGranted(context))
@@ -608,16 +601,7 @@ fun NowPlayingScreen(
                     }
                 },
                 onCalibrate = { showCalibrationDialog = true },
-                onTheme = {
-                    showThemeDialog = true
-                },
-                onLanguage = {
-                    showLanguageDialog = true
-                },
-                onTeach = onOpenTeachMode?.let { callback -> { callback(currentTrack) } },
-                onBlacklist = {
-                    onOpenBlacklistSettings()
-                }
+                onTeach = onOpenTeachMode?.let { callback -> { callback(currentTrack) } }
             )
     }
 
@@ -1138,20 +1122,6 @@ fun NowPlayingScreen(
                     syncOffsetMs = syncOffsetStore.setOffsetAndGet(track.trackKey, 0L)
                 },
                 onDismissRequest = { showCalibrationDialog = false }
-            )
-        }
-
-        if (showThemeDialog) {
-            ThemeSelectionDialog(
-                currentTheme = currentTheme,
-                onThemeSelected = { newTheme -> themeRepo.setTheme(newTheme) },
-                onDismissRequest = { showThemeDialog = false }
-            )
-        }
-
-        if (showLanguageDialog) {
-            LanguageSelectionDialog(
-                onDismiss = { showLanguageDialog = false }
             )
         }
 

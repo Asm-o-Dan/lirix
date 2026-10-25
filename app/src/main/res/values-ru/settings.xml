@@ -1,0 +1,7 @@
+<resources>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_appearance">Внешний вид</string>
+    <string name="settings_application">Приложение</string>
+    <string name="settings_updates">Обновления Lirix</string>
+    <string name="settings_version">Lirix %1$s</string>
+</resources>

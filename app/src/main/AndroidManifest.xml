@@ -50,6 +50,7 @@
         </activity>
 
         <activity android:name=".update.UpdateActivity" android:exported="false" android:configChanges="locale|layoutDirection" />
+        <activity android:name=".ui.settings.SettingsActivity" android:exported="false" android:configChanges="locale|layoutDirection" />
 
         <!-- Notification Ingestion Service -->
         <service
