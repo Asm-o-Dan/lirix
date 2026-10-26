@@ -348,3 +348,8 @@
 - Возобновление 2026-10-26: прежнего исполнителя нет в live tree; текущий кодер offline_recovery_finish завершает сохранённые integration/UI slices по той же revision3. Canonical ещё не объявлен READY и не собирается во время правок. QA: reports/ANDROID_OFFLINE_LOOKUP_QA_20261025.md. Эмулятор перезапущен без очистки, sys.boot_completed=1.
 
 - Закрытие 2026-10-26: SOURCE COMPLETE / AUTOMATED + EMULATOR PASS. Android346/shared249, lint/build PASS; native19/19 PASS. Реальный Main с внешней синтетической MediaSession прошёл offline→online для той же песни, запись текста/LRC/аккордов подтверждена. Телефон и визуальная приёмка не заявлены. Пользователь отменил APK и попросил коммит + следующий пункт; новая сборка/публикация не выполняются. Следующая задача: duplicate-player-editor-actions, сначала dialectic-аудит.
+
+## Аудит дублирующихся действий Android — 2026-10-26
+
+- IN_PROGRESS, единственная активная задача: duplicate-player-editor-actions. Предыдущая задача поиска закрыта source-коммитом02b6dc9 и отправлена в GitHub; новая APK-поставка отменена пользователем.
+- Ограниченный dialectic-аудит назначен duplicate_actions_thesis / duplicate_actions_antithesis: заметки, редакторы и контекстные меню; точные доказательства HEAD/worktree, поведение сохранения и Back. Изменения продукта до синтеза не выполняются.
