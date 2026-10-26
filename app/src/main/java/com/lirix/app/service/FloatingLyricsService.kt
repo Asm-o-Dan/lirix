@@ -1,5 +1,6 @@
 package com.lirix.app.service
 
+import kotlinx.coroutines.ensureActive
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -229,35 +230,15 @@ class FloatingLyricsService : Service() {
                                 fetchLyricsJob?.cancel()
                                 fetchLyricsJob = serviceScope.launch(Dispatchers.IO) {
                                     try {
-                                        val track = TrackEntity(
-                                            trackKey = trackKey,
-                                            title = snapshot.title,
-                                            artist = snapshot.artist.ifBlank { "Unknown Artist" },
-                                            album = snapshot.album,
-                                            sourcePackage = snapshot.packageName,
-                                            albumArtUri = snapshot.albumArtUri
-                                        )
-                                        val lyricsProvider = AggregatedLyricsProvider(lyricsDao = db.lyricsDao())
-                                        val fetched = lyricsProvider.getLyrics(track, forceNetwork = true)
-
-                                        if (fetched.hasLyrics && trackKey == lastLoadedTrackKey) {
-                                            val plain = fetched.plainLyrics ?: fetched.lyricsText
-                                            val synced = fetched.syncedLyrics
-                                            val entity = LyricsCacheEntity(
-                                                trackKey = trackKey,
-                                                plainLyrics = plain,
-                                                syncedLyricsLrc = synced,
-                                                chordsAmDm = fetched.chords,
-                                                userNotes = null,
-                                                provider = fetched.sourceId.ifBlank { fetched.source }
-                                            )
-                                            db.lyricsDao().saveLyrics(entity)
-                                            db.musicDao().updateLyrics(trackKey, plain, synced)
-
-                                            currentCachedLyrics = entity
-                                            cachedLrcLines = synced?.let { parseLrcLinesStrict(it) } ?: emptyList()
-                                            Timber.tag(TAG).i("Successfully fetched lyrics for floating overlay: %s", trackKey)
+                                        com.lirix.app.feature.lyrics.AutomaticLookupCoordinator.get(db).lookup(trackKey,
+                                            com.lirix.app.feature.lyrics.LookupTarget.LYRICS,
+                                            com.lirix.app.feature.lyrics.LookupNetworkMonitor.usable(applicationContext))
+                                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                                        if (trackKey == lastLoadedTrackKey) {
+                                            currentCachedLyrics = db.lyricsDao().getLyrics(trackKey)
+                                            cachedLrcLines = currentCachedLyrics?.syncedLyricsLrc?.let { parseLrcLinesStrict(it) } ?: emptyList()
                                         }
+                                    } catch (e: kotlinx.coroutines.CancellationException) { throw e
                                     } catch (e: Exception) {
                                         Timber.tag(TAG).w(e, "Error prefetching lyrics for %s", trackKey)
                                     }

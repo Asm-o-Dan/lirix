@@ -143,6 +143,8 @@ import androidx.compose.ui.unit.sp
 import androidx.annotation.StringRes
 import androidx.compose.ui.res.stringResource
 import com.lirix.app.R
+import androidx.lifecycle.repeatOnLifecycle
+import com.lirix.app.feature.lyrics.*
 import com.lirix.app.feature.lyrics.romanization.*
 import com.lirix.app.ui.i18n.findHostActivity
 import com.lirix.app.ui.components.RomanizationModeDialog
@@ -168,6 +170,7 @@ import com.lirix.app.storage.LyricsCacheEntity
 import com.lirix.app.connect.AndroidConnectManager
 import com.lirix.app.service.FloatingLyricsService
 import com.lirix.app.storage.TrackEntity
+import com.lirix.app.storage.automaticLookupAcceptedTrackField
 import com.lirix.app.ui.connect.DeviceConnectBottomSheet
 import com.lirix.app.ui.player.ChordsTabContent
 import com.lirix.app.ui.components.AlbumArtImage
@@ -185,6 +188,7 @@ import com.lirix.app.ui.theme.GolosTextFontFamily
 import com.lirix.app.ui.theme.LirixThemeTokens
 import com.lirix.app.ui.theme.LiterataFontFamily
 import com.lirix.app.ui.theme.toSentenceCase
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -341,7 +345,20 @@ fun NowPlayingScreen(
     }
 
     var lyricsCache by remember(currentTrack?.trackKey) { mutableStateOf<LyricsCacheEntity?>(null) }
-    var isLoadingLyrics by remember(currentTrack?.trackKey) { mutableStateOf(currentTrack != null) }
+    val lookupTarget = if (selectedMode == NowPlayingMode.CHORDS) LookupTarget.CHORDS else LookupTarget.LYRICS
+    val lookupCoordinator = remember(db) { AutomaticLookupCoordinator.get(db) }
+    val lookupMonitor = remember(context.applicationContext) { LookupNetworkMonitor(context.applicationContext) }
+    val lookupRecoveries = remember(currentTrack?.trackKey, lookupCoordinator) {
+        LookupTarget.entries.associateWith { target ->
+            ForegroundLookupRecovery(currentTrack?.trackKey.orEmpty(), target, lookupCoordinator, scope)
+        }
+    }
+    val lookupRecovery = lookupRecoveries.getValue(lookupTarget)
+    val recoveryPhase by lookupRecovery.phase.collectAsStateWithLifecycle()
+    val lookupPhase = if (recoveryPhase == LookupPhase.Available &&
+        !automaticLookupSatisfied(lookupTarget, currentTrack, lyricsCache)) LookupPhase.Incomplete else recoveryPhase
+    val isLoadingLyrics = currentTrack != null && lookupPhase == LookupPhase.Loading &&
+        !automaticLookupSatisfied(lookupTarget, currentTrack, lyricsCache)
     var isLoadingChords by remember { mutableStateOf(false) }
 
     var isEditingNotes by remember { mutableStateOf(false) }
@@ -509,52 +526,26 @@ fun NowPlayingScreen(
         }
     }
 
-    // Load lyrics from database or online providers
-    LaunchedEffect(currentTrack?.trackKey) {
-        val track = currentTrack
-        if (track == null) {
-            lyricsCache = null
-            isLoadingLyrics = false
-            return@LaunchedEffect
-        }
-        isLoadingLyrics = true
-        lyricsCache = null
+    // Subscribe by identity; shared automatic jobs may finish under their own key after this UI leaves.
+    val lookupLifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lookupRecoveries) { onDispose { lookupRecoveries.values.forEach { it.dispose() } } }
+    LaunchedEffect(currentTrack?.trackKey, lookupRecovery, lookupLifecycleOwner, selectedMode) {
+        val track = currentTrack ?: return@LaunchedEffect
         withContext(Dispatchers.IO) {
-            try {
-                if (db.musicDao().getTrackByKey(track.trackKey) == null) {
-                    db.musicDao().insertOrUpdateTrack(track)
-                }
-                val cached = db.lyricsDao().getLyrics(track.trackKey)
-                if (cached != null && (!cached.plainLyrics.isNullOrBlank() || !cached.syncedLyricsLrc.isNullOrBlank())) {
-                    lyricsCache = cached
-                    isLoadingLyrics = false
-                } else {
-                    val rejected = db.lyricsDao().getRejectedSourceIds(track.trackKey).toSet()
-                    val fetched = AggregatedLyricsProvider(lyricsDao = db.lyricsDao()).getLyrics(track, rejectedSourceIds = rejected)
-                    if (fetched.hasLyrics && fetched.sourceId !in rejected) {
-                        val plain = fetched.plainLyrics ?: fetched.lyricsText
-                        val synced = fetched.syncedLyrics
-                        val entity = LyricsCacheEntity(
-                            trackKey = track.trackKey,
-                            plainLyrics = plain,
-                            syncedLyricsLrc = synced,
-                            chordsAmDm = fetched.chords ?: AmDmChordParser.parseAmDmHtml(plain),
-                            userNotes = track.userNotes,
-                            provider = fetched.sourceId.ifBlank { fetched.source }
-                        )
-                        db.lyricsDao().saveLyrics(entity)
-                        db.musicDao().updateLyrics(track.trackKey, plain, synced)
-                        lyricsCache = entity
-                    } else {
-                        lyricsCache = null
-                    }
-                    isLoadingLyrics = false
-                }
-            } catch (e: Exception) {
-                android.util.Log.w("NowPlayingScreen", "Failed to load lyrics for ${track.trackKey}", e)
-                lyricsCache = null
-                isLoadingLyrics = false
-            }
+            if (db.musicDao().getTrackByKey(track.trackKey) == null) db.musicDao().insertOrUpdateTrack(track)
+        }
+        if (selectedMode == NowPlayingMode.NOTES) return@LaunchedEffect
+        lookupLifecycleOwner.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            lookupMonitor.observe().collect { lookupRecovery.onNetwork(it) }
+        }
+    }
+    LaunchedEffect(currentTrack?.trackKey, lookupRecovery) {
+        val track = currentTrack ?: return@LaunchedEffect
+        db.lyricsDao().observeLyrics(track.trackKey).collect { cached ->
+            // LaunchedEffect cancellation + keyed state prevents an old track publication.
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            lyricsCache = cached
+            if (automaticLookupSatisfied(lookupTarget, track, cached)) lookupRecovery.contentAvailable()
         }
     }
 
@@ -719,6 +710,7 @@ fun NowPlayingScreen(
                         lyricsCache = lyricsCache,
                         currentTrack = currentTrack,
                         isLoadingLyrics = isLoadingLyrics,
+                        lookupPhase = lookupPhase, onRetryLookup = lookupRecovery::retry,
                         playbackPositionMs = playbackPositionMs,
                         isPlaying = isPlaying,
                         syncOffsetMs = syncOffsetMs,
@@ -871,9 +863,10 @@ fun NowPlayingScreen(
                             Text(
                                 text = when {
                                     isLoadingLyrics -> stringResource(R.string.lyrics_status_searching)
-                                    lyricsCache?.trackKey == currentTrack.trackKey && !lyricsCache?.syncedLyricsLrc.isNullOrBlank() -> stringResource(R.string.lyrics_status_synced)
-                                    lyricsCache?.trackKey == currentTrack.trackKey && !lyricsCache?.plainLyrics.isNullOrBlank() -> stringResource(R.string.lyrics_status_static)
-                                    else -> stringResource(R.string.lyrics_status_not_found)
+                                    lyricsCache?.trackKey == currentTrack.trackKey && lyricsCache?.provider != "note:user" && !lyricsCache?.syncedLyricsLrc.isNullOrBlank() -> stringResource(R.string.lyrics_status_synced)
+                                    lyricsCache?.trackKey == currentTrack.trackKey && lyricsCache?.provider != "note:user" && !lyricsCache?.plainLyrics.isNullOrBlank() -> stringResource(R.string.lyrics_status_static)
+                                    lookupPhase == LookupPhase.WaitingForNetwork -> stringResource(R.string.lookup_waiting_network)
+                                    else -> stringResource(R.string.lookup_incomplete)
                                 },
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                                 color = if (isLoadingLyrics) lirixColors.textSecondary else lirixColors.accentPrimary
@@ -938,6 +931,7 @@ fun NowPlayingScreen(
                         lyricsCache = lyricsCache,
                         currentTrack = currentTrack,
                         isLoadingLyrics = isLoadingLyrics,
+                        lookupPhase = lookupPhase, onRetryLookup = lookupRecovery::retry,
                         playbackPositionMs = playbackPositionMs,
                         isPlaying = isPlaying,
                         syncOffsetMs = syncOffsetMs,
@@ -1167,6 +1161,7 @@ fun NowPlayingScreen(
                             provider = "USER:EDIT"
                         )).copy(
                             plainLyrics = updatedLyrics,
+                            provider = "USER:EDIT",
                             updatedAt = System.currentTimeMillis()
                         )
                         db.lyricsDao().saveLyrics(updatedEntity)
@@ -1252,11 +1247,13 @@ fun NowPlayingScreen(
  * Shared teleprompter content renderer across portrait and landscape decks.
  */
 @Composable
-private fun RenderTeleprompterContent(
+internal fun RenderTeleprompterContent(
     selectedMode: NowPlayingMode,
     lyricsCache: LyricsCacheEntity?,
     currentTrack: TrackEntity,
     isLoadingLyrics: Boolean,
+    lookupPhase: LookupPhase = LookupPhase.Incomplete,
+    onRetryLookup: (() -> Unit)? = null,
     playbackPositionMs: Long,
     isPlaying: Boolean,
     syncOffsetMs: Long,
@@ -1355,7 +1352,7 @@ private fun RenderTeleprompterContent(
             return@Crossfade
         }
 
-        if (isLoadingLyrics) {
+        if (isLoadingLyrics && presentedMode != NowPlayingMode.CHORDS) {
             EmptyPlayerStateView(
                 stateType = PlayerEmptyStateType.SEARCHING_LYRICS,
                 trackTitle = currentTrack.title,
@@ -1366,8 +1363,8 @@ private fun RenderTeleprompterContent(
         }
 
         val validCache = if (lyricsCache?.trackKey == currentTrack.trackKey) lyricsCache else null
-        val effectivePlain = validCache?.plainLyrics ?: currentTrack.plainLyrics
-        val effectiveSynced = validCache?.syncedLyricsLrc ?: currentTrack.syncedLyrics
+        val effectivePlain = validCache?.plainLyrics?.takeUnless { validCache?.provider == "note:user" }?.takeIf { it.isNotBlank() } ?: automaticLookupAcceptedTrackField(currentTrack.plainLyrics, currentTrack, validCache)
+        val effectiveSynced = validCache?.syncedLyricsLrc?.takeUnless { validCache?.provider == "note:user" }?.takeIf { it.isNotBlank() } ?: automaticLookupAcceptedTrackField(currentTrack.syncedLyrics, currentTrack, validCache)
 
         when (presentedMode) {
             NowPlayingMode.KARAOKE -> {
@@ -1404,6 +1401,7 @@ private fun RenderTeleprompterContent(
                 } else {
                     EmptyPlayerStateView(
                         stateType = PlayerEmptyStateType.LYRICS_NOT_FOUND,
+                        lookupPhase = lookupPhase, onRetry = onRetryLookup,
                         trackTitle = currentTrack.title,
                         trackArtist = currentTrack.artist,
                         onSearchManual = onOpenTeachMode,
@@ -1413,6 +1411,14 @@ private fun RenderTeleprompterContent(
             }
 
             NowPlayingMode.LYRICS -> {
+                if (effectivePlain.isNullOrBlank() && effectiveSynced.isNullOrBlank()) {
+                    EmptyPlayerStateView(
+                        stateType = PlayerEmptyStateType.LYRICS_NOT_FOUND,
+                        lookupPhase = lookupPhase, onRetry = onRetryLookup,
+                        trackTitle = currentTrack.title, trackArtist = currentTrack.artist,
+                        onSearchManual = onOpenTeachMode, modifier = Modifier.fillMaxSize())
+                    return@Crossfade
+                }
                 val context = LocalContext.current
                 val database = remember(context) { AppDatabase.getInstance(context) }
                 val provider = remember { com.lirix.app.translations.SongTranslationProviders() }
@@ -1429,7 +1435,7 @@ private fun RenderTeleprompterContent(
             }
 
             NowPlayingMode.CHORDS -> {
-                val chords = validCache?.chordsAmDm
+                val chords = validCache?.chordsAmDm?.takeIf { it.isNotBlank() }
                     ?: AmDmChordParser.detectAndFormatInlineChords(effectivePlain.orEmpty())
                 if (!chords.isNullOrBlank()) {
                     ChordsTabContent(
@@ -1440,13 +1446,23 @@ private fun RenderTeleprompterContent(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    EmptyPlayerStateView(
-                        stateType = PlayerEmptyStateType.LYRICS_NOT_FOUND,
-                        trackTitle = currentTrack.title,
-                        trackArtist = currentTrack.artist,
-                        onSearchManual = onOpenTeachMode,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    val retainedWords = effectivePlain?.takeIf { it.isNotBlank() }
+                        ?: effectiveSynced?.let { LrcSyncEngine.parseLrcLinesStrict(it).joinToString("\n") { line -> line.text } }
+                    Column(Modifier.fillMaxSize()) {
+                        if (!retainedWords.isNullOrBlank()) {
+                            com.lirix.app.ui.components.LookupRetryStatus(lookupPhase, onRetryLookup)
+                            PlainLyricsReadingView(
+                                lyricsText = retainedWords, onStartTapSync = onStartTapSync,
+                                onEditLyrics = onEditLyrics, fontScale = fontScale,
+                                modifier = Modifier.weight(1f))
+                        } else {
+                            EmptyPlayerStateView(
+                                stateType = if (lookupPhase == LookupPhase.Loading) PlayerEmptyStateType.SEARCHING_LYRICS else PlayerEmptyStateType.LYRICS_NOT_FOUND,
+                                trackTitle = currentTrack.title, trackArtist = currentTrack.artist,
+                                lookupPhase = lookupPhase, onRetry = onRetryLookup, onSearchManual = onOpenTeachMode,
+                                modifier = Modifier.weight(1f))
+                        }
+                    }
                 }
             }
 

@@ -5,7 +5,13 @@ import com.lirix.app.feature.lyrics.CustomRuleLyricsProvider
 import com.lirix.app.feature.lyrics.MyChordsParser
 import com.lirix.app.storage.CustomLyricsRuleEntity
 import com.lirix.app.storage.LyricsDao
+import com.lirix.app.storage.AutomaticLookupCandidate
+import com.lirix.app.storage.AutomaticLookupField
+import com.lirix.app.feature.lyrics.LookupTarget
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import com.lirix.app.storage.TrackEntity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -939,6 +945,73 @@ class AggregatedLyricsProvider(
     private val customRuleFactory: ((CustomLyricsRuleEntity) -> LyricsProvider)? = null,
     private val onLyricsDiscovered: (suspend (trackKey: String, plain: String?, synced: String?) -> Unit)? = null
 ) : LyricsProvider {
+
+    /** Automatic recovery is side-effect free and never treats private notes as song words. */
+    suspend fun acquireAutomatic(track: TrackEntity, target: LookupTarget, rejectedSourceIds: Set<String>): AutomaticLookupCandidate {
+        currentCoroutineContext().ensureActive()
+        val cleanTrack = track.copy(userNotes = "", plainLyrics = null, syncedLyrics = null)
+        val rejected = rejectedSourceIds + LyricsSourceIds.USER_NOTE
+        if (target == LookupTarget.CHORDS) return AutomaticLookupCandidate(chords = fetchAutomaticChordTabs(cleanTrack, rejected))
+        suspend fun attempt(provider: LyricsProvider?, knownId: String? = null): LyricsResult? {
+            currentCoroutineContext().ensureActive()
+            if (knownId != null && knownId in rejected) return null
+            val result = try { provider?.getLyrics(cleanTrack, rejected, true) }
+                catch (e: CancellationException) { throw e }
+                catch (_: Exception) { null }
+            currentCoroutineContext().ensureActive()
+            val id = result?.sourceId.orEmpty()
+            return result?.copy(sourceId = id)?.takeIf { !it.isUserNote && id.isNotBlank() &&
+                id !in rejected && id !in setOf(LyricsSourceIds.NONE, LyricsSourceIds.ROOM_CACHE) &&
+                (!it.plainLyrics.isNullOrBlank() || !it.syncedLyrics.isNullOrBlank() || it.hasLyrics && it.lyricsText.isNotBlank()) }
+        }
+        suspend fun candidate(result: LyricsResult): AutomaticLookupCandidate {
+            val plain = result.plainLyrics ?: result.lyricsText.takeIf { result.syncedLyrics.isNullOrBlank() }
+            val ownChords = result.chords?.takeIf { it.isNotBlank() }?.let { AutomaticLookupField(it, result.sourceId) }
+            return AutomaticLookupCandidate(plain?.takeIf { it.isNotBlank() }?.let { AutomaticLookupField(it, result.sourceId) },
+                result.syncedLyrics?.takeIf { it.isNotBlank() }?.let { AutomaticLookupField(it, result.sourceId) },
+                ownChords ?: fetchAutomaticChordTabs(cleanTrack, rejected))
+        }
+        for (rule in lyricsDao?.getActiveRules().orEmpty()) {
+            val id = "rule:${rule.id}"
+            if (id in rejected) continue
+            attempt(customRuleFactory?.invoke(rule) ?: CustomRuleLyricsProvider(rule), id)?.let { return candidate(it) }
+        }
+        val primary = attempt(lrcLibProvider, LyricsSourceIds.LRCLIB)
+        if (primary != null) return candidate(primary)
+        attempt(fallbackScraper)?.let { return candidate(it) }
+        return AutomaticLookupCandidate()
+    }
+
+    private suspend fun fetchAutomaticChordTabs(track: TrackEntity, rejectedSourceIds: Set<String>): AutomaticLookupField? {
+        currentCoroutineContext().ensureActive()
+        try {
+            if (fallbackScraper is FallbackLyricsScraper) {
+                val artist = LrcLibLyricsProvider.cleanArtistName(track.artist)
+                val title = LrcLibLyricsProvider.cleanTrackName(track.title)
+                if (LyricsSourceIds.AMDM !in rejectedSourceIds) {
+                    val chords = fallbackScraper.scrapeAmDmDetails(artist, title)?.chords
+                    currentCoroutineContext().ensureActive()
+                    if (!chords.isNullOrBlank()) return AutomaticLookupField(chords, LyricsSourceIds.AMDM)
+                }
+                currentCoroutineContext().ensureActive()
+                if (LyricsSourceIds.MYCHORDS !in rejectedSourceIds) {
+                    val chords = fallbackScraper.scrapeMyChordsDetails(artist, title)?.chords
+                    currentCoroutineContext().ensureActive()
+                    if (!chords.isNullOrBlank()) return AutomaticLookupField(chords, LyricsSourceIds.MYCHORDS)
+                }
+            } else {
+                val result = fallbackScraper?.getLyrics(track, rejectedSourceIds + LyricsSourceIds.USER_NOTE, true)
+                currentCoroutineContext().ensureActive()
+                if (result != null && !result.isUserNote && result.sourceId !in rejectedSourceIds &&
+                    result.sourceId !in setOf("", LyricsSourceIds.NONE, LyricsSourceIds.USER_NOTE) && !result.chords.isNullOrBlank())
+                    return AutomaticLookupField(result.chords, result.sourceId)
+            }
+        } catch (e: CancellationException) { throw e }
+        catch (_: Exception) { /* A legacy null/error remains unresolved, never confirmed absence. */ }
+        currentCoroutineContext().ensureActive()
+        return null
+    }
+
 
     override suspend fun getLyrics(track: TrackEntity): LyricsResult {
         return getLyrics(track, emptySet(), false)

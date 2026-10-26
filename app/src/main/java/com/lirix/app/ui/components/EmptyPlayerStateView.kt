@@ -1,5 +1,11 @@
 package com.lirix.app.ui.components
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.testTag
+import com.lirix.app.feature.lyrics.LookupPhase
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -57,7 +63,9 @@ fun EmptyPlayerStateView(
     trackTitle: String? = null,
     trackArtist: String? = null,
     onSearchManual: (() -> Unit)? = null,
-    onConnectClick: (() -> Unit)? = null
+    onConnectClick: (() -> Unit)? = null,
+    lookupPhase: LookupPhase? = null,
+    onRetry: (() -> Unit)? = null
 ) {
     val tokens = LirixThemeTokens.colors
 
@@ -70,7 +78,7 @@ fun EmptyPlayerStateView(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
         ) {
             when (stateType) {
                 PlayerEmptyStateType.NO_ACTIVE_PLAYER -> {
@@ -204,7 +212,12 @@ fun EmptyPlayerStateView(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = stringResource(R.string.player_lyrics_not_found),
+                        text = stringResource(when (lookupPhase) {
+                            LookupPhase.WaitingForNetwork -> R.string.lookup_waiting_network
+                            null -> R.string.player_lyrics_not_found
+                            else -> R.string.lookup_incomplete
+                        }),
+                        modifier = Modifier.testTag("lookup-status"),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -225,12 +238,20 @@ fun EmptyPlayerStateView(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Text(
+                    if (lookupPhase == null) Text(
                         text = stringResource(R.string.player_lyrics_not_found_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
                         color = tokens.textSecondary,
                         textAlign = TextAlign.Center
                     )
+
+                    if (onRetry != null) {
+                        TextButton(onClick = onRetry, enabled = lookupPhase != LookupPhase.Loading,
+                            modifier = Modifier.heightIn(min = 48.dp).testTag("lookup-retry")) {
+                            Text(stringResource(R.string.lookup_retry), color = tokens.accentPrimary,
+                                style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
 
                     if (onSearchManual != null) {
                         Spacer(modifier = Modifier.height(20.dp))
@@ -285,6 +306,24 @@ fun EmptyPlayerStateView(
                     }
                 }
             }
+        }
+    }
+}
+
+/** One bounded status/action for an unresolved target, including cached-lyrics chord recovery. */
+@Composable
+fun LookupRetryStatus(phase: LookupPhase, onRetry: (() -> Unit)?, modifier: Modifier = Modifier) {
+    val tokens = LirixThemeTokens.colors
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(stringResource(when (phase) {
+            LookupPhase.WaitingForNetwork -> R.string.lookup_waiting_network
+            LookupPhase.Loading -> R.string.player_searching_lyrics
+            else -> R.string.lookup_incomplete
+        }), color = tokens.textSecondary, style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center, modifier = Modifier.testTag("lookup-status"))
+        if (onRetry != null) TextButton(onClick = onRetry, enabled = phase != LookupPhase.Loading,
+            modifier = Modifier.heightIn(min = 48.dp).testTag("lookup-retry")) {
+            Text(stringResource(R.string.lookup_retry), style = MaterialTheme.typography.labelLarge)
         }
     }
 }

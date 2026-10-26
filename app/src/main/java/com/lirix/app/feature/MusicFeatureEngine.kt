@@ -472,60 +472,18 @@ class MusicFeatureEngine(
         return result
     }
 
-    fun prefetchLyricsAsync(
-        context: Context,
-        scope: CoroutineScope,
-        track: TrackEntity
-    ) {
-        // Если текст уже есть — повторный запрос не нужен
-        if (!track.plainLyrics.isNullOrBlank() || !track.syncedLyrics.isNullOrBlank()) {
-            return
-        }
-
-        val policy = NetworkConditionManager.getNetworkPolicy(context)
-        if (policy == LyricsNetworkPolicy.OFFLINE_ONLY) {
-            Timber.tag(TAG).d("Skipping lyrics prefetch: OFFLINE_ONLY")
-            return
-        }
-
+    fun prefetchLyricsAsync(context: Context, scope: CoroutineScope, track: TrackEntity) {
+        if (!track.plainLyrics.isNullOrBlank() || !track.syncedLyrics.isNullOrBlank()) return
+        // Preserve the implemented prefetch transport gate; foreground recovery also permits cellular.
+        if (NetworkConditionManager.getNetworkPolicy(context) == LyricsNetworkPolicy.OFFLINE_ONLY) return
         scope.launch(Dispatchers.IO) {
             try {
-                val rejected = lyricsDao?.getRejectedSourceIds(track.trackKey)?.toSet().orEmpty()
-
-                // Проверяем кэш Room
-                val cached = lyricsDao?.getLyrics(track.trackKey)
-                if (cached != null && (!cached.plainLyrics.isNullOrBlank() || !cached.syncedLyricsLrc.isNullOrBlank())) {
-                    if (cached.provider !in rejected) {
-                        musicDao.updateLyrics(track.trackKey, cached.plainLyrics, cached.syncedLyricsLrc)
-                        return@launch
-                    }
-                }
-
-                // Загружаем через агрегатор (LrcLib -> Scrapers)
-                val fetched = lyricsAdapter.getLyrics(track, rejectedSourceIds = rejected, forceNetwork = true)
-                if (fetched.hasLyrics && fetched.sourceId !in rejected) {
-                    val plain = fetched.plainLyrics ?: fetched.lyricsText
-                    val synced = fetched.syncedLyrics
-
-                    // 1. Dual-write в lyrics_cache
-                    lyricsDao?.saveLyrics(
-                        LyricsCacheEntity(
-                            trackKey = track.trackKey,
-                            plainLyrics = plain,
-                            syncedLyricsLrc = synced,
-                            chordsAmDm = fetched.chords ?: AmDmChordParser.parseAmDmHtml(plain),
-                            userNotes = "",
-                            provider = fetched.sourceId.ifBlank { fetched.source }
-                        )
-                    )
-
-                    // 2. Dual-write в music_tracks
-                    musicDao.updateLyrics(track.trackKey, plain, synced)
-                    Timber.tag(TAG).i("Successfully prefetched lyrics for: %s", track.title)
-                }
-            } catch (e: Exception) {
-                Timber.tag(TAG).w(e, "Background lyrics prefetch failed for %s", track.title)
-            }
+                val db = com.lirix.app.storage.AppDatabase.getInstance(context.applicationContext)
+                com.lirix.app.feature.lyrics.AutomaticLookupCoordinator.get(db).lookup(track.trackKey,
+                    com.lirix.app.feature.lyrics.LookupTarget.LYRICS,
+                    com.lirix.app.feature.lyrics.LookupNetworkMonitor.usable(context.applicationContext))
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { Timber.tag(TAG).w(e, "Background lyrics prefetch failed for %s", track.title) }
         }
     }
 

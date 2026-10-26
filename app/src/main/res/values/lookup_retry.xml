@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lookup_retry">Try again</string>
+    <string name="lookup_waiting_network">No Internet connection</string>
+    <string name="lookup_incomplete">Search could not be completed</string>
+</resources>

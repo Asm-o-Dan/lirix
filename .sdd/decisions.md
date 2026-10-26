@@ -892,3 +892,6 @@ Approved bounded contract .sdd/specs/media-ui/player_gold_repair_v1.md: favorite
 - USER_NOTE fallback cannot satisfy lyric/chord targets or be copied into lyrics. Actual per-field origin governs atomic source-rejection checks together with manual/fresh-field/notes preservation in the same Room transaction. sourceAttributionJson exists in canonical and main and is preserved in both.
 - Shared negative attempts consume waiter coverage; a parent-scoped chord follow-up is shared at most once.90 seconds is a logical coroutine deadline, not a promise of immediate blocking-socket cancellation. Check activity/generation before publication and cancellation before next source/commit.
 - Preserve the ten-file main baseline and all foreign source/clock/session work; implement equivalent scoped changes in canonical and main. Root owns serial build/OS/runtime/Git delivery; one executor owns implementation/tests, independent reviewer owns gates. Physical phone and whole studio/UI acceptance remain separate open gates.
+
+
+- 2026-10-26: user explicitly requested no APK; commit verified offline recovery source and proceed sequentially to duplicate-action audit. Physical acceptance remains separately disclosed; no release/version change.
