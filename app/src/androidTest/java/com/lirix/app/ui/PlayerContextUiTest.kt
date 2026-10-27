@@ -98,8 +98,8 @@ class PlayerContextUiTest {
         ui.onNodeWithText(label(R.string.menu_edit_lyrics)).assertDoesNotExist()
         ui.runOnIdle { mode.value = NowPlayingMode.NOTES }
         ui.onNodeWithContentDescription(label(R.string.menu_overflow)).performClick()
-        ui.onNodeWithText(label(R.string.menu_save_notes)).performClick()
-        ui.runOnIdle { assertEquals(1, saved); track.value = null }
+        ui.onNodeWithText(label(R.string.menu_save_notes)).assertDoesNotExist()
+        ui.runOnIdle { assertEquals(0, saved); track.value = null }
         ui.onNodeWithContentDescription(label(R.string.menu_overflow)).performClick()
         ui.onNodeWithText(label(R.string.menu_save_notes)).assertDoesNotExist()
         ui.onNodeWithText(label(R.string.menu_track_info)).assertDoesNotExist()

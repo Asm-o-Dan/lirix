@@ -353,3 +353,5 @@
 
 - IN_PROGRESS, единственная активная задача: duplicate-player-editor-actions. Предыдущая задача поиска закрыта source-коммитом02b6dc9 и отправлена в GitHub; новая APK-поставка отменена пользователем.
 - Ограниченный dialectic-аудит назначен duplicate_actions_thesis / duplicate_actions_antithesis: заметки, редакторы и контекстные меню; точные доказательства HEAD/worktree, поведение сохранения и Back. Изменения продукта до синтеза не выполняются.
+
+- 2026-10-27: source cleanup prepared and independently reviewed; Android production and androidTest Kotlin compile PASS. Two existing UI tests updated and compiled, not executed. User requested no APK; device/visual/save-reopen validation remains open and no runtime PASS is claimed.

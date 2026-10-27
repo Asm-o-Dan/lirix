@@ -106,6 +106,6 @@ class PlayerSurfaceUiTest {
         missing(R.string.settings_title)
         open(); has(R.string.menu_track_info); missing(R.string.menu_translations); missing(R.string.menu_calibrate_timing); missing(R.string.menu_edit_lyrics)
         ui.runOnIdle { mode.value = NowPlayingMode.NOTES }
-        open(); has(R.string.menu_save_notes); missing(R.string.menu_sync_studio); missing(R.string.menu_edit_lyrics)
+        open(); missing(R.string.menu_save_notes); has(R.string.menu_track_info); missing(R.string.menu_sync_studio); missing(R.string.menu_edit_lyrics)
     }
 }

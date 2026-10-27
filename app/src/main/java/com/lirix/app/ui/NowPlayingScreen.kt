@@ -792,34 +792,8 @@ fun NowPlayingScreen(
                         modifier = Modifier.weight(1f, fill = false)
                     )
 
-                    if (selectedMode == NowPlayingMode.NOTES && (isImeVisible || isNotesFocused)) {
-                        TextButton(
-                            onClick = {
-                                keyboardController?.hide()
-                                focusManager.clearFocus()
-                                isNotesFocused = false
-                                saveNotes()
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = stringResource(R.string.action_done),
-                                tint = lirixColors.accentPrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = stringResource(R.string.action_done),
-                                color = lirixColors.accentPrimary,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
-                        }
-                    } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-
-                            overflow()
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        overflow()
                     }
                 }
 
@@ -1337,7 +1311,7 @@ internal fun RenderTeleprompterContent(
                             onNotesFocusChange(focusState.isFocused)
                         },
                     placeholder = {
-                        Text(stringResource(R.string.notes_placeholder))
+                        Text(stringResource(R.string.notes_examples_hint))
                     },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = tokens.surfacePrimary,

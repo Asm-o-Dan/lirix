@@ -48,7 +48,6 @@ fun PlayerContextOverflow(
             onEditLyricsClick = onEditLyrics.takeIf { lyrics },
             onSyncClick = onSync.takeIf { lyrics },
             onTranslationClick = onTranslations.takeIf { trackKey != null && mode == NowPlayingMode.LYRICS },
-            onSaveNotesClick = onSaveNotes.takeIf { trackKey != null && mode == NowPlayingMode.NOTES },
             onTrackInfoClick = onTrackInfo.takeIf { trackKey != null },
             onCalibrateClick = onCalibrate.takeIf { trackKey != null && mode == NowPlayingMode.KARAOKE },
             onTeachModeClick = onTeach.takeIf { trackKey != null && mode != NowPlayingMode.NOTES },
@@ -105,7 +104,6 @@ fun NowPlayingOverflowMenu(
         onEditLyricsClick?.let { Action(stringResource(R.string.menu_edit_lyrics), Icons.Default.Edit, it) }
         onSyncClick?.let { Action(stringResource(R.string.menu_sync_studio), Icons.Default.GraphicEq, it) }
         onTranslationClick?.let { Action(stringResource(R.string.menu_translations), Icons.Default.Translate, it) }
-        onSaveNotesClick?.let { Action(stringResource(R.string.menu_save_notes), Icons.Default.Check, it) }
         onCalibrateClick?.let { Action(stringResource(R.string.menu_calibrate_timing), Icons.Default.Tune, it) }
         onTeachModeClick?.let { Action(stringResource(R.string.menu_teach_mode), Icons.Default.School, it) }
         onRomanizationClick?.let { Action(stringResource(R.string.menu_romanization_reading), Icons.Default.Subtitles, it) }
