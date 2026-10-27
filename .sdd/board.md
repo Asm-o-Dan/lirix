@@ -373,3 +373,9 @@
 - IN_PROGRESS: remove-wrapped-replay-action; menu/removal and navigation source commits 48d3580/076e53e pushed. Their device gesture/UI acceptance remains pending; do not claim native PASS. Remove replay button, preserve first animation/period/export, no unrelated changes.
 
 - Source DONE: replay action removed; static diff/search and compileDebugKotlin PASS. Period/export code retained. Device rendering not tested.
+
+## Профиль и расширенные итоги: dialectic — 2026-10-27
+
+- IN_PROGRESS: profile-avatar-summary-dialectic. User goal closes backlog; existing entry requests analysis and a proposed staged scope. Parallel thesis/antithesis validate actual data and metrics; no product changes until synthesis.
+
+- Dialectic analysis DONE: thesis/antithesis independently verified; synthesis PROFILE_ANALYTICS_DIALECTIC_20261027.md. Genre and intentional skip not present; first implementation proposal local avatars and evidence-based metrics gated on delivered time-accounting. Analysis only; profile implementation not claimed.
