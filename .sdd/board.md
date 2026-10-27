@@ -367,3 +367,9 @@
 - Menu/removal stage source implementation complete and independently reviewed, 6 targeted unit tests PASS, debug Kotlin compile PASS; no APK/device/UI/backup runtime claim. Next step same request: main-section navigation swipes; previous user explicitly requested no APK. Manual archive does not currently transfer exclusion preferences.
 
 - Navigation source revision: release-triggered swipe between tabs with guards, independently reviewed; assembleDebug PASS, 3 targeted classifier unit tests PASS. APK assembled on request; subsequent user cancelled ADB. Real gestures/Back/scroll/IME and menu UX require later device verification. Broad goal remains active.
+
+## Убрать повтор анимации итогов — 2026-10-27
+
+- IN_PROGRESS: remove-wrapped-replay-action; menu/removal and navigation source commits 48d3580/076e53e pushed. Their device gesture/UI acceptance remains pending; do not claim native PASS. Remove replay button, preserve first animation/period/export, no unrelated changes.
+
+- Source DONE: replay action removed; static diff/search and compileDebugKotlin PASS. Period/export code retained. Device rendering not tested.

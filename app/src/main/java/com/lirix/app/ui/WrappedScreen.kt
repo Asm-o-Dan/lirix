@@ -33,7 +33,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -91,9 +90,8 @@ fun WrappedScreen() {
     var calculatedStats by remember { mutableStateOf<Pair<AnalyticsTimeframe, WrappedStats>?>(null) }
     val stats = calculatedStats?.takeIf { it.first == selectedTimeframe }?.second
     val reveal = remember(selectedTimeframe) { Animatable(0f) }
-    var replay by remember(selectedTimeframe) { mutableStateOf(0) }
     // Screen-owned: scrolling, theme changes and live statistics must not replay the reveal.
-    LaunchedEffect(selectedTimeframe, stats != null, replay) {
+    LaunchedEffect(selectedTimeframe, stats != null) {
         if (stats != null) {
             reveal.snapTo(0f)
             // Compose applies the system animation duration scale, including immediate completion at 0.
@@ -273,8 +271,7 @@ fun WrappedScreen() {
                 )
                 else -> WrappedMotionSummary(
                     stats = currentStats,
-                    progress = { reveal.value },
-                    onReplay = { replay++ }
+                    progress = { reveal.value }
                 )
             }
         }
@@ -363,8 +360,7 @@ fun WrappedScreen() {
 @Composable
 private fun WrappedMotionSummary(
     stats: WrappedStats,
-    progress: () -> Float,
-    onReplay: () -> Unit
+    progress: () -> Float
 ) {
     val colors = LirixThemeTokens.colors
     Column(
@@ -418,9 +414,6 @@ private fun WrappedMotionSummary(
                     }
                 }
             }
-        }
-        TextButton(onClick = onReplay) {
-            Text(stringResource(R.string.wrapped_replay_animation), color = colors.accentPrimary)
         }
     }
 }
