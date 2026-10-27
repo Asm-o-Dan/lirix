@@ -70,6 +70,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -138,7 +141,8 @@ enum class LibrarySegmentMode(@StringRes val titleRes: Int) {
 @Composable
 fun LibraryScreen(
     onTrackSelected: (TrackEntity) -> Unit = {},
-    onOpenBlacklistSettings: () -> Unit = {}
+    onOpenBlacklistSettings: () -> Unit = {},
+    onFilterBoundsChanged: (Rect) -> Unit = {}
 ) {
     val lirixColors = LirixThemeTokens.colors
     val context = LocalContext.current
@@ -321,7 +325,7 @@ fun LibraryScreen(
 
             // 2. Горизонтальные фильтры (высота плашки 36dp, зона клика 48dp)
             androidx.compose.foundation.lazy.LazyRow(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().onGloballyPositioned { onFilterBoundsChanged(it.boundsInWindow()) },
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically

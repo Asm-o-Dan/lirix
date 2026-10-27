@@ -16,12 +16,17 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -58,6 +63,16 @@ import androidx.compose.runtime.setValue
 import com.lirix.app.storage.TrackEntity
 import com.lirix.app.ui.blacklist.BlacklistSettingsScreen
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -95,6 +110,7 @@ enum class AppTab(
  * Root AMOLED navigation scaffold for Music & Lyrics Hub.
  * Implements Obsidian Pulse pure black standard (#000000) with 120Hz smooth transitions.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AppScaffold(
     initialLyricsTrack: ParsedTrackInfo? = null,
@@ -141,6 +157,19 @@ fun AppScaffold(
     val lirixColors = LirixThemeTokens.colors
     val reducedMotion = com.lirix.app.ui.components.rememberReducedMotion()
     val tabStateHolder = rememberSaveableStateHolder()
+    var playerSwipeBlocked by remember { mutableStateOf(false) }
+    var filterBounds by remember { mutableStateOf<Rect?>(null) }
+    var contentBounds by remember { mutableStateOf<Rect?>(null) }
+    val imeVisible = WindowInsets.isImeVisible
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val view = LocalView.current
+    val leftSystemEdge = WindowInsets.systemGestures.getLeft(density, layoutDirection).toFloat()
+    val rightSystemEdge = WindowInsets.systemGestures.getRight(density, layoutDirection).toFloat()
+    val minimumEdge = with(density) { 24.dp.toPx() }
+    val minimumDistance = with(density) { 56.dp.toPx() }
+    val swipeBlocked = imeVisible || isTeachModeOpen || isBlacklistSettingsOpen || pendingSharedLyricsText != null ||
+        (currentTab == AppTab.NOW_PLAYING && playerSwipeBlocked)
 
     Scaffold(
         modifier = Modifier
@@ -172,6 +201,38 @@ fun AppScaffold(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding)
+                .onGloballyPositioned { contentBounds = it.boundsInWindow() }
+                .pointerInput(currentTab, swipeBlocked, contentBounds, filterBounds, leftSystemEdge, rightSystemEdge, layoutDirection) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        val bounds = contentBounds
+                        val absolute = if (bounds != null) Offset(bounds.left + down.position.x, bounds.top + down.position.y) else null
+                        val width = view.width.toFloat()
+                        val inFilter = currentTab == AppTab.LIBRARY && absolute != null && filterBounds?.contains(absolute) == true
+                        val allowed = mayStartTabSwipe(swipeBlocked, absolute?.x, width,
+                            maxOf(leftSystemEdge, minimumEdge), maxOf(rightSystemEdge, minimumEdge), inFilter)
+                        val gate = TabSwipeGesture(viewConfiguration.touchSlop, minimumDistance, allowed)
+                        var dragging = false
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Final)
+                            if (event.changes.count { it.pressed } > 1) break
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) {
+                                if (dragging) {
+                                    change.consume()
+                                    val next = gate.destination(currentTab.ordinal, AppTab.entries.size, layoutDirection == LayoutDirection.Rtl)
+                                    if (next != null) currentTab = AppTab.entries[next]
+                                }
+                                break
+                            }
+                            val delta = change.position - change.previousPosition
+                            if (delta.x != 0f || delta.y != 0f) {
+                                dragging = gate.move(delta.x, delta.y, change.isConsumed)
+                                if (dragging) change.consume()
+                            }
+                        }
+                    }
+                }
         ) {
             AnimatedContent(
                 targetState = currentTab,
@@ -202,11 +263,13 @@ fun AppScaffold(
                         onOpenBlacklistSettings = {
                             isBlacklistSettingsOpen = true
                         },
+                        onNavigationGestureBlocked = { playerSwipeBlocked = it },
                         onBack = {
                             currentTab = AppTab.LIBRARY
                         }
                     )
                     AppTab.LIBRARY -> LibraryScreen(
+                        onFilterBoundsChanged = { filterBounds = it },
                         onTrackSelected = { track ->
                             viewingTrack = track
                             currentTab = AppTab.NOW_PLAYING

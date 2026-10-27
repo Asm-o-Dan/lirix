@@ -365,3 +365,5 @@
 - User correction: remove row actions on swipes; use per-track ⋮ menu for favorite and actual library removal, swipes for navigation. Previous temporary-hide experiment superseded and not committed. Investigate deletion data contract and swipe routing before implementing.
 
 - Menu/removal stage source implementation complete and independently reviewed, 6 targeted unit tests PASS, debug Kotlin compile PASS; no APK/device/UI/backup runtime claim. Next step same request: main-section navigation swipes; previous user explicitly requested no APK. Manual archive does not currently transfer exclusion preferences.
+
+- Navigation source revision: release-triggered swipe between tabs with guards, independently reviewed; assembleDebug PASS, 3 targeted classifier unit tests PASS. APK assembled on request; subsequent user cancelled ADB. Real gestures/Back/scroll/IME and menu UX require later device verification. Broad goal remains active.

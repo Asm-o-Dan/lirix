@@ -95,6 +95,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -242,6 +243,7 @@ fun NowPlayingScreen(
     onOpenTeachMode: ((TrackEntity?) -> Unit)? = null,
     onOpenBlacklistSettings: () -> Unit = {},
     onBack: () -> Unit = {},
+    onNavigationGestureBlocked: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val lirixColors = LirixThemeTokens.colors
@@ -495,6 +497,12 @@ fun NowPlayingScreen(
     val isRemotePlaying = !isLocalPlayback
     val isOverlayRunning by FloatingLyricsService.isRunning.collectAsStateWithLifecycle()
     var showOverlayPermissionDialog by remember { mutableStateOf(false) }
+    val blockNavigationGesture = selectedMode == NowPlayingMode.NOTES || isNotesFocused || isImeVisible ||
+        isFocusMode || showShareDialog || tapSyncTarget != null || showEditLyricsDialog ||
+        showTranslationSettings || showCalibrationDialog || showRomanizationDialog ||
+        showConnectBottomSheet || showOverlayPermissionDialog
+    SideEffect { onNavigationGestureBlocked(blockNavigationGesture) }
+    DisposableEffect(Unit) { onDispose { onNavigationGestureBlocked(false) } }
 
     var isNotificationPermissionGranted by remember {
         mutableStateOf(NotificationListener.isPermissionGranted(context))
