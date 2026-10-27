@@ -135,7 +135,7 @@ fun TrackActionBottomSheet(
             ActionRowItem(
                 icon = Icons.Default.VisibilityOff,
                 iconTint = if (tokens.isDark) Color(0xFFE57373) else Color(0xFFC85A5A),
-                title = stringResource(R.string.action_hide_from_library),
+                title = stringResource(R.string.library_remove),
                 onClick = {
                     onHideTrack(track)
                     onDismissRequest()

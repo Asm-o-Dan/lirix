@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_remove">Remove from library</string>
+    <string name="library_track_actions">Actions for %1$s</string>
+    <string name="library_removed_title">Removed from library</string>
+    <string name="library_removed_empty">No removed tracks</string>
+    <string name="library_removed_missing">Track unavailable</string>
+    <string name="library_restore">Restore</string>
+    <string name="library_removed_message">“%1$s” removed from library. History and files unchanged.</string>
+    <string name="library_remove_error">Could not update library. Try again.</string>
+</resources>

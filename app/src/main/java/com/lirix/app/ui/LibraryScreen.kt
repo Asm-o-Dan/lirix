@@ -1,7 +1,6 @@
 package com.lirix.app.ui
 
 import android.content.Context
-import android.view.ViewConfiguration
 import android.view.accessibility.AccessibilityManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -10,7 +9,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -38,7 +36,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,8 +61,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -87,13 +88,16 @@ import com.lirix.app.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lirix.app.storage.AppDatabase
 import com.lirix.app.storage.TrackEntity
+import com.lirix.app.ui.library.LibraryExclusions
 import com.lirix.app.ui.components.AlbumArtImage
 import com.lirix.app.ui.components.TrackActionBottomSheet
 import com.lirix.app.ui.theme.FontFeature
 import com.lirix.app.ui.theme.GolosTextFontFamily
 import com.lirix.app.ui.theme.LirixThemeTokens
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -147,17 +151,21 @@ fun LibraryScreen(
     val accentPrimary = lirixColors.accentPrimary
 
     val recentTracks by db.musicDao().observeRecentTracks().collectAsStateWithLifecycle(initialValue = emptyList())
-    val hiddenTrackKeys = remember { mutableStateListOf<String>() }
+    val exclusions = remember(context) { LibraryExclusions.get(context) }
+    val removedTrackKeys by exclusions.removed.collectAsStateWithLifecycle()
+    var showRemovedTracks by rememberSaveable { mutableStateOf(false) }
 
     var selectedFilter by rememberSaveable { mutableStateOf(LibraryFilterChip.ALL) }
     var selectedSegment by rememberSaveable { mutableStateOf(LibrarySegmentMode.TRACKS) }
     var searchQuery by remember { mutableStateOf("") }
     var activeBottomSheetTrack by remember { mutableStateOf<TrackEntity?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarQueue = remember { Mutex() }
 
     // Filtered track list
-    val visibleTracks = remember(recentTracks, hiddenTrackKeys) {
-        recentTracks.filter { it.trackKey !in hiddenTrackKeys }
+    val visibleTracks = remember(recentTracks, removedTrackKeys, exclusions.initializationFailed) {
+        if (exclusions.initializationFailed) emptyList()
+        else recentTracks.filter { it.trackKey !in removedTrackKeys }
     }
 
     val filteredTracks = remember(visibleTracks, selectedFilter, searchQuery) {
@@ -197,24 +205,29 @@ fun LibraryScreen(
         } else 7000
     }
 
-    // Function to hide track with undoable snackbar
-    val hideTrack: (TrackEntity) -> Unit = { track ->
-        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        hiddenTrackKeys.add(track.trackKey)
-        scope.launch {
-            val result = snackbarHostState.showSnackbar(
-                message = context.getString(R.string.library_track_hidden, track.title),
-                actionLabel = context.getString(R.string.action_undo),
-                duration = SnackbarDuration.Indefinite
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                hiddenTrackKeys.remove(track.trackKey)
+    val showMessage: suspend (String, String?) -> SnackbarResult? = { message, action ->
+        snackbarQueue.withLock {
+            withTimeoutOrNull(recommendedTimeoutMs.toLong()) {
+                snackbarHostState.showSnackbar(message, actionLabel = action, duration = SnackbarDuration.Indefinite)
             }
         }
-        // Auto-dismiss indefinite snackbar after recommendedTimeoutMs
+    }
+    val restoreTrack: (String) -> Unit = { key ->
         scope.launch {
-            delay(recommendedTimeoutMs.toLong())
-            snackbarHostState.currentSnackbarData?.dismiss()
+            if (!exclusions.restore(key)) showMessage(context.getString(R.string.library_remove_error), null)
+        }
+    }
+    val removalInFlight = remember { mutableSetOf<String>() }
+    val hideTrack: (TrackEntity) -> Unit = hide@ { track ->
+        if (track.trackKey in exclusions.removed.value || !removalInFlight.add(track.trackKey)) return@hide
+        scope.launch {
+            val removed = try { exclusions.remove(track.trackKey) } finally { removalInFlight.remove(track.trackKey) }
+            if (removed != null) {
+                val result = showMessage(context.getString(R.string.library_removed_message, track.title), context.getString(R.string.action_undo))
+                if (result == SnackbarResult.ActionPerformed && !exclusions.restore(track.trackKey, removed)) {
+                    showMessage(context.getString(R.string.library_remove_error), null)
+                }
+            } else showMessage(context.getString(R.string.library_remove_error), null)
         }
     }
 
@@ -228,6 +241,10 @@ fun LibraryScreen(
                 .fillMaxSize()
                 .padding(vertical = 8.dp)
         ) {
+            if (exclusions.initializationFailed) {
+                Text(stringResource(R.string.library_remove_error), color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            }
             // 1. Поисковая строка (48dp) с кнопкой перехода в Чёрный список [ 🚫 ]
             Row(
                 modifier = Modifier
@@ -278,6 +295,9 @@ fun LibraryScreen(
                     )
                 )
 
+                IconButton(onClick = { showRemovedTracks = true }, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Default.Restore, contentDescription = stringResource(R.string.library_removed_title), tint = lirixColors.textSecondary)
+                }
                 Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(
@@ -388,7 +408,8 @@ fun LibraryScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = if (searchQuery.isBlank()) stringResource(R.string.library_empty) else stringResource(R.string.library_no_results),
+                                    text = if (exclusions.initializationFailed) stringResource(R.string.library_remove_error)
+                                           else if (searchQuery.isBlank()) stringResource(R.string.library_empty) else stringResource(R.string.library_no_results),
                                     color = lirixColors.textSecondary,
                                     style = MaterialTheme.typography.bodyMedium
                                 )
@@ -409,7 +430,7 @@ fun LibraryScreen(
                                         onLongClick = { activeBottomSheetTrack = track },
                                         onToggleFavorite = {
                                             scope.launch(Dispatchers.IO) {
-                                                db.musicDao().setFavorite(track.trackKey, !track.isFavorite)
+                                                db.musicDao().invertFavorite(track.trackKey)
                                             }
                                         },
                                         onHideTrack = { hideTrack(track) }
@@ -474,6 +495,30 @@ fun LibraryScreen(
                 .padding(bottom = 76.dp)
         )
 
+        if (showRemovedTracks) {
+            AlertDialog(
+                onDismissRequest = { showRemovedTracks = false },
+                title = { Text(stringResource(R.string.library_removed_title)) },
+                text = {
+                    if (removedTrackKeys.isEmpty()) Text(stringResource(R.string.library_removed_empty))
+                    else LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                        val byKey = recentTracks.associateBy { it.trackKey }
+                        items(removedTrackKeys.sorted(), key = { it }) { key ->
+                            val track = byKey[key]
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(track?.title ?: context.getString(R.string.library_removed_missing), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    if (track != null) Text(track.artist, style = MaterialTheme.typography.bodySmall)
+                                }
+                                TextButton(onClick = { restoreTrack(key) }) { Text(stringResource(R.string.library_restore)) }
+                            }
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { showRemovedTracks = false }) { Text(stringResource(R.string.action_close)) } }
+            )
+        }
+
         // Track Action Bottom Sheet for Long-Press alternative
         activeBottomSheetTrack?.let { track ->
             TrackActionBottomSheet(
@@ -481,7 +526,7 @@ fun LibraryScreen(
                 onDismissRequest = { activeBottomSheetTrack = null },
                 onToggleFavorite = { t ->
                     scope.launch(Dispatchers.IO) {
-                        db.musicDao().setFavorite(t.trackKey, !t.isFavorite)
+                        db.musicDao().invertFavorite(t.trackKey)
                     }
                 },
                 onHideTrack = { t ->
@@ -516,12 +561,7 @@ private fun LibraryTrackItemRow(
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
 
-    val systemBackThresholdPx = with(density) { 28.dp.toPx() }
-    val touchSlopPx = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
-
-    var touchStartX by remember { mutableFloatStateOf(0f) }
-    var dragDeltaX by remember { mutableFloatStateOf(0f) }
-    var isEligibleForSwipe by remember { mutableStateOf(false) }
+    var menuExpanded by remember(track.trackKey) { mutableStateOf(false) }
 
     Surface(
         color = tokens.surfaceCard,
@@ -536,7 +576,7 @@ private fun LibraryTrackItemRow(
                         onToggleFavorite()
                         true
                     },
-                    CustomAccessibilityAction(context.getString(R.string.action_hide_track)) {
+                    CustomAccessibilityAction(context.getString(R.string.library_remove)) {
                         onHideTrack()
                         true
                     }
@@ -551,40 +591,7 @@ private fun LibraryTrackItemRow(
                     }
                 )
             }
-            .pointerInput(track.trackKey) {
-                detectHorizontalDragGestures(
-                    onDragStart = { offset ->
-                        touchStartX = offset.x
-                        dragDeltaX = 0f
-                        // Touch starting inside 0..28dp belongs to system Back!
-                        isEligibleForSwipe = touchStartX > systemBackThresholdPx
-                    },
-                    onHorizontalDrag = { change, dragAmount ->
-                        if (isEligibleForSwipe) {
-                            change.consume()
-                            dragDeltaX += dragAmount
-                        }
-                    },
-                    onDragEnd = {
-                        if (isEligibleForSwipe) {
-                            if (dragDeltaX > touchSlopPx * 4f) {
-                                // Swipe right: Toggle favorite
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onToggleFavorite()
-                            } else if (dragDeltaX < -touchSlopPx * 4f) {
-                                // Swipe left: Hide track ("Игнорировать")
-                                onHideTrack()
-                            }
-                        }
-                        dragDeltaX = 0f
-                        isEligibleForSwipe = false
-                    },
-                    onDragCancel = {
-                        dragDeltaX = 0f
-                        isEligibleForSwipe = false
-                    }
-                )
-            }
+
     ) {
         Row(
             modifier = Modifier
@@ -627,6 +634,21 @@ private fun LibraryTrackItemRow(
             }
 
             Spacer(modifier = Modifier.width(8.dp))
+            Box {
+                IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.library_track_actions, track.title), tint = tokens.textSecondary)
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(if (track.isFavorite) R.string.action_remove_favorite else R.string.action_add_favorite)) },
+                        onClick = { menuExpanded = false; onToggleFavorite() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.library_remove)) },
+                        onClick = { menuExpanded = false; onHideTrack() }
+                    )
+                }
+            }
 
             // Правый блок метаданных: дата, счетчик ×18, бейджи
             Column(horizontalAlignment = Alignment.End) {

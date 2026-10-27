@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_remove">Удалить из медиатеки</string>
+    <string name="library_track_actions">Действия для %1$s</string>
+    <string name="library_removed_title">Удалённые из медиатеки</string>
+    <string name="library_removed_empty">Нет удалённых треков</string>
+    <string name="library_removed_missing">Трек недоступен</string>
+    <string name="library_restore">Восстановить</string>
+    <string name="library_removed_message">«%1$s» удалён из медиатеки. История и файлы не изменены.</string>
+    <string name="library_remove_error">Не удалось обновить медиатеку. Попробуйте ещё раз.</string>
+</resources>

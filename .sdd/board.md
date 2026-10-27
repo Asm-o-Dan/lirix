@@ -355,3 +355,13 @@
 - Ограниченный dialectic-аудит назначен duplicate_actions_thesis / duplicate_actions_antithesis: заметки, редакторы и контекстные меню; точные доказательства HEAD/worktree, поведение сохранения и Back. Изменения продукта до синтеза не выполняются.
 
 - 2026-10-27: source cleanup prepared and independently reviewed; Android production and androidTest Kotlin compile PASS. Two existing UI tests updated and compiled, not executed. User requested no APK; device/visual/save-reopen validation remains open and no runtime PASS is claimed.
+
+- 2026-10-27: user explicitly directed progression to library swipes despite outstanding on-device notes validation. Notes source committed/pushed fa9d36a; runtime/visual check remains pending, no APK requested.
+
+## Свайпы медиатеки Android — 2026-10-27
+
+- IN_PROGRESS: library-swipe-semantics. Audit actual right/left actions, persistence, feedback and undo; preserve user music files and data. No APK creation.
+
+- User correction: remove row actions on swipes; use per-track ⋮ menu for favorite and actual library removal, swipes for navigation. Previous temporary-hide experiment superseded and not committed. Investigate deletion data contract and swipe routing before implementing.
+
+- Menu/removal stage source implementation complete and independently reviewed, 6 targeted unit tests PASS, debug Kotlin compile PASS; no APK/device/UI/backup runtime claim. Next step same request: main-section navigation swipes; previous user explicitly requested no APK. Manual archive does not currently transfer exclusion preferences.

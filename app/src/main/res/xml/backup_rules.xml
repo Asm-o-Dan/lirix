@@ -6,6 +6,7 @@
     <include domain="database" path="event_engine.db-shm" />
     <include domain="database" path="event_engine.db-journal" />
     <include domain="sharedpref" path="lirix_preferences.xml" />
+        <include domain="sharedpref" path="lirix_library_exclusions.xml" />
     <include domain="sharedpref" path="lirix_translations.xml" />
     <include domain="sharedpref" path="lirix_ui_prompter_prefs.xml" />
     <include domain="sharedpref" path="lirix_sync_prefs.xml" />
