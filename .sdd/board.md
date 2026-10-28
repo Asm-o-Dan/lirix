@@ -379,3 +379,9 @@
 - IN_PROGRESS: profile-avatar-summary-dialectic. User goal closes backlog; existing entry requests analysis and a proposed staged scope. Parallel thesis/antithesis validate actual data and metrics; no product changes until synthesis.
 
 - Dialectic analysis DONE: thesis/antithesis independently verified; synthesis PROFILE_ANALYTICS_DIALECTIC_20261027.md. Genre and intentional skip not present; first implementation proposal local avatars and evidence-based metrics gated on delivered time-accounting. Analysis only; profile implementation not claimed.
+
+## Расширение источников переводов — 2026-10-27
+
+- IN_PROGRESS: translation-sources-multilingual-and-ru-en. Проверить фактические существующие реализации/dirty tree и действительные многоязычные источники, включая русский→английский; не утверждать работоспособность автоматического поиска без живой проверки.
+
+- Source implementation complete: LT-first + Rustoeng RU→EN; Android compile and 63 desktop checks PASS, 1 optional live skip; separate 2 real-source searches PASS without lyric logging. UI/phone runtime, source content licensing/release distribution remain separate; originalLineContent Android compatibility restored. No public release or ADB installation.

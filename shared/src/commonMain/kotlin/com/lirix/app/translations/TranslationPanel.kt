@@ -23,9 +23,10 @@ import kotlinx.coroutines.*
 fun TranslationPanel(trackKey: String, trackLabel: String, original: String, dao: SongTranslationDao,
                      load: suspend (String) -> SongTranslation, modifier: Modifier = Modifier,
                      automatic: AutomaticSongTranslations? = null, title: String = "", artist: String = "",
-                     compact: Boolean = false, settingsExpanded: Boolean = false, onDismissSettings: () -> Unit = {}) {
+                     compact: Boolean = false, settingsExpanded: Boolean = false, onDismissSettings: () -> Unit = {},
+                     originalLineContent: (@Composable (String) -> Unit)? = null) {
     val language = automatic?.language?.collectAsState()?.value ?: "ru"
-    key(trackKey, language) { TranslationPanelContent(trackKey, trackLabel, original, dao, load, modifier, automatic, title, artist, language, compact, settingsExpanded, onDismissSettings) }
+    key(trackKey, language) { TranslationPanelContent(trackKey, trackLabel, original, dao, load, modifier, automatic, title, artist, language, compact, settingsExpanded, onDismissSettings, originalLineContent) }
 }
 
 @Composable
@@ -33,7 +34,8 @@ fun TranslationPanel(trackKey: String, trackLabel: String, original: String, dao
 private fun TranslationPanelContent(trackKey: String, trackLabel: String, original: String, dao: SongTranslationDao,
                                     load: suspend (String) -> SongTranslation, modifier: Modifier,
                                     automatic: AutomaticSongTranslations?, title: String, artist: String, language: String,
-                                    compact: Boolean, settingsExpanded: Boolean, onDismissSettings: () -> Unit) {
+                                    compact: Boolean, settingsExpanded: Boolean, onDismissSettings: () -> Unit,
+                                    originalLineContent: (@Composable (String) -> Unit)?) {
     val c = LirixThemeTokens.colors
     val scope = rememberCoroutineScope()
     val uri = LocalUriHandler.current
@@ -43,6 +45,7 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
     var importing by remember { mutableStateOf(false) }
     var input by remember { mutableStateOf("") }
     var preview by remember { mutableStateOf<SongTranslation?>(null) }
+    var uncertainCandidate by remember { mutableStateOf<TranslationCandidate?>(null) }
     var confirmed by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -80,7 +83,7 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
             }
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf("Оригинал", if (automatic != null) "Перевод" else TranslationLanguages.labels[language] ?: language, "Вместе").forEachIndexed { index, label ->
+            listOf(com.lirix.app.ui.i18n.LirixStrings.message("Оригинал"), if (automatic != null) com.lirix.app.ui.i18n.LirixStrings.message("Перевод") else TranslationLanguages.labels[language] ?: language, com.lirix.app.ui.i18n.LirixStrings.message("Вместе")).forEachIndexed { index, label ->
                 FilterChip(mode == index, { mode = index }, label = { Text(label) })
             }
             if (automatic == null) TextButton(enabled = !busy, onClick = { importing = !importing; preview = null; confirmed = false }) {
@@ -99,7 +102,7 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                     busy = true
                     scope.launch {
                     busy = true; error = null; preview = null; confirmed = false
-                    try { preview = withTimeout(25_000) { load(input) }; mode = 2; if (compact) onDismissSettings() }
+                    try { preview = withTimeout(25_000) { load(input) }; uncertainCandidate = null; mode = 2; if (compact) onDismissSettings() }
                     catch (e: TimeoutCancellationException) { error = "Источник не ответил вовремя. Попробуйте ещё раз." }
                     catch (e: CancellationException) { throw e }
                     catch (e: Exception) { error = e.message ?: "Не удалось загрузить перевод" }
@@ -132,8 +135,8 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                 document.warnings.forEach { Text(it) }
             } },
             confirmButton = { TextButton(onClick = {
-                runCatching { uri.openUri(document.sourceUrl) }.onFailure { error = "Не удалось открыть источник" }
-            }) { Text("Открыть источник") } },
+                runCatching { uri.openUri(document.sourceUrl) }.onFailure { error = com.lirix.app.ui.i18n.LirixStrings.message("Не удалось открыть источник") }
+            }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Открыть источник")) } },
             dismissButton = { TextButton(onClick = { showAttribution = false }) { Text("Закрыть") } })
     }
     Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -147,9 +150,13 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                         Text("Ищем перевод…", color = c.textSecondary)
                     }
                     AutomaticTranslationState.Missing -> Text("Перевод на выбранный язык не найден", color = c.textSecondary)
-                    is AutomaticTranslationState.Failed -> Text("Поиск перевода: ${autoState.message}", color = c.textSecondary)
+                    is AutomaticTranslationState.Failed -> Text(com.lirix.app.ui.i18n.LirixStrings.message("Поиск перевода: {0}", com.lirix.app.ui.i18n.LirixStrings.message(autoState.message)), color = c.textSecondary)
                     is AutomaticTranslationState.Candidates -> {
-                        Text("Есть несколько вариантов или отличается версия. Выберите нужную песню:", color = c.textSecondary)
+                        if (autoState.unavailableSources.isNotEmpty()) Text(
+                            com.lirix.app.ui.i18n.LirixStrings.message("Не все источники ответили ({0}). Показаны доступные варианты.", autoState.unavailableSources.joinToString(", ")),
+                            color = c.textSecondary
+                        )
+                        Text(com.lirix.app.ui.i18n.LirixStrings.message("Есть несколько вариантов или отличается версия. Выберите нужную песню:"), color = c.textSecondary)
                         autoState.values.forEach { candidate ->
                             TextButton(enabled = !busy, onClick = {
                                 if (busy) return@TextButton
@@ -157,11 +164,30 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                                 scope.launch {
                                     error = null
                                     try {
-                                        preview = withTimeout(25_000) { load(candidate.sourceUrl) }
-                                        input = candidate.sourceUrl; importing = true; confirmed = false; mode = 2
-                                    } catch (_: TimeoutCancellationException) { error = "Источник не ответил вовремя" }
+                                        val loaded = withTimeout(25_000) { load(candidate.sourceUrl) }
+                                        fun sameIdentity(a: String, b: String): Boolean =
+                                            a.isNotBlank() && b.isNotBlank() && a.trim().replace(Regex("\\s+"), " ").equals(b.trim().replace(Regex("\\s+"), " "), ignoreCase = true)
+                                        // Search may include a Latin transcription that the detail title omits.
+                                        // This is not proof of equivalence: show both names and require confirmation.
+                                        val detailTitle = loaded.title.trim()
+                                        val suffix = candidate.title.trim().removePrefix(detailTitle).trim()
+                                        val latinSuffix = suffix.matches(Regex("\\([A-Za-z][A-Za-z '\u2019-]*\\)"))
+                                        val uncertainAlias = loaded.sourceName == "LyricsTranslate" &&
+                                            candidate.sourceUrl.startsWith("https://lyricstranslate.com/") &&
+                                            detailTitle.any { it in '\u0400'..'\u052f' } &&
+                                            candidate.title.trim().startsWith(detailTitle) && latinSuffix &&
+                                            !Regex("(?i)\\b(remaster(?:ed)?|live|version|edit|mix|acoustic|anniversary|demo|feat|featuring)\\b").containsMatchIn(suffix)
+                                        if (!sameIdentity(candidate.artist, loaded.artist) ||
+                                            (!sameIdentity(candidate.title, loaded.title) && !uncertainAlias)) {
+                                            error = com.lirix.app.ui.i18n.LirixStrings.message("Страница изменилась и больше не соответствует выбранному варианту. Найдите перевод снова.")
+                                        } else {
+                                            uncertainCandidate = if (uncertainAlias && !sameIdentity(candidate.title, loaded.title)) candidate else null
+                                            preview = loaded
+                                            input = candidate.sourceUrl; importing = true; confirmed = false; mode = 2
+                                        }
+                                    } catch (_: TimeoutCancellationException) { error = com.lirix.app.ui.i18n.LirixStrings.message("Источник не ответил вовремя") }
                                     catch (e: CancellationException) { throw e }
-                                    catch (e: Exception) { error = e.message ?: "Не удалось загрузить перевод" }
+                                    catch (_: Exception) { error = com.lirix.app.ui.i18n.LirixStrings.message("Не удалось загрузить перевод") }
                                     finally { busy = false }
                                 }
                             }) { Text("${candidate.artist} — ${candidate.title}${candidate.translator.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()}") }
@@ -176,16 +202,22 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
             error?.let { Text(it, color = c.accentPrimary) }
             if (entity != null && cached == null) Text("Сохранённый перевод повреждён. Можно импортировать его заново.", color = c.textSecondary)
             if (preview != null) {
-                Text("Предпросмотр — ещё не сохранено", color = c.accentPrimary, fontWeight = FontWeight.Bold)
+                Text(com.lirix.app.ui.i18n.LirixStrings.message("Предпросмотр — ещё не сохранено"), color = c.accentPrimary, fontWeight = FontWeight.Bold)
+                if (compact) Text("${preview!!.artist} — ${preview!!.title}", color = c.textPrimary, fontWeight = FontWeight.Bold)
+                uncertainCandidate?.let { chosen ->
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Названия отличаются. Проверьте оба варианта перед сохранением."), color = c.textSecondary)
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("В поиске: {0} — {1}", chosen.artist, chosen.title), color = c.textPrimary)
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("На странице: {0} — {1}", preview!!.artist, preview!!.title), color = c.textPrimary)
+                }
                 Row {
                     Checkbox(confirmed, { confirmed = it }, enabled = !busy,
-                        modifier = Modifier.semantics { contentDescription = "Подтвердить соответствие перевода текущему треку" })
-                    Text("Это перевод нужной песни и версии записи", color = c.textPrimary)
+                        modifier = Modifier.semantics { contentDescription = com.lirix.app.ui.i18n.LirixStrings.message("Подтвердить соответствие перевода текущему треку") })
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Это перевод нужной песни и версии записи"), color = c.textPrimary)
                 }
                 Button(enabled = confirmed && !busy, onClick = {
                     if (!confirmed || busy) return@Button
                     val pending = preview ?: return@Button
-                    if (pending.language != language) { error = "Выберите язык загруженного перевода"; return@Button }
+                    if (pending.language != language) { error = com.lirix.app.ui.i18n.LirixStrings.message("Выберите язык загруженного перевода"); return@Button }
                     busy = true
                     scope.launch {
                     busy = true; error = null
@@ -199,7 +231,7 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                     } catch (e: CancellationException) { throw e }
                     catch (e: Exception) { error = "Не удалось сохранить: ${e.message}" }
                     finally { busy = false }
-                } }) { Text("Сохранить перевод офлайн") }
+                } }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Сохранить перевод офлайн")) }
             } else if (saved.size > 1) {
                 Text("Сохранённые варианты", color = c.textSecondary)
                 saved.forEach { row ->
@@ -216,29 +248,68 @@ private fun TranslationPanelContent(trackKey: String, trackLabel: String, origin
                 }
                 if (!compact) Text("${translation.artist} — ${translation.title}", color = c.textPrimary, fontWeight = FontWeight.Bold)
                 if (!compact && translation.translatedTitle.isNotBlank()) Text(translation.translatedTitle, color = c.textSecondary)
-                if (!compact) Text("Источник: ${translation.sourceName} · Перевод: ${translation.translator.ifBlank { "автор не указан" }}", color = c.textSecondary)
+                if (!compact) Text(com.lirix.app.ui.i18n.LirixStrings.message("Источник: {0} · Перевод: {1}", translation.sourceName, translation.translator.ifBlank { com.lirix.app.ui.i18n.LirixStrings.message("автор не указан") }), color = c.textSecondary)
                 if (!compact) translation.warnings.forEach { Text(it, color = c.textSecondary) }
-                if (!compact) TextButton(onClick = { runCatching { uri.openUri(translation.sourceUrl) }.onFailure { error = "Не удалось открыть источник" } }) { Text("Открыть источник") }
-                if (!compact && mode == 2) Text(if (translation.aligned) "Оригинал и перевод со страницы источника. Без синхронизации караоке."
-                    else "Оригинал и перевод отдельными текстами. Соответствие строк не подтверждено.", color = c.textMuted, fontSize = 12.sp)
+                if (!compact) TextButton(onClick = { runCatching { uri.openUri(translation.sourceUrl) }.onFailure { error = com.lirix.app.ui.i18n.LirixStrings.message("Не удалось открыть источник") } }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Открыть источник")) }
+                if (mode == 2 && (!compact || !translation.aligned)) Text(if (translation.aligned) "Оригинал и перевод со страницы источника. Без синхронизации караоке."
+                    else com.lirix.app.ui.i18n.LirixStrings.message("Оригинал и перевод отдельными текстами. Соответствие строк не подтверждено."), color = c.textMuted, fontSize = 12.sp)
             }
             if (mode == 0 || (automatic != null && document == null && original.isNotBlank())) {
-                SelectionContainer { Text(original.ifBlank { document?.blocks?.joinToString("\n") { it.original }.orEmpty().ifBlank { "Оригинал пока не сохранён" } }, color = c.textPrimary, fontSize = 18.sp) }
+                SelectionContainer {
+                    val sourceText = original.ifBlank { document?.blocks?.joinToString("\n") { it.original }.orEmpty() }
+                    if (sourceText.isBlank()) Text(com.lirix.app.ui.i18n.LirixStrings.message("Оригинал пока не сохранён"), color = c.textPrimary, fontSize = 18.sp)
+                    else if (originalLineContent == null) Text(sourceText, color = c.textPrimary, fontSize = 18.sp)
+                    else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { sourceText.lines().forEach { originalLineContent(it) } }
+                }
             } else if (document == null) {
                 Text("Перевод на выбранный язык пока не добавлен", color = c.textPrimary)
                 Text(if (automatic == null) "Откройте «Добавить перевод», вставьте ссылку источника и проверьте предпросмотр. Сохранённый перевод будет доступен без интернета."
                     else "Перевод ищется по исполнителю и названию. Точное совпадение сохраняется автоматически и будет доступно без интернета.", color = c.textSecondary)
+            } else if (!document.aligned) SelectionContainer {
+                val sourceText = original.ifBlank { document.blocks.joinToString("\n") { it.original } }
+                @Composable
+                fun OriginalSection() {
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("Оригинал"), color = c.textSecondary, fontWeight = FontWeight.Bold)
+                    if (sourceText.isBlank()) Text(com.lirix.app.ui.i18n.LirixStrings.message("Оригинал пока не сохранён"), color = c.textSecondary, fontSize = 17.sp)
+                    else if (originalLineContent != null) sourceText.lines().forEach { originalLineContent(it) }
+                    else Text(sourceText, color = c.textSecondary, fontSize = 17.sp)
+                }
+                @Composable
+                fun TranslatedSection(showHeading: Boolean) {
+                    if (showHeading) Text(com.lirix.app.ui.i18n.LirixStrings.message("Перевод"), color = c.textSecondary, fontWeight = FontWeight.Bold)
+                    document.blocks.filter { it.translated.isNotBlank() }.forEach { block ->
+                        Text(block.translated, color = c.textPrimary, fontSize = 18.sp,
+                            fontWeight = if (block.section) FontWeight.Bold else FontWeight.Normal)
+                    }
+                }
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    if (mode == 2 && maxWidth >= 600.dp) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) { OriginalSection() }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) { TranslatedSection(true) }
+                        }
+                    } else Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (mode == 2) OriginalSection()
+                        TranslatedSection(mode == 2)
+                    }
+                }
             } else SelectionContainer {
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val columns = mode == 2 && maxWidth >= 600.dp
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     document.blocks.forEach { block ->
                         if (columns) Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                            Text(block.original.ifBlank { "[Нет строки оригинала]" }, color = c.textSecondary, fontSize = 17.sp, modifier = Modifier.weight(1f))
+                            Box(Modifier.weight(1f)) {
+                                if (originalLineContent != null) originalLineContent(block.original)
+                                else Text(block.original.ifBlank { "[Нет строки оригинала]" }, color = c.textSecondary, fontSize = 17.sp)
+                            }
                             Text(block.translated.ifBlank { "[Нет перевода строки]" }, color = c.textPrimary, fontSize = 18.sp, modifier = Modifier.weight(1f))
                         } else
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            if (mode == 2) Text(block.original.ifBlank { "[Нет строки оригинала]" }, color = c.textSecondary, fontSize = 17.sp)
+                            if (mode == 2) {
+                                if (originalLineContent != null) originalLineContent(block.original)
+                                else Text(block.original.ifBlank { "[Нет строки оригинала]" }, color = c.textSecondary, fontSize = 17.sp)
+                            }
                             Text(block.translated.ifBlank { "[Нет перевода строки]" }, color = c.textPrimary,
                                 fontSize = 18.sp, fontWeight = if (block.section) FontWeight.Bold else FontWeight.Normal)
                         }

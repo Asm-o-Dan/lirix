@@ -1,0 +1,1 @@
+Structural excerpts modeled on publicly accessible Rustoeng search, 5’nizza and Okudzhava pages, observed 2026-10-27. Artist/song headings and DOM structure are retained as factual metadata; all song text is synthetic and no full lyrics are included.

@@ -1,0 +1,1 @@
+Metadata and minimal selectors were observed on 2026-10-28 by ordinary GET/POST (English target value 328); title, artist, translator names and result URLs are factual identifiers. Lyric content is wholly synthetic. The fixtures are structural excerpts, not full source HTML.

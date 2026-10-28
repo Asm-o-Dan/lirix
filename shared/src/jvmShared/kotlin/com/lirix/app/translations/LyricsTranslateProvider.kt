@@ -9,6 +9,8 @@ import java.io.ByteArrayInputStream
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLEncoder
+import java.text.Normalizer
+import java.util.Locale
 
 class LyricsTranslateProvider(private val openConnection: (URI) -> HttpURLConnection = { it.toURL().openConnection() as HttpURLConnection }) {
     private data class Page(val bytes: ByteArray, val url: String, val charset: String?)
@@ -27,6 +29,52 @@ class LyricsTranslateProvider(private val openConnection: (URI) -> HttpURLConnec
             }
             return LyricsTranslateParser.canonicalUrl(input)
         }
+        // A source title may append a Latin transcription to Cyrillic. It is an
+        // unverified hint for the user, never evidence for an automatic match.
+        private fun exactWords(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKD)
+            .replace(Regex("\\p{M}+"), "").lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }
+
+        private fun possibleTitleAlias(requested: String, actual: String): Boolean {
+            val match = Regex("^(.+?)\\s*\\(([A-Za-z][A-Za-z .,'’\\-]{0,99})\\)\\s*$").matchEntire(actual.trim()) ?: return false
+            return exactWords(match.groupValues[1]) == exactWords(requested) && requested.any { Character.UnicodeScript.of(it.code) == Character.UnicodeScript.CYRILLIC }
+        }
+
+        private fun possibleArtistAlias(requested: String, actual: String): Boolean {
+            fun scripts(s: String) = s.asSequence().filter { it.isLetter() }.map { Character.UnicodeScript.of(it.code) }.toSet()
+            val a = scripts(requested); val b = scripts(actual)
+            return (Character.UnicodeScript.CYRILLIC in a && Character.UnicodeScript.LATIN !in a &&
+                Character.UnicodeScript.LATIN in b && Character.UnicodeScript.CYRILLIC !in b) ||
+                (Character.UnicodeScript.LATIN in a && Character.UnicodeScript.CYRILLIC !in a &&
+                    Character.UnicodeScript.CYRILLIC in b && Character.UnicodeScript.LATIN !in b)
+        }
+
+        // The common metadata normalizer intentionally removes some presentation
+        // suffixes, but editions and collaborators must survive auto-match.
+        private fun musicalQualifiers(title: String, artist: String): List<String> {
+            val edition = Regex("(?i)\\b(?:\\d{1,3}(?:th|st|nd|rd)\\s+anniversary\\s+edition|(?:\\d{4}\\s*)?remaster(?:ed)?(?:\\s+\\d{4})?)\\b")
+            val featuring = Regex("(?i)\\b(?:feat\\.?|ft\\.?|featuring)\\s+([^\\]\\)\\n]+)")
+            val editions = edition.findAll(title).map { "edition:" + exactWords(it.value) }
+            val features = sequenceOf(title, artist).flatMap { value ->
+                featuring.findAll(value).map { "feature:" + exactWords(it.groupValues[1]) }
+            }
+            val collaboration = Regex("\\s+[&×]\\s+(.+)$").find(artist)
+                ?.groupValues?.get(1)?.let { sequenceOf("collaboration:" + exactWords(it)) } ?: emptySequence()
+            // Artist normalization truncates everything after '('. Preserve the whole
+            // remaining suffix, including nested or malformed qualifiers, for auto-save.
+            val artistSuffix = artist.substringAfter('(', "").trim()
+            val safeChannelSuffix = Regex("(?i)^(?:official|official\\s+channel|topic|vevo)\\)\\s*$")
+            val artistQualifications = if (artistSuffix.isEmpty() || safeChannelSuffix.matches(artistSuffix)) emptySequence()
+                else sequenceOf("artist:" + Normalizer.normalize(artistSuffix, Normalizer.Form.NFKD)
+                    .replace(Regex("\\p{M}+"), "").lowercase(Locale.ROOT)
+                    .replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim())
+            return (editions + features + collaboration + artistQualifications).sorted().toList()
+        }
+
+        private fun verifiedAutoIdentity(requestTitle: String, requestArtist: String, actualTitle: String, actualArtist: String): Boolean =
+            TranslationMetadata.titleKey(actualTitle) == TranslationMetadata.titleKey(requestTitle, requestArtist) &&
+                TranslationMetadata.artistKey(actualArtist) == TranslationMetadata.artistKey(requestArtist) &&
+                musicalQualifiers(requestTitle, requestArtist) == musicalQualifiers(actualTitle, actualArtist)
+
         fun candidates(html: ByteArray, url: String, title: String, artist: String): List<TranslationCandidate> {
             val doc = Jsoup.parse(ByteArrayInputStream(html), null, validateUrl(url))
             check(doc.selectFirst("#lyricstranslatesearch-searchsong-form") != null) { "Изменился формат поиска LyricsTranslate" }
@@ -34,7 +82,9 @@ class LyricsTranslateProvider(private val openConnection: (URI) -> HttpURLConnec
                 val link = row.selectFirst("a.title-link") ?: return@mapNotNull null
                 val song = link.text().trim()
                 val performer = row.selectFirst(".block-1-table__author .text")?.text().orEmpty()
-                if (TranslationMetadata.titleKey(song) != TranslationMetadata.titleKey(title, artist) || TranslationMetadata.artistKey(performer) != TranslationMetadata.artistKey(artist)) return@mapNotNull null
+                val sameTitle = TranslationMetadata.titleKey(song) == TranslationMetadata.titleKey(title, artist)
+                val sameArtist = TranslationMetadata.artistKey(performer) == TranslationMetadata.artistKey(artist)
+                if ((!sameTitle && !possibleTitleAlias(title, song)) || (!sameArtist && !possibleArtistAlias(artist, performer))) return@mapNotNull null
                 val target = runCatching { LyricsTranslateParser.canonicalUrl(URI(url).resolve(link.attr("href")).toString()) }.getOrNull() ?: return@mapNotNull null
                 val translator = row.selectFirst("a[href*=/translator/] img")?.attr("alt").orEmpty()
                 TranslationCandidate(target, song, performer, translator)
@@ -75,9 +125,10 @@ class LyricsTranslateProvider(private val openConnection: (URI) -> HttpURLConnec
                 matches = candidates(results.bytes, results.url, title, artist)
             }
             if (matches.size != 1) return@withLock if (matches.isEmpty()) TranslationSearchResult.Missing else TranslationSearchResult.Candidates(matches)
-            val document = load(matches.single().sourceUrl, language)
-            if (TranslationMetadata.artistKey(document.artist) != TranslationMetadata.artistKey(artist) || TranslationMetadata.titleKey(document.title) != TranslationMetadata.titleKey(title, artist))
-                return@withLock TranslationSearchResult.Candidates(matches)
+            val selected = matches.single()
+            if (!verifiedAutoIdentity(title, artist, selected.title, selected.artist)) return@withLock TranslationSearchResult.Candidates(matches)
+            val document = load(selected.sourceUrl, language)
+            if (!verifiedAutoIdentity(title, artist, document.title, document.artist)) return@withLock TranslationSearchResult.Candidates(matches)
             TranslationSearchResult.Found(document)
         } catch (e: Exception) {
             if (e.message.orEmpty().contains("HTTP 403") || e.message.orEmpty().contains("HTTP 429")) blockedUntil = System.currentTimeMillis() + 60_000

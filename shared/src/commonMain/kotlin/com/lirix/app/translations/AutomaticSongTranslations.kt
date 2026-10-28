@@ -11,7 +11,7 @@ data class TranslationCandidate(val sourceUrl: String, val title: String, val ar
 
 sealed interface TranslationSearchResult {
     data class Found(val document: SongTranslation) : TranslationSearchResult
-    data class Candidates(val values: List<TranslationCandidate>) : TranslationSearchResult
+    data class Candidates(val values: List<TranslationCandidate>, val unavailableSources: List<String> = emptyList()) : TranslationSearchResult
     data object Missing : TranslationSearchResult
 }
 
@@ -19,7 +19,7 @@ sealed interface AutomaticTranslationState {
     data object Searching : AutomaticTranslationState
     data object Ready : AutomaticTranslationState
     data object Missing : AutomaticTranslationState
-    data class Candidates(val values: List<TranslationCandidate>) : AutomaticTranslationState
+    data class Candidates(val values: List<TranslationCandidate>, val unavailableSources: List<String> = emptyList()) : AutomaticTranslationState
     data class Failed(val message: String) : AutomaticTranslationState
 }
 
@@ -61,7 +61,8 @@ class AutomaticSongTranslations(
             val ttl = if (mutableStates.value[stateKey] is AutomaticTranslationState.Failed) 60_000L else 15 * 60_000L
             if (!refresh && old?.first == signature && now() - old.second in 0 until ttl && mutableStates.value[stateKey] != null) return@withLock
             publish(stateKey, AutomaticTranslationState.Searching)
-            val state = when (val result = withTimeout(35_000) { withContext(Dispatchers.Default) { searchLanguage?.invoke(title, artist, language, refresh) ?: if (language == "ru") search(title, artist, refresh) else TranslationSearchResult.Missing } }) {
+            val state = when (val result = withTimeoutOrNull(35_000) { withContext(Dispatchers.Default) { searchLanguage?.invoke(title, artist, language, refresh) ?: if (language == "ru") search(title, artist, refresh) else TranslationSearchResult.Missing } }) {
+                null -> AutomaticTranslationState.Failed("Источник не ответил вовремя")
                 is TranslationSearchResult.Found -> {
                     currentCoroutineContext().ensureActive()
                     val document = result.document
@@ -70,13 +71,12 @@ class AutomaticSongTranslations(
                     withContext(Dispatchers.IO) { dao.saveAutomaticIfEmpty(row) }
                     AutomaticTranslationState.Ready
                 }
-                is TranslationSearchResult.Candidates -> AutomaticTranslationState.Candidates(result.values.take(8))
+                is TranslationSearchResult.Candidates -> AutomaticTranslationState.Candidates(
+                    result.values.take(8), result.unavailableSources.filter { it == "LyricsTranslate" || it == "Rustoeng" }.distinct().take(2)
+                )
                 TranslationSearchResult.Missing -> AutomaticTranslationState.Missing
             }
             publish(stateKey, state)
-            completed[stateKey] = signature to now()
-        } catch (_: TimeoutCancellationException) {
-            publish(stateKey, AutomaticTranslationState.Failed("Источник не ответил вовремя"))
             completed[stateKey] = signature to now()
         } catch (e: CancellationException) {
             publish(stateKey, null)
