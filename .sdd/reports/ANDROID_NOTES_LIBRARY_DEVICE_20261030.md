@@ -29,3 +29,8 @@ The two backlog cards remain open until their remaining acceptance criteria are 
 - PASS: After the update, the library opened and the original test track and its empty note were present. A temporary note was saved, reopened, removed and confirmed empty again.
 - INVESTIGATE: When first reopening a temporary note on the new build, its visible text also contained the track's lyrics. The origin was not established. A second temporary probe was started to confirm the saved value, but the device disconnected before it could be checked.
 - ACTION REQUIRED: The temporary note `LirixProbe` may still be saved on track Of the Abyss (Lorna Shore). Restore its originally empty state as soon as the device reconnects; do not mark the notes task complete until this is done and the anomaly is investigated.
+
+## Source inspection after device disconnection
+
+- RISK, not reproduced: `NowPlayingScreen.saveNotes` captures the track key but reads mutable `notesInputText` inside a dispatched coroutine. If the value changes before the write runs, the written note can differ from the value at the save action. Its second write reads and replaces the entire cached lyrics entity, so a concurrent cache update could also be lost.
+- RISK, not reproduced: `MusicFeatureEngine` constructs a whole track from an earlier `existingTrack` and saves it via `insertOrUpdateTrack` (REPLACE). An intervening notes update can be overwritten by the stale notes field. These observations do not establish the cause of the device anomaly; a controlled reproduction and data-preserving fix are still required.
