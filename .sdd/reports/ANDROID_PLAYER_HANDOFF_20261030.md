@@ -9,3 +9,7 @@ Date: 2026-10-30. Scope: player actions, status presentation, metadata and libra
 - NOT RUN: Full orientation/font/theme matrix, TalkBack behavior and complete error-state matrix. The linked Figma page was inaccessible via web and the wireframe was not inspected.
 - LIMITATION: LookupPhase does not represent confirmed chord absence independently from incomplete lookup; the UI deliberately says incomplete. The requested definitive not-found state requires a separate search contract change.
 - LIMITATION: Changes coexist with extensive pre-existing unstaged changes in the same files. Do not commit or reset those changes indiscriminately; isolate the intended delta before committing. No release published.
+
+## Commit preparation
+
+The player changes and their track-info dependencies were isolated from unrelated working-tree changes. `:app:compileDebugKotlin` passed on that isolated source; `:shared:desktopTest --tests com.lirix.app.TrackInfoPresentationTest` passed all 6 tests after making the language explicit and restoring it after each test. The earlier device screenshots were captured from the wider working tree, not from this isolated source; they do not independently validate every detail of the isolated commit.

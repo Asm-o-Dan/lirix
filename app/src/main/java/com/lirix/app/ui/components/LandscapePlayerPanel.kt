@@ -48,7 +48,8 @@ fun LandscapePlayerPanel(
     onConnect: () -> Unit, onPrevious: () -> Unit, onTogglePlaying: () -> Unit,
     onNext: () -> Unit, onShare: () -> Unit,
     overflow: @Composable () -> Unit, seek: @Composable () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onTrackInfo: (() -> Unit)? = null
 ) {
     val colors = LirixThemeTokens.colors
     var showMetadata by remember(title, artist) { mutableStateOf(false) }
@@ -71,7 +72,7 @@ fun LandscapePlayerPanel(
                 overflow()
             }
             Row(Modifier.fillMaxWidth().weight(1f).heightIn(min = 48.dp).testTag("landscape-metadata")
-                .clickable(role = Role.Button, onClickLabel = stringResource(R.string.menu_track_info)) { showMetadata = true },
+                .clickable(role = Role.Button, onClickLabel = stringResource(R.string.menu_track_info)) { if (onTrackInfo != null) onTrackInfo() else showMetadata = true },
                 verticalAlignment = Alignment.CenterVertically) {
                 AlbumArtImage(albumArtUri, size = if (compact) 32.dp else 48.dp,
                     shape = RoundedCornerShape(6.dp), contentDescription = null)

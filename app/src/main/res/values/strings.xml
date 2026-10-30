@@ -137,7 +137,7 @@
     <string name="library_filter_offline">Offline</string>
     <string name="library_segment_tracks">Tracks</string>
     <string name="library_segment_artists">Artists</string>
-    <string name="library_search_placeholder">Search by title, artist or lyrics…</string>
+    <string name="library_search_placeholder">Search tracks or lyrics</string>
     <string name="library_blacklist_button">Blacklist</string>
     <string name="library_empty">Library is empty</string>
     <string name="library_no_results">Nothing found</string>
@@ -406,4 +406,15 @@
     <string name="viewer_load_error">Could not load lyrics: %1$s</string>
     <string name="viewer_title">Lyrics</string>
     <string name="viewer_source">Source: %1$s</string>
+    <string name="library_search_accessibility">Search by title, artist and lyrics</string>
+    <string name="library_clear_search">Clear search</string>
+    <string name="player_studio">Studio</string>
+    <string name="player_open_sync_studio">Open sync studio</string>
+    <string name="player_chords_available">Chords found</string>
+    <string name="player_searching_chords_status">Searching for chords…</string>
+    <string name="player_chords_lookup_incomplete">Chord search incomplete</string>
+    <string name="player_saved_content">Saved content</string>
+    <string name="player_searching_chords_subtitle">Looking for an available chord arrangement.</string>
+    <string name="player_chords_saved_text">Song lyrics are available</string>
+    <string name="player_chords_saved_text_offline">Song lyrics are available; connect to search for chords</string>
 </resources>

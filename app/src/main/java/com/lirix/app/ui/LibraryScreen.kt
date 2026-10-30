@@ -45,6 +45,10 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -79,6 +83,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -257,12 +262,14 @@ fun LibraryScreen(
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val searchDescription = stringResource(R.string.library_search_accessibility)
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = 56.dp),
+                        .heightIn(min = 56.dp)
+                        .semantics { contentDescription = searchDescription },
                     placeholder = {
                         Text(
                             text = stringResource(R.string.library_search_placeholder),
@@ -282,8 +289,8 @@ fun LibraryScreen(
                     },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(36.dp)) {
-                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_clear), tint = lirixColors.textSecondary)
+                            IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(48.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.library_clear_search), tint = lirixColors.textSecondary)
                             }
                         }
                     },
@@ -299,26 +306,33 @@ fun LibraryScreen(
                     )
                 )
 
-                IconButton(onClick = { showRemovedTracks = true }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Default.Restore, contentDescription = stringResource(R.string.library_removed_title), tint = lirixColors.textSecondary)
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = { PlainTooltip { Text(stringResource(R.string.library_removed_title)) } },
+                    state = rememberTooltipState()
+                ) {
+                    IconButton(onClick = { showRemovedTracks = true }, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Default.Restore, contentDescription = stringResource(R.string.library_removed_title), tint = lirixColors.textSecondary)
+                    }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-
-                IconButton(
-                    onClick = onOpenBlacklistSettings,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
-                        .background(lirixColors.surfacePrimary)
-                        .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = { PlainTooltip { Text(stringResource(R.string.library_blacklist_button)) } },
+                    state = rememberTooltipState()
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Block,
-                        contentDescription = stringResource(R.string.library_blacklist_button),
-                        tint = lirixColors.textSecondary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    IconButton(
+                        onClick = onOpenBlacklistSettings,
+                        modifier = Modifier.size(48.dp)
+                            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
+                            .background(lirixColors.surfacePrimary)
+                            .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
+                    ) {
+                        Icon(Icons.Default.Block, contentDescription = stringResource(R.string.library_blacklist_button),
+                            tint = lirixColors.textSecondary, modifier = Modifier.size(20.dp))
+                    }
                 }
+
             }
 
             Spacer(modifier = Modifier.height(10.dp))

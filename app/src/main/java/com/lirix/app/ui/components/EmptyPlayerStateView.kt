@@ -65,7 +65,8 @@ fun EmptyPlayerStateView(
     onSearchManual: (() -> Unit)? = null,
     onConnectClick: (() -> Unit)? = null,
     lookupPhase: LookupPhase? = null,
-    onRetry: (() -> Unit)? = null
+    onRetry: (() -> Unit)? = null,
+    searchingChords: Boolean = false
 ) {
     val tokens = LirixThemeTokens.colors
 
@@ -163,7 +164,7 @@ fun EmptyPlayerStateView(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = stringResource(R.string.player_searching_lyrics),
+                        text = stringResource(if (searchingChords) R.string.player_searching_chords_status else R.string.player_searching_lyrics),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -185,7 +186,7 @@ fun EmptyPlayerStateView(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = stringResource(R.string.player_searching_lyrics_subtitle),
+                        text = stringResource(if (searchingChords) R.string.player_searching_chords_subtitle else R.string.player_searching_lyrics_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
                         color = tokens.textSecondary,
                         textAlign = TextAlign.Center
@@ -215,7 +216,7 @@ fun EmptyPlayerStateView(
                         text = stringResource(when (lookupPhase) {
                             LookupPhase.WaitingForNetwork -> R.string.lookup_waiting_network
                             null -> R.string.player_lyrics_not_found
-                            else -> R.string.lookup_incomplete
+                            else -> if (searchingChords) R.string.player_chords_lookup_incomplete else R.string.lookup_incomplete
                         }),
                         modifier = Modifier.testTag("lookup-status"),
                         style = MaterialTheme.typography.titleMedium.copy(
@@ -312,13 +313,13 @@ fun EmptyPlayerStateView(
 
 /** One bounded status/action for an unresolved target, including cached-lyrics chord recovery. */
 @Composable
-fun LookupRetryStatus(phase: LookupPhase, onRetry: (() -> Unit)?, modifier: Modifier = Modifier) {
+fun LookupRetryStatus(phase: LookupPhase, onRetry: (() -> Unit)?, modifier: Modifier = Modifier, searchingChords: Boolean = false) {
     val tokens = LirixThemeTokens.colors
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(stringResource(when (phase) {
-            LookupPhase.WaitingForNetwork -> R.string.lookup_waiting_network
-            LookupPhase.Loading -> R.string.player_searching_lyrics
-            else -> R.string.lookup_incomplete
+            LookupPhase.WaitingForNetwork -> if (searchingChords) R.string.player_chords_saved_text_offline else R.string.lookup_waiting_network
+            LookupPhase.Loading -> if (searchingChords) R.string.player_searching_chords_status else R.string.player_searching_lyrics
+            else -> if (searchingChords) R.string.player_chords_saved_text else R.string.lookup_incomplete
         }), color = tokens.textSecondary, style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center, modifier = Modifier.testTag("lookup-status"))
         if (onRetry != null) TextButton(onClick = onRetry, enabled = phase != LookupPhase.Loading,

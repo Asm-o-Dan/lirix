@@ -137,7 +137,7 @@
     <string name="library_filter_offline">Офлайн</string>
     <string name="library_segment_tracks">Треки</string>
     <string name="library_segment_artists">Артисты</string>
-    <string name="library_search_placeholder">Поиск по названию, артисту или словам…</string>
+    <string name="library_search_placeholder">Поиск трека или текста</string>
     <string name="library_blacklist_button">Чёрный список</string>
     <string name="library_empty">Медиатека пуста</string>
     <string name="library_no_results">Ничего не найдено</string>
@@ -406,4 +406,15 @@
     <string name="viewer_load_error">Ошибка загрузки: %1$s</string>
     <string name="viewer_title">Текст песни</string>
     <string name="viewer_source">Источник: %1$s</string>
+    <string name="library_search_accessibility">Поиск по названию, исполнителю и словам песни</string>
+    <string name="library_clear_search">Очистить поиск</string>
+    <string name="player_studio">Студия</string>
+    <string name="player_open_sync_studio">Открыть студию синхронизации</string>
+    <string name="player_chords_available">Аккорды найдены</string>
+    <string name="player_searching_chords_status">Ищем аккорды…</string>
+    <string name="player_chords_lookup_incomplete">Поиск аккордов не завершён</string>
+    <string name="player_saved_content">Сохранённый материал</string>
+    <string name="player_searching_chords_subtitle">Ищем доступный разбор аккордов.</string>
+    <string name="player_chords_saved_text">Доступен текст песни</string>
+    <string name="player_chords_saved_text_offline">Доступен текст песни; подключитесь к сети для поиска аккордов</string>
 </resources>

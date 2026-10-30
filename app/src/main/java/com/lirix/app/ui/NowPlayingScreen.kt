@@ -470,6 +470,7 @@ fun NowPlayingScreen(
     }
 
     var showShareDialog by remember { mutableStateOf(false) }
+    var infoTrack by remember { mutableStateOf<TrackEntity?>(null) }
     var tapSyncTarget by remember { mutableStateOf<TapSyncEditingTarget?>(null) }
     val displayedTrackKey by rememberUpdatedState(currentTrack?.trackKey)
     fun openTapSync() {
@@ -498,7 +499,7 @@ fun NowPlayingScreen(
     val isOverlayRunning by FloatingLyricsService.isRunning.collectAsStateWithLifecycle()
     var showOverlayPermissionDialog by remember { mutableStateOf(false) }
     val blockNavigationGesture = selectedMode == NowPlayingMode.NOTES || isNotesFocused || isImeVisible ||
-        isFocusMode || showShareDialog || tapSyncTarget != null || showEditLyricsDialog ||
+        isFocusMode || infoTrack != null || showShareDialog || tapSyncTarget != null || showEditLyricsDialog ||
         showTranslationSettings || showCalibrationDialog || showRomanizationDialog ||
         showConnectBottomSheet || showOverlayPermissionDialog
     SideEffect { onNavigationGestureBlocked(blockNavigationGesture) }
@@ -578,7 +579,7 @@ fun NowPlayingScreen(
     val overflow: @Composable () -> Unit = {
         PlayerContextOverflow(
                 mode = selectedMode, trackKey = currentTrack?.trackKey, landscape = isLandscape,
-                onTrackInfo = null,
+                onTrackInfo = currentTrack?.let { track -> { infoTrack = track } },
                 isOverlayActive = isOverlayRunning,
                 onEditLyrics = { showEditLyricsDialog = true },
                 onSync = { openTapSync() },
@@ -677,6 +678,7 @@ fun NowPlayingScreen(
             ) {
                 com.lirix.app.ui.components.LandscapePlayerPanel(
                     modifier = Modifier.width(280.dp),
+                    onTrackInfo = { infoTrack = currentTrack },
                     title = currentTrack.title, artist = currentTrack.artist, albumArtUri = currentTrack.albumArtUri,
                     sourceLabel = sourceLabel, isPlaying = isPlaying, isRemotePlaying = isRemotePlaying,
                     selectedMode = selectedMode, onSelectMode = { selectedMode = it }, onBack = onBack,
@@ -823,7 +825,7 @@ fun NowPlayingScreen(
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.weight(1f).clickable(role = Role.Button, onClickLabel = context.getString(R.string.menu_track_info)) { infoTrack = currentTrack }) {
                             Text(
                                 text = currentTrack.title,
                                 style = MaterialTheme.typography.titleMedium.copy(
@@ -842,16 +844,37 @@ fun NowPlayingScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            Text(
-                                text = when {
-                                    isLoadingLyrics -> stringResource(R.string.lyrics_status_searching)
-                                    lyricsCache?.trackKey == currentTrack.trackKey && lyricsCache?.provider != "note:user" && !lyricsCache?.syncedLyricsLrc.isNullOrBlank() -> stringResource(R.string.lyrics_status_synced)
-                                    lyricsCache?.trackKey == currentTrack.trackKey && lyricsCache?.provider != "note:user" && !lyricsCache?.plainLyrics.isNullOrBlank() -> stringResource(R.string.lyrics_status_static)
-                                    lookupPhase == LookupPhase.WaitingForNetwork -> stringResource(R.string.lookup_waiting_network)
-                                    else -> stringResource(R.string.lookup_incomplete)
-                                },
+                            val trackCache = lyricsCache?.takeIf { it.trackKey == currentTrack.trackKey }
+                            val statusCache = trackCache?.takeUnless { it.provider == "note:user" }
+                            val statusPlain = statusCache?.plainLyrics?.takeIf { it.isNotBlank() }
+                                ?: automaticLookupAcceptedTrackField(currentTrack.plainLyrics, currentTrack, trackCache)
+                            val statusLrc = statusCache?.syncedLyricsLrc?.takeIf { it.isNotBlank() }
+                                ?: automaticLookupAcceptedTrackField(currentTrack.syncedLyrics, currentTrack, trackCache)
+                            val hasTimedLines = remember(statusLrc) { statusLrc != null && parseLrcLinesStrict(statusLrc).isNotEmpty() }
+                            val hasChords = remember(statusCache?.chordsAmDm, statusPlain) {
+                                !statusCache?.chordsAmDm.isNullOrBlank() || !AmDmChordParser.detectAndFormatInlineChords(statusPlain.orEmpty()).isNullOrBlank()
+                            }
+                            val statusRes = when (selectedMode) {
+                                NowPlayingMode.NOTES -> null
+                                NowPlayingMode.CHORDS -> when {
+                                    hasChords -> R.string.player_chords_available
+                                    lookupPhase == LookupPhase.Loading -> R.string.player_searching_chords_status
+                                    lookupPhase == LookupPhase.WaitingForNetwork -> R.string.lookup_waiting_network
+                                    else -> R.string.player_chords_lookup_incomplete
+                                }
+                                else -> when {
+                                    lookupPhase == LookupPhase.WaitingForNetwork && (!statusPlain.isNullOrBlank() || hasTimedLines) -> R.string.player_saved_content
+                                    selectedMode == NowPlayingMode.KARAOKE && hasTimedLines -> R.string.lyrics_status_synced
+                                    !statusPlain.isNullOrBlank() || hasTimedLines -> R.string.lyrics_status_static
+                                    lookupPhase == LookupPhase.Loading -> R.string.lyrics_status_searching
+                                    lookupPhase == LookupPhase.WaitingForNetwork -> R.string.lookup_waiting_network
+                                    else -> R.string.lookup_incomplete
+                                }
+                            }
+                            if (statusRes != null) Text(
+                                text = stringResource(statusRes),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-                                color = if (isLoadingLyrics) lirixColors.textSecondary else lirixColors.accentPrimary
+                                color = lirixColors.textSecondary
                             )
                         }
 
@@ -1076,6 +1099,11 @@ fun NowPlayingScreen(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 70.dp)
         )
+
+        infoTrack?.let { track ->
+            com.lirix.app.ui.components.TrackInfoDialog(track, db.lyricsDao(), db.songTranslationDao(),
+                language = translationLanguage, onDismiss = { infoTrack = null })
+        }
 
         if (showOverlayPermissionDialog) {
             OverlayPermissionDialog(
@@ -1432,17 +1460,17 @@ internal fun RenderTeleprompterContent(
                         ?: effectiveSynced?.let { LrcSyncEngine.parseLrcLinesStrict(it).joinToString("\n") { line -> line.text } }
                     Column(Modifier.fillMaxSize()) {
                         if (!retainedWords.isNullOrBlank()) {
-                            com.lirix.app.ui.components.LookupRetryStatus(lookupPhase, onRetryLookup)
+                            com.lirix.app.ui.components.LookupRetryStatus(lookupPhase, onRetryLookup, searchingChords = true)
                             PlainLyricsReadingView(
                                 lyricsText = retainedWords, onStartTapSync = onStartTapSync,
-                                onEditLyrics = onEditLyrics, fontScale = fontScale,
+                                onEditLyrics = onEditLyrics, showUnsyncedBadge = false, fontScale = fontScale,
                                 modifier = Modifier.weight(1f))
                         } else {
                             EmptyPlayerStateView(
                                 stateType = if (lookupPhase == LookupPhase.Loading) PlayerEmptyStateType.SEARCHING_LYRICS else PlayerEmptyStateType.LYRICS_NOT_FOUND,
                                 trackTitle = currentTrack.title, trackArtist = currentTrack.artist,
                                 lookupPhase = lookupPhase, onRetry = onRetryLookup, onSearchManual = onOpenTeachMode,
-                                modifier = Modifier.weight(1f))
+                                searchingChords = true, modifier = Modifier.weight(1f))
                         }
                     }
                 }
@@ -1602,11 +1630,13 @@ fun HighFidelityKaraokePlayer(
 /**
  * Plain lyrics reader with Literata font and sentence case formatting.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PlainLyricsReadingView(
     lyricsText: String,
     onStartTapSync: (() -> Unit)? = null,
     onEditLyrics: (() -> Unit)? = null,
+    showUnsyncedBadge: Boolean = true,
     fontScale: Float = 1.0f,
     romanizationMode: RomanizationDisplayMode = RomanizationDisplayMode.ORIGINAL_ONLY,
     readingResults: Map<String, ReadingResult> = emptyMap(),
@@ -1623,11 +1653,7 @@ fun PlainLyricsReadingView(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        if (showUnsyncedBadge) {
             Surface(
                 color = tokens.surfaceElevated,
                 shape = RoundedCornerShape(tokens.pillCornerRadius),
@@ -1635,61 +1661,38 @@ fun PlainLyricsReadingView(
             ) {
                 Text(
                     text = stringResource(R.string.lyrics_unsynced_badge),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 11.sp
-                    ),
+                    style = MaterialTheme.typography.labelSmall,
                     color = tokens.textSecondary,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 )
             }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (onEditLyrics != null) {
-                    IconButton(
-                        onClick = onEditLyrics,
-                        modifier = Modifier.size(34.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = stringResource(R.string.action_edit_lyrics),
-                            tint = tokens.accentPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
+        }
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (onEditLyrics != null) {
+                IconButton(onClick = onEditLyrics, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Default.Edit, stringResource(R.string.action_edit_lyrics), tint = tokens.accentPrimary)
                 }
-
-                if (onStartTapSync != null) {
-                    Button(
-                        onClick = onStartTapSync,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = tokens.surfaceElevated,
-                            contentColor = tokens.accentPrimary
-                        ),
-                        shape = RoundedCornerShape(tokens.pillCornerRadius),
-                        modifier = Modifier.height(34.dp)
-                    ) {
-                        Text(stringResource(R.string.action_sync), fontSize = 11.sp)
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
-                }
-
-                IconButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        clipboard.setText(AnnotatedString(lyricsText))
-                        isCopied = true
-                    },
-                    modifier = Modifier.size(34.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy,
-                        contentDescription = stringResource(R.string.action_copy),
-                        tint = if (isCopied) tokens.accentPrimary else tokens.textSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+            }
+            if (onStartTapSync != null) {
+                val studioDescription = stringResource(R.string.player_open_sync_studio)
+                Button(
+                    onClick = onStartTapSync,
+                    colors = ButtonDefaults.buttonColors(containerColor = tokens.surfaceElevated, contentColor = tokens.accentPrimary),
+                    shape = RoundedCornerShape(tokens.pillCornerRadius),
+                    modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = studioDescription }
+                ) { Text(stringResource(R.string.player_studio)) }
+            }
+            IconButton(onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                clipboard.setText(AnnotatedString(lyricsText))
+                isCopied = true
+            }, modifier = Modifier.size(48.dp)) {
+                Icon(if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy,
+                    stringResource(R.string.action_copy), tint = if (isCopied) tokens.accentPrimary else tokens.textSecondary)
             }
         }
 
