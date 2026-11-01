@@ -55,8 +55,17 @@ class MusicFeatureEngine(
     fun startBlacklistRuleSync(scope: CoroutineScope, dao: BlacklistDao? = blacklistDao): Job? {
         val targetDao = dao ?: blacklistDao ?: return null
         return scope.launch {
-            targetDao.getAllRulesFlow().collect { allRules ->
-                activeBlacklistRules.value = allRules.filter { it.isEnabled }
+            try {
+                targetDao.getAllRulesFlow().collect { allRules ->
+                    activeBlacklistRules.value = allRules.filter { it.isEnabled }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The database can close under a long-lived collector scope. Do not crash that scope:
+                // drop the cache so getEffectiveActiveRules() reads the rules from the DAO directly.
+                activeBlacklistRules.value = emptyList()
+                Timber.tag(TAG).w(e, "Blacklist rule sync stopped")
             }
         }
     }

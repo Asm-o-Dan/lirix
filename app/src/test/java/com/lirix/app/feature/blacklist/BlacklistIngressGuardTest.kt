@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.lirix.app.feature.MusicFeatureEngine
 import com.lirix.app.storage.AppDatabase
+import com.lirix.app.storage.blacklist.BlacklistDao
 import com.lirix.app.storage.blacklist.BlacklistMatchMode
 import com.lirix.app.storage.blacklist.BlacklistRuleEntity
 import com.lirix.app.storage.blacklist.BlacklistRuleType
@@ -86,6 +87,41 @@ class BlacklistIngressGuardTest {
 
         // Wait for the rule collector (and its in-flight Room query) before closing the database.
         ruleSync?.cancelAndJoin()
+        db.close()
+    }
+
+    @Test
+    fun failing_rule_flow_does_not_escape_and_rules_are_read_from_dao() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        val rule = BlacklistRuleEntity(
+            id = "rule_ads",
+            ruleType = BlacklistRuleType.TITLE,
+            pattern = "Ad Jingle",
+            matchMode = BlacklistMatchMode.CONTAINS_IGNORE_CASE,
+            isEnabled = true
+        )
+        // Simulates a database closed under the long-lived collector scope.
+        val failingDao = object : BlacklistDao by db.blacklistDao() {
+            override fun getAllRulesFlow() = kotlinx.coroutines.flow.flow<List<BlacklistRuleEntity>> {
+                throw IllegalStateException("database closed")
+            }
+            override suspend fun getActiveRules() = listOf(rule)
+        }
+        val engine = MusicFeatureEngine(musicDao = db.musicDao(), lyricsDao = db.lyricsDao(), blacklistDao = failingDao)
+
+        val testScope = TestScope(UnconfinedTestDispatcher(testScheduler))
+        val ruleSync = engine.startBlacklistRuleSync(testScope)
+        testScheduler.advanceUntilIdle()
+
+        assertNotNull(ruleSync)
+        assertTrue("Sync must finish without failing its scope", ruleSync!!.isCompleted && !ruleSync.isCancelled)
+        // The blacklist still applies through the direct DAO read.
+        assertNull(engine.recordPlaybackSignal(title = "Special Ad Jingle", artist = "Sponsor", album = "", sourcePackage = "com.pkg"))
+        assertEquals(0, db.musicDao().getAllTracks().size)
+
         db.close()
     }
 
