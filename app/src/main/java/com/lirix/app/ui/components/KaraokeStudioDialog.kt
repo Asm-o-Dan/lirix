@@ -30,6 +30,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -256,6 +259,14 @@ fun KaraokeStudioDialog(
 
     val validation = KaraokeStudioEngine.validationError(state)
     Dialog(onDismissRequest = { close() }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        // DialogProperties alone leaves the window offset below the status bar at full screen height,
+        // which pushed the pinned "Apply" button under the gesture bar. Make the window edge-to-edge
+        // so safeDrawingPadding() sees the real system bar insets.
+        val dialogView = LocalView.current
+        DisposableEffect(dialogView) {
+            (dialogView.parent as? DialogWindowProvider)?.window?.let { WindowCompat.setDecorFitsSystemWindows(it, false) }
+            onDispose {}
+        }
         Surface(modifier = Modifier.fillMaxSize().safeDrawingPadding().imePadding(), color = colors.appBackground) {
             Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
