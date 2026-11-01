@@ -15,7 +15,6 @@ class UiMessageCatalogTest {
         }
     }
     @Test fun changingInterfaceLanguageChangesExistingCatalogAndFormattedMessages() {
-        val previous = LirixStrings.currentLanguage
         try {
             LirixStrings.currentLanguage = InterfaceLanguage.EN
             assertEquals("About track", LirixStrings.current.aboutTrack)
@@ -23,7 +22,7 @@ class UiMessageCatalogTest {
             LirixStrings.currentLanguage = InterfaceLanguage.RU
             assertEquals("О треке", LirixStrings.current.aboutTrack)
             assertEquals("Треков: 12", LirixStrings.message("Треков: {0}", 12))
-        } finally { LirixStrings.currentLanguage = previous }
+        } finally { LirixStrings.currentLanguage = InterfaceLanguage.EN }
     }
     @Test fun argumentValuesAreNotReinterpretedAsFormattingOrTranslations() {
         assertEquals("Lyrics — {1} 日本語", UiMessageCatalog.text("Текст — {0}", InterfaceLanguage.EN, "{1} 日本語"))

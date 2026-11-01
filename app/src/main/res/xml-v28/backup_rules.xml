@@ -6,6 +6,7 @@
     <include domain="database" path="event_engine.db-shm" requireFlags="clientSideEncryption" />
     <include domain="database" path="event_engine.db-journal" requireFlags="clientSideEncryption" />
     <include domain="sharedpref" path="lirix_preferences.xml" requireFlags="clientSideEncryption" />
+    <include domain="sharedpref" path="lirix_library_exclusions.xml" requireFlags="clientSideEncryption" />
     <include domain="sharedpref" path="lirix_translations.xml" requireFlags="clientSideEncryption" />
     <include domain="sharedpref" path="lirix_ui_prompter_prefs.xml" requireFlags="clientSideEncryption" />
     <include domain="sharedpref" path="lirix_sync_prefs.xml" requireFlags="clientSideEncryption" />

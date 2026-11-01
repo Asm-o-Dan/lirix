@@ -71,13 +71,13 @@ class LibraryExclusions internal constructor(private val preferences: SharedPref
     }
 
     companion object {
-        private const val FILE = "lirix_library_exclusions"
+        private const val PREFS_NAME = "lirix_library_exclusions"
         private const val KEY = "removed_track_keys_v1"
         @Volatile private var instance: LibraryExclusions? = null
 
         fun get(context: Context): LibraryExclusions = instance ?: synchronized(this) {
             instance ?: LibraryExclusions(
-                context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+                context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             ).also { instance = it }
         }
     }

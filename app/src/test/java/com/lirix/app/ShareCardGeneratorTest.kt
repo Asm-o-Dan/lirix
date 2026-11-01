@@ -247,21 +247,20 @@ class ShareCardGeneratorTest {
             context, track, "I'm tryna put you in the worst mood, ah", ShareCardFormat.STORIES_9_16, obsessionBitmap
         )
 
-        val outDirs = listOf(
-            File("C:/Users/DaniilTuT/.gemini/antigravity/brain/32389d24-0cd3-4c9a-aab7-af3d631a6961"),
-            File("C:/Users/DaniilTuT/.gemini/antigravity/brain/3b10c272-21fc-40f8-bf03-67db8f3f2c49")
+        val cases = listOf(
+            wrappedStories to ShareCardFormat.STORIES_9_16,
+            wrappedSquare to ShareCardFormat.SQUARE_1_1,
+            nowPlayingStories to ShareCardFormat.STORIES_9_16
         )
-        for (outDir in outDirs) {
-            outDir.mkdirs()
-            File(outDir, "wrapped_stories_preview.png").outputStream().use {
-                wrappedStories.compress(Bitmap.CompressFormat.PNG, 100, it)
+        cases.forEach { (bitmap, format) ->
+            val bytes = java.io.ByteArrayOutputStream().use { output ->
+                assertTrue("PNG encoding must succeed", bitmap.compress(Bitmap.CompressFormat.PNG, 100, output))
+                output.toByteArray()
             }
-            File(outDir, "wrapped_square_preview.png").outputStream().use {
-                wrappedSquare.compress(Bitmap.CompressFormat.PNG, 100, it)
-            }
-            File(outDir, "now_playing_stories_preview.png").outputStream().use {
-                nowPlayingStories.compress(Bitmap.CompressFormat.PNG, 100, it)
-            }
+            val decoded = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            assertNotNull("PNG output must be decodable", decoded)
+            assertEquals(format.width, decoded!!.width)
+            assertEquals(format.height, decoded.height)
         }
     }
 
