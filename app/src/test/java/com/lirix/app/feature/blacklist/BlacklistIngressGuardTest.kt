@@ -10,7 +10,7 @@ import com.lirix.app.storage.blacklist.BlacklistMatchMode
 import com.lirix.app.storage.blacklist.BlacklistRuleEntity
 import com.lirix.app.storage.blacklist.BlacklistRuleType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -49,7 +49,7 @@ class BlacklistIngressGuardTest {
 
         // Start sync
         val testScope = TestScope(UnconfinedTestDispatcher(testScheduler))
-        engine.startBlacklistRuleSync(testScope)
+        val ruleSync = engine.startBlacklistRuleSync(testScope)
 
         // Attempt to record blacklisted track
         val result = engine.recordPlaybackSignal(
@@ -84,8 +84,8 @@ class BlacklistIngressGuardTest {
         assertEquals(1, db.musicDao().getAllTracks().size)
         assertEquals(1, db.musicDao().getAllSessions().size)
 
-        // Stop the rule collector before closing Room so it cannot fail inside a later test.
-        testScope.cancel()
+        // Wait for the rule collector (and its in-flight Room query) before closing the database.
+        ruleSync?.cancelAndJoin()
         db.close()
     }
 
@@ -112,7 +112,7 @@ class BlacklistIngressGuardTest {
         db.blacklistDao().insertRule(rule)
 
         val testScope = TestScope(UnconfinedTestDispatcher(testScheduler))
-        engine.startBlacklistRuleSync(testScope)
+        val ruleSync = engine.startBlacklistRuleSync(testScope)
 
         val track = engine.recordPlaybackSignal(
             title = "Song",
@@ -124,8 +124,8 @@ class BlacklistIngressGuardTest {
         assertNotNull("Disabled rule should not block track", track)
         assertEquals(1, db.musicDao().getAllTracks().size)
 
-        // Stop the rule collector before closing Room so it cannot fail inside a later test.
-        testScope.cancel()
+        // Wait for the rule collector (and its in-flight Room query) before closing the database.
+        ruleSync?.cancelAndJoin()
         db.close()
     }
 }

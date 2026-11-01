@@ -17,6 +17,7 @@ import com.lirix.app.storage.TrackEntity
 import com.lirix.app.storage.blacklist.BlacklistDao
 import com.lirix.app.storage.blacklist.BlacklistRuleEntity
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,9 +52,9 @@ class MusicFeatureEngine(
     private val _livePlaybackFlow = MutableStateFlow<LivePlaybackSnapshot?>(null)
     val livePlaybackFlow: StateFlow<LivePlaybackSnapshot?> = _livePlaybackFlow.asStateFlow()
 
-    fun startBlacklistRuleSync(scope: CoroutineScope, dao: BlacklistDao? = blacklistDao) {
-        val targetDao = dao ?: blacklistDao ?: return
-        scope.launch {
+    fun startBlacklistRuleSync(scope: CoroutineScope, dao: BlacklistDao? = blacklistDao): Job? {
+        val targetDao = dao ?: blacklistDao ?: return null
+        return scope.launch {
             targetDao.getAllRulesFlow().collect { allRules ->
                 activeBlacklistRules.value = allRules.filter { it.isEnabled }
             }

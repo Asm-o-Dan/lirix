@@ -81,6 +81,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    // KMP does not put commonTest resources on the Android unit-test classpath.
+    sourceSets["test"].resources.srcDir("src/commonTest/resources")
 }
 
 room {
