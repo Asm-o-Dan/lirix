@@ -59,6 +59,7 @@ class DesktopAudioMeterService(
     val audioLevels: StateFlow<AudioLevels> = _audioLevels.asStateFlow()
 
     private var collectJob: Job? = null
+    @Volatile private var enabled = false
 
     init {
         start()
@@ -74,14 +75,22 @@ class DesktopAudioMeterService(
     }
 
     fun stop() {
+        setEnabled(false)
         collectJob?.cancel()
         collectJob = null
         _audioLevels.value = AudioLevels.SILENCE
     }
 
+    fun setEnabled(enabled: Boolean) {
+        this.enabled = enabled
+        bridgeProcessManager.setMeterEnabled(enabled)
+        if (!enabled) _audioLevels.value = AudioLevels.SILENCE
+    }
+
     private fun handleInboundMessage(message: BridgeInboundMessage) {
         when (message.type.lowercase()) {
             "meter" -> {
+                if (!enabled) return // Ignore a final in-flight native sample after hiding the UI.
                 val leftDbfs = message.leftDbfs ?: -60.0f
                 val rightDbfs = message.rightDbfs ?: -60.0f
                 val leftPeak = message.leftPeak ?: 0.0f

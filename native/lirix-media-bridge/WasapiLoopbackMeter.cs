@@ -22,6 +22,7 @@ public sealed class WasapiLoopbackMeter : IDisposable
     private readonly Action<MeterMessage> _onMeterUpdated;
     private readonly Thread _workerThread;
     private readonly CancellationTokenSource _cts = new();
+    private readonly ManualResetEventSlim _enabled = new(false);
     private bool _disposed;
 
     public WasapiLoopbackMeter(Action<MeterMessage> onMeterUpdated)
@@ -39,6 +40,13 @@ public sealed class WasapiLoopbackMeter : IDisposable
     {
         if (_disposed) throw new ObjectDisposedException(nameof(WasapiLoopbackMeter));
         _workerThread.Start();
+    }
+
+    public void SetEnabled(bool enabled)
+    {
+        if (_disposed) return;
+        if (enabled) _enabled.Set();
+        else _enabled.Reset();
     }
 
     private void WorkerLoop()
@@ -59,6 +67,8 @@ public sealed class WasapiLoopbackMeter : IDisposable
         {
             while (!_cts.IsCancellationRequested)
             {
+                // No audio endpoint queries or periodic wakeups without a visible consumer.
+                _enabled.Wait(_cts.Token);
                 // Ensure COM meter interface is acquired
                 if (pMeter == IntPtr.Zero)
                 {
@@ -122,6 +132,7 @@ public sealed class WasapiLoopbackMeter : IDisposable
                 }
 
                 int readHr = CallGetChannelsPeakValues(pMeter, channelCount, channelBuffer);
+                if (!_enabled.IsSet) continue;
                 if (readHr < 0)
                 {
                     // Device disconnected / invalidated (e.g. unplugged headphones, sleep)
@@ -206,6 +217,7 @@ public sealed class WasapiLoopbackMeter : IDisposable
                 Thread.Sleep(isActive ? 30 : 50);
             }
         }
+        catch (OperationCanceledException) { }
         catch (ThreadAbortException) { }
         catch (Exception ex)
         {
@@ -314,9 +326,10 @@ public sealed class WasapiLoopbackMeter : IDisposable
         _cts.Cancel();
         if (_workerThread.IsAlive)
         {
-            _workerThread.Join(500);
+            _workerThread.Join();
         }
         _cts.Dispose();
+        _enabled.Dispose();
     }
 
     [DllImport("ole32.dll", ExactSpelling = true)]

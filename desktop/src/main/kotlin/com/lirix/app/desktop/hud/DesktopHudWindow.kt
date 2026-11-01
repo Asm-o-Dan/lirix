@@ -25,8 +25,6 @@ import com.lirix.app.ingestion.LivePlaybackSnapshot
 import com.lirix.app.ui.player.LrcLine
 import com.lirix.app.ui.theme.LirixThemeTokens
 import com.lirix.app.ui.theme.LocalLirixTypography
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import java.awt.GraphicsEnvironment
 
 /** Move/resize mode is reachable from the main window and Ctrl+Alt+L, even while click-through. */
@@ -78,9 +76,8 @@ fun DesktopHudWindow(
         }
         var positionMs by remember { mutableLongStateOf(0) }
         LaunchedEffect(playback, syncOffsetMs) {
-            while (isActive) {
-                positionMs = (playback?.currentPositionMs() ?: 0) - syncOffsetMs
-                delay(50)
+            com.lirix.app.desktop.ui.components.desktopPlaybackPositions(playback).collect {
+                positionMs = it - syncOffsetMs
             }
         }
         val active = lyricsLines.indexOfLast { it.timestampMs <= positionMs }

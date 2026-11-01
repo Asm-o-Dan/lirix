@@ -31,6 +31,7 @@ import com.lirix.app.desktop.system.DesktopAction
 import com.lirix.app.platform.JvmPreferencesThemeStore
 import com.lirix.app.storage.createDesktopDatabase
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.material3.*
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.input.key.*
@@ -75,6 +76,13 @@ fun main() = application {
     val lyricsState by lyricsService.lyricsState.collectAsState()
     val syncOffsetMs by com.lirix.app.desktop.ui.components.DesktopSyncOffsetStore.offsetMs.collectAsState()
     val latestPlayback by rememberUpdatedState(playback)
+    fun exitWithProgress() {
+        coroutineScope.launch {
+            repository.record(latestPlayback)
+            repository.flush()
+            exitApplication()
+        }
+    }
     val translationKey = playback?.let(repository::keyFor)
     val translationLanguage by automaticTranslations.language.collectAsState()
     LaunchedEffect(translationLanguage, translationKey, playback?.title, playback?.artist) {
@@ -103,17 +111,26 @@ fun main() = application {
     }
     val hotkeyFailures by hotkeysManager.registrationFailures.collectAsState()
     LaunchedEffect(Unit) {
-        while (isActive) {
-            try { repository.record(ingressProvider.currentPlayback.value) }
-            catch (e: CancellationException) { throw e }
-            catch (e: Exception) { com.lirix.app.platform.logError("DesktopLibrary", com.lirix.app.ui.i18n.LirixStrings.message("Не удалось записать прослушивание"), e) }
-            delay(1000)
+        ingressProvider.currentPlayback.collectLatest { snapshot ->
+            do {
+                // Repository finishes each ledger/Room update before the next signal is processed.
+                try { repository.record(snapshot) }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { com.lirix.app.platform.logError("DesktopLibrary", com.lirix.app.ui.i18n.LirixStrings.message("Не удалось записать прослушивание"), e) }
+                if (snapshot?.isPlaying != true) break
+                delay(1000)
+            } while (isActive)
         }
+    }
+
+    LaunchedEffect(isMainWindowVisible, windowState.isMinimized, isCompactMode) {
+        // The studio and persistent player consume levels; compact player and HUD do not.
+        audioMeterService.setEnabled(isMainWindowVisible && !windowState.isMinimized && !isCompactMode)
     }
 
     // Trigger reactive lyrics and chords fetching whenever active track changes
     LaunchedEffect(playback?.title, playback?.artist, playback?.album) {
-        lyricsService.onTrackChanged(playback?.title, playback?.artist, playback?.album)
+        lyricsService.onTrackChanged(playback?.title, playback?.artist, playback?.album, durationMs = playback?.durationMs)
     }
 
     // Initialize Background Services (Discord RPC, Global Hotkeys and Connect Server)
@@ -124,6 +141,7 @@ fun main() = application {
         hotkeysManager.start()
 
         onDispose {
+            runBlocking(Dispatchers.IO) { repository.flush() }
             connectServer.stop()
             hotkeysManager.stop()
             discordRpc.stop()
@@ -143,7 +161,7 @@ fun main() = application {
         onToggleHud = { isHudVisible = !isHudVisible },
         onTogglePlayPause = { ingressProvider.playPause() },
         onSkipNext = { ingressProvider.skipNext() },
-        onExit = { if (drafts.hasUnsavedChanges) { confirmExit = true; isMainWindowVisible = true; isCompactMode = false } else exitApplication() },
+        onExit = { if (drafts.hasUnsavedChanges) { confirmExit = true; isMainWindowVisible = true; isCompactMode = false } else exitWithProgress() },
         isPlaying = playback?.isPlaying == true,
         trackTitle = playback?.title
     )
@@ -206,7 +224,7 @@ fun main() = application {
             if (confirmExit) com.lirix.app.desktop.ui.DesktopFeatureDialog(com.lirix.app.ui.i18n.LirixStrings.message("Несохранённые изменения"), { confirmExit = false }) {
                 Text(com.lirix.app.ui.i18n.LirixStrings.message("Остались несохранённые правки текста, разметки или заметок. Вернитесь в редактор или медиатеку, чтобы сохранить их."))
                 TextButton(onClick = { confirmExit = false }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Вернуться к работе")) }
-                TextButton(onClick = ::exitApplication) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Выйти без сохранения")) }
+                TextButton(onClick = ::exitWithProgress) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Выйти без сохранения")) }
             }
             DesktopHudWindow(
                 visible = isHudVisible,

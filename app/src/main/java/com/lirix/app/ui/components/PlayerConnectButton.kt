@@ -12,14 +12,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.lirix.app.R
 import com.lirix.app.ui.theme.LirixThemeTokens
 
 @Composable
 fun PlayerConnectButton(connected: Boolean, onClick: () -> Unit) {
     val colors = LirixThemeTokens.colors
     IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
-        Icon(Icons.Default.DevicesOther, "Подключить устройство (ПК)",
+        Icon(Icons.Default.DevicesOther, stringResource(R.string.player_connect_device),
             tint = if (connected) colors.accentPrimary else colors.textSecondary)
     }
 }
@@ -38,22 +40,22 @@ fun PlayerTransportRow(
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { PlayerConnectButton(connected, onConnect) }
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             IconButton(onPrevious, enabled = canPrevious, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Default.SkipPrevious, "Предыдущий", tint = if (canPrevious) colors.textPrimary else colors.textMuted, modifier = Modifier.size(30.dp))
+                Icon(Icons.Default.SkipPrevious, stringResource(R.string.action_previous), tint = if (canPrevious) colors.textPrimary else colors.textMuted, modifier = Modifier.size(30.dp))
             }
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             FilledIconButton(onTogglePlayback, modifier = Modifier.size(56.dp), shape = CircleShape,
                 colors = IconButtonDefaults.filledIconButtonColors(containerColor = colors.accentPrimary, contentColor = colors.appBackground)) {
-                Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, if (isPlaying) "Пауза" else "Играть", modifier = Modifier.size(32.dp))
+                Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, stringResource(if (isPlaying) R.string.action_pause else R.string.action_play), modifier = Modifier.size(32.dp))
             }
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             IconButton(onNext, enabled = canNext, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Default.SkipNext, "Следующий", tint = if (canNext) colors.textPrimary else colors.textMuted, modifier = Modifier.size(30.dp))
+                Icon(Icons.Default.SkipNext, stringResource(R.string.action_next), tint = if (canNext) colors.textPrimary else colors.textMuted, modifier = Modifier.size(30.dp))
             }
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            IconButton(onShare, modifier = Modifier.size(48.dp)) { Icon(Icons.Default.Share, "Поделиться карточкой", tint = colors.textSecondary) }
+            IconButton(onShare, modifier = Modifier.size(48.dp)) { Icon(Icons.Default.Share, stringResource(R.string.action_share_card), tint = colors.textSecondary) }
         }
     }
 }

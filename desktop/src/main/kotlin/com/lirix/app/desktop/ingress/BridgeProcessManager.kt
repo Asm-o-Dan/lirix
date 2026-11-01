@@ -37,6 +37,12 @@ class BridgeProcessManager(
 
     private var supervisorJob: Job? = null
     private val writeLock = Any()
+    private var meterEnabled = false
+
+    fun setMeterEnabled(enabled: Boolean) = synchronized(writeLock) {
+        meterEnabled = enabled
+        sendCommand(if (enabled) "enableMeter" else "disableMeter")
+    }
 
     init {
         Runtime.getRuntime().addShutdownHook(Thread {
@@ -74,7 +80,11 @@ class BridgeProcessManager(
                 pb.redirectErrorStream(false)
                 val proc = withContext(Dispatchers.IO) { pb.start() }
                 process = proc
-                writer = BufferedWriter(OutputStreamWriter(proc.outputStream, StandardCharsets.UTF_8))
+                synchronized(writeLock) {
+                    writer = BufferedWriter(OutputStreamWriter(proc.outputStream, StandardCharsets.UTF_8))
+                    // Restore demand after watchdog restart, including demand set before startup.
+                    sendCommand(if (meterEnabled) "enableMeter" else "disableMeter")
+                }
                 backoffMs = 500L
 
                 val stderrJob = scope.launch(Dispatchers.IO) {

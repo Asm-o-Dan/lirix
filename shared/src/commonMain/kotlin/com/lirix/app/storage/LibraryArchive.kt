@@ -17,7 +17,7 @@ data class LibrarySnapshot(
     val rejections: List<LyricsRejectionEntity> = emptyList()
 )
 @Serializable
-data class LibraryArchive(val version: Int = 1, val origin: String, val exportedAt: Long,
+data class LibraryArchive(val version: Int = 2, val origin: String, val exportedAt: Long,
                           val data: LibrarySnapshot, val checksum: String)
 data class LibraryMergePlan(val data: LibrarySnapshot, val newTracks: Int, val newSessions: Int,
                             val lyricConflicts: Int, val updatedTracks: Int)
@@ -34,7 +34,7 @@ object LibraryArchives {
     fun decode(text: String): LibraryArchive {
         require(text.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "Архив больше 64 МБ" }
         val archive = json.decodeFromString<LibraryArchive>(text)
-        require(archive.version == 1) { "Неподдерживаемая версия архива" }
+        require(archive.version in 1..2) { "Неподдерживаемая версия архива" }
         validate(archive.data)
         require(archive.checksum.equals(checksum(archive.data), true)) { "Контрольная сумма архива не совпадает" }
         return archive
@@ -58,7 +58,17 @@ object LibraryArchives {
             val id = identity(session)
             val old = sessions[id]
             if (old == null) { sessions[id] = session.copy(id = 0, isCompleted = true); newSessions++ }
-            else sessions[id] = old.copy(endTimeMs = maxOf(old.endTimeMs, session.endTimeMs), durationMs = maxOf(old.durationMs, session.durationMs), isCompleted = old.isCompleted || session.isCompleted)
+            else {
+                val confirmed = listOf(old, session).filter { it.listeningIntervalsJson.isNotBlank() }
+                if (confirmed.isEmpty()) {
+                    sessions[id] = old.copy(endTimeMs = maxOf(old.endTimeMs, session.endTimeMs), durationMs = maxOf(old.durationMs, session.durationMs), isCompleted = old.isCompleted || session.isCompleted)
+                } else {
+                    val projected = com.lirix.app.analytics.ListeningIntervals.project(confirmed, Long.MIN_VALUE, Long.MAX_VALUE)
+                    val spans = projected.flatMap { com.lirix.app.analytics.ListeningIntervals.read(it) }.sortedBy { it.startMs }
+                    sessions[id] = old.copy(endTimeMs = maxOf(old.endTimeMs, session.endTimeMs), durationMs = spans.sumOf { it.durationMs },
+                        listeningIntervalsJson = com.lirix.app.analytics.ListeningIntervals.encode(spans), isCompleted = old.isCompleted || session.isCompleted)
+                }
+            }
         }
         val sessionList = sessions.values.toList()
         val perTrack = sessionList.groupBy { it.trackKey }
@@ -83,19 +93,26 @@ object LibraryArchives {
         for (incomingLyrics in incoming.lyrics) {
             val old = lyrics[incomingLyrics.trackKey]
             if (old == null) { lyrics[incomingLyrics.trackKey] = incomingLyrics; continue }
-            val conflict = old.provider == "USER" && incomingLyrics.provider == "USER" &&
+            val conflict = isManualLyricsProvider(old.provider) && isManualLyricsProvider(incomingLyrics.provider) &&
                 (old.plainLyrics != incomingLyrics.plainLyrics || old.syncedLyricsLrc != incomingLyrics.syncedLyricsLrc || old.chordsAmDm != incomingLyrics.chordsAmDm)
             if (conflict) conflicts++
             val chooseIncoming = if (conflict) preferIncomingLyrics else when {
-                old.provider == "USER" -> false
-                incomingLyrics.provider == "USER" -> true
+                isManualLyricsProvider(old.provider) -> false
+                isManualLyricsProvider(incomingLyrics.provider) -> true
                 else -> incomingLyrics.updatedAt > old.updatedAt
             }
             val preferred = if (chooseIncoming) incomingLyrics else old
             val secondary = if (chooseIncoming) old else incomingLyrics
+            val preferredAttribution = LyricsAttribution.decode(preferred.sourceAttributionJson)
+            val secondaryAttribution = LyricsAttribution.decode(secondary.sourceAttributionJson)
+            val attribution = LyricsAttribution(
+                if (preferred.plainLyrics == null && preferred.syncedLyricsLrc == null) secondaryAttribution.lyrics else preferredAttribution.lyrics,
+                if (preferred.chordsAmDm == null) secondaryAttribution.chords else preferredAttribution.chords
+            ).encode()
             lyrics[incomingLyrics.trackKey] = preferred.copy(plainLyrics = preferred.plainLyrics ?: secondary.plainLyrics,
                 syncedLyricsLrc = preferred.syncedLyricsLrc ?: secondary.syncedLyricsLrc,
-                chordsAmDm = preferred.chordsAmDm ?: secondary.chordsAmDm, userNotes = mergeNotes(old.userNotes.orEmpty(), incomingLyrics.userNotes.orEmpty()))
+                chordsAmDm = preferred.chordsAmDm ?: secondary.chordsAmDm, userNotes = mergeNotes(old.userNotes.orEmpty(), incomingLyrics.userNotes.orEmpty()),
+                sourceAttributionJson = attribution)
         }
         // Cached USER edits and the library always expose the same selected version.
         for (cache in lyrics.values) tracks[cache.trackKey]?.let { track ->

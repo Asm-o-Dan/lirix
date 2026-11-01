@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
@@ -27,6 +29,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
@@ -77,6 +80,7 @@ import com.lirix.app.ui.components.ThemeSelectionDialog
 import com.lirix.app.ui.theme.AppThemeType
 import com.lirix.app.ui.theme.LirixThemeTokens
 import com.lirix.app.ui.theme.LocalLirixTypography
+import com.lirix.app.ui.i18n.LirixStrings
 import java.io.File
 
 /**
@@ -161,7 +165,7 @@ fun DesktopDeckScreen(
             DesktopTopBar(
                 sourceApp = playback?.packageName,
                 isPlaying = playback?.isPlaying == true,
-                lyricsSource = lyricsState.source,
+                lyricsSource = null,
                 isHudVisible = isHudVisible,
                 onToggleHud = onToggleHud,
                 isCompactMode = isCompactMode,
@@ -177,13 +181,13 @@ fun DesktopDeckScreen(
         Surface(color = colors.surfaceCard, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                if (albumArtBitmap != null) Image(albumArtBitmap, "Обложка трека", contentScale = ContentScale.Crop,
+                if (albumArtBitmap != null) Image(albumArtBitmap, LirixStrings.current.coverArtDesc, contentScale = ContentScale.Crop,
                     modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)))
-                else Icon(Icons.Filled.MusicNote, "Обложка отсутствует", tint = colors.textMuted, modifier = Modifier.size(40.dp))
+                else Icon(Icons.Filled.MusicNote, LirixStrings.current.coverArtMissing, tint = colors.textMuted, modifier = Modifier.size(40.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(playback?.title?.ifBlank { com.lirix.app.ui.i18n.LirixStrings.message("Без названия") } ?: "Включите музыку в плеере ПК",
+                    Text(playback?.title?.ifBlank { LirixStrings.current.untitledTrack } ?: LirixStrings.current.noTrackPlaying,
                         style = typography.trackTitle, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(playback?.artist.orEmpty().ifBlank { "Lirix покажет текст текущей песни" },
+                    Text(playback?.artist.orEmpty().ifBlank { LirixStrings.current.noTrackHint },
                         style = typography.trackArtistAlbum, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
@@ -214,10 +218,10 @@ fun DesktopDeckScreen(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         listOf(
-                            DesktopLyricsMode.TEXT to com.lirix.app.ui.i18n.LirixStrings.message("Текст"),
-                            DesktopLyricsMode.KARAOKE to "Караоке",
-                            DesktopLyricsMode.CHORDS to com.lirix.app.ui.i18n.LirixStrings.message("Аккорды"),
-                            DesktopLyricsMode.ABOUT to "О треке"
+                            DesktopLyricsMode.TEXT to LirixStrings.current.modeText,
+                            DesktopLyricsMode.KARAOKE to LirixStrings.current.modeKaraoke,
+                            DesktopLyricsMode.CHORDS to LirixStrings.current.modeChords,
+                            DesktopLyricsMode.ABOUT to LirixStrings.current.aboutTrack
                         ).forEach { (mode, label) ->
                             DeckTabButton(label = label, isSelected = selectedRightTab == mode,
                                 onClick = { selectedRightTab = mode }, modifier = Modifier.weight(1f))
@@ -247,6 +251,74 @@ fun DesktopDeckScreen(
                                         accentColor = colors.accentPrimary, isDark = colors.isDark,
                                         modifier = Modifier.fillMaxSize()
                                     )
+                                    DesktopLyricsContent.UNSYNCED -> {
+                                        val plain = desktopPlainLyrics(lyricsState)
+                                        if (plain.isNotBlank()) {
+                                            Column(modifier = Modifier.fillMaxSize()) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Surface(
+                                                        color = colors.surfaceElevated,
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        border = BorderStroke(1.dp, colors.borderSubtle)
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                        ) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(6.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(colors.accentSecondary)
+                                                            )
+                                                            Text(
+                                                                text = com.lirix.app.ui.i18n.LirixStrings.message("Текст без караоке-таймингов"),
+                                                                style = typography.timecodeAndBadges,
+                                                                color = colors.textSecondary
+                                                            )
+                                                        }
+                                                    }
+                                                    if (canTapSync) {
+                                                        TextButton(
+                                                            onClick = onOpenTapSync,
+                                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                                                        ) {
+                                                            Text(
+                                                                com.lirix.app.ui.i18n.LirixStrings.message("Синхронизировать (Tap-to-Sync)"),
+                                                                style = typography.timecodeAndBadges,
+                                                                color = colors.accentPrimary
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                                SelectionContainer {
+                                                    Text(
+                                                        text = plain,
+                                                        color = colors.textPrimary,
+                                                        style = typography.lyricsNear,
+                                                        modifier = Modifier
+                                                            .fillMaxSize()
+                                                            .verticalScroll(rememberScrollState())
+                                                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                                                    )
+                                                }
+                                            }
+                                        } else {
+                                            DesktopKaraokeUnavailable(
+                                                content = content,
+                                                canTapSync = canTapSync,
+                                                onOpenTapSync = onOpenTapSync,
+                                                onShowText = { selectedRightTab = DesktopLyricsMode.CHORDS }
+                                            )
+                                        }
+                                    }
                                     else -> DesktopKaraokeUnavailable(content, canTapSync, onOpenTapSync,
                                         onShowText = { selectedRightTab = DesktopLyricsMode.TEXT })
                                 }
@@ -382,7 +454,6 @@ private fun TrackSpecsPanel(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 SpecRow(label = com.lirix.app.ui.i18n.LirixStrings.message("Источник аудио"), value = playback?.packageName ?: "idle.session")
-                SpecRow(label = "Источник текста", value = lyricsState.source ?: "Не определён")
                 SpecRow(label = com.lirix.app.ui.i18n.LirixStrings.message("Текст"), value = when {
                     lyricsState.isLoading -> com.lirix.app.ui.i18n.LirixStrings.message("Поиск")
                     lyricsState.errorMessage != null -> com.lirix.app.ui.i18n.LirixStrings.message("Ошибка получения")

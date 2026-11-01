@@ -68,7 +68,7 @@ class MusicListeningTimeTest {
             artist = "The Weeknd",
             sourcePackage = pkg,
             playbackState = "PLAYING",
-            timestamp = baseTime
+            timestamp = baseTime, monotonicMs = baseTime
         )
         assertNotNull(trackA)
 
@@ -85,7 +85,7 @@ class MusicListeningTimeTest {
             artist = "Linkin Park",
             sourcePackage = pkg,
             playbackState = "PLAYING",
-            timestamp = switchTime
+            timestamp = switchTime, monotonicMs = switchTime
         )
         assertNotNull(trackB)
 
@@ -119,7 +119,7 @@ class MusicListeningTimeTest {
             artist = "The Weeknd",
             sourcePackage = pkg,
             playbackState = "PLAYING",
-            timestamp = startTime
+            timestamp = startTime, monotonicMs = startTime
         )
         assertNotNull(track)
 
@@ -131,7 +131,7 @@ class MusicListeningTimeTest {
         engine.updateActiveSessionProgress(
             sourcePackage = pkg,
             currentPlaybackPositionMs = 15_000L,
-            timestamp = startTime + 15_000L
+            timestamp = startTime + 15_000L, monotonicMs = startTime + 15_000L
         )
 
         val sessionAt15s = musicDao.getLastSessionForPackage(pkg)
@@ -148,7 +148,7 @@ class MusicListeningTimeTest {
         engine.updateActiveSessionProgress(
             sourcePackage = pkg,
             currentPlaybackPositionMs = 60_000L,
-            timestamp = startTime + 60_000L
+            timestamp = startTime + 60_000L, monotonicMs = startTime + 60_000L
         )
 
         val sessionAt60s = musicDao.getLastSessionForPackage(pkg)
@@ -202,10 +202,7 @@ class MusicListeningTimeTest {
             livePlayback = liveSnapshot
         )
 
-        assertTrue(
-            "totalListeningTimeMs must be at least 300_000ms (5 min) accounting for live playback",
-            statsWithLive.totalListeningTimeMs >= 300_000L
-        )
+        assertEquals("Uncommitted media position must not become listening time", 0L, statsWithLive.totalListeningTimeMs)
 
         // Case 2: Extrapolation via elapsed wall time when livePlayback is null but session is uncompleted and recent
         val statsWallTime = WrappedStatsEngine.calculateStats(
@@ -217,8 +214,8 @@ class MusicListeningTimeTest {
         )
 
         assertEquals(
-            "Active session must extrapolate by elapsed wall time (5 minutes = 300_000ms)",
-            300_000L,
+            "An open session without confirmed intervals must not grow by wall time",
+            0L,
             statsWallTime.totalListeningTimeMs
         )
     }

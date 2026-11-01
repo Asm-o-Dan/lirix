@@ -17,6 +17,11 @@ class DesktopLibraryRepository(val database: AppDatabase, private val scope: Cor
     private val mutex = Mutex()
     private val ledger = ListeningLedger()
     private var activeSession: ListeningSessionEntity? = null
+    private var pendingDurationMs = 0L
+    private var lastRecordMono: Long? = null
+    private var lastRecordWall = 0L
+    private val rulesReady = CompletableDeferred<Unit>()
+    @Volatile private var activeRulesCache: List<BlacklistRuleEntity> = emptyList()
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
     private fun <T> Flow<List<T>>.recover(label: String): Flow<List<T>> = catch { error ->
@@ -27,7 +32,9 @@ class DesktopLibraryRepository(val database: AppDatabase, private val scope: Cor
     val tracks = music.observeRecentTracks().recover("Медиатека недоступна").stateIn(scope, SharingStarted.Eagerly, emptyList())
     val sessions = music.observeAllSessions().recover("История недоступна").stateIn(scope, SharingStarted.Eagerly, emptyList())
     val achievements = database.achievementDao().observeAchievements().recover("Достижения недоступны").stateIn(scope, SharingStarted.Eagerly, emptyList())
-    val rules = database.blacklistDao().getAllRulesFlow().recover("Чёрный список недоступен").stateIn(scope, SharingStarted.Eagerly, emptyList())
+    val rules = database.blacklistDao().getAllRulesFlow().recover("Чёрный список недоступен")
+        .onEach { values -> activeRulesCache = values.filter { it.isEnabled }; rulesReady.complete(Unit) }
+        .stateIn(scope, SharingStarted.Eagerly, emptyList())
     val sourceRules = database.lyricsDao().observeAllRules().recover("Источники недоступны").stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     init {
@@ -52,25 +59,35 @@ class DesktopLibraryRepository(val database: AppDatabase, private val scope: Cor
         return MusicTrackParser.computeTrackKey(parsed.title, parsed.artist, playback.album)
     }
 
-    suspend fun record(playback: LivePlaybackSnapshot?, monotonicMs: Long = System.nanoTime() / 1_000_000) =
-        withContext(Dispatchers.IO) { mutex.withLock {
-            val now = System.currentTimeMillis()
-            val activeRules = database.blacklistDao().getActiveRules()
+    suspend fun record(playback: LivePlaybackSnapshot?, monotonicMs: Long = System.nanoTime() / 1_000_000,
+        timestampMs: Long = System.currentTimeMillis()) =
+        withContext(Dispatchers.IO) {
+            rulesReady.await()
+            mutex.withLock { withContext(NonCancellable) {
+            // collectLatest may cancel its caller, but ledger state and its writes must finish together.
+            val now = timestampMs
             val allowed = playback?.takeIf { p -> p.title.isNotBlank() && !BlacklistMatcher.isBlacklisted(
-                p.title, p.artist, p.packageName, activeRules
+                p.title, p.artist, p.packageName, activeRulesCache
             ) }
             val key = allowed?.let(::keyFor)
             val tick = ledger.sample(allowed?.let { ListeningSignal(key!!, it.isPlaying, it.currentPositionMs(), it.durationMs) }, monotonicMs)
+            var nextWall = now
             if (tick.elapsedMs > 0 && tick.elapsedKey != null) {
                 activeSession?.takeIf { it.trackKey == tick.elapsedKey }?.let { session ->
-                    val updated = session.copy(endTimeMs = now, durationMs = session.durationMs + tick.elapsedMs)
-                    music.updateSession(updated)
-                    activeSession = updated
-                    music.getTrackByKey(session.trackKey)?.let { track ->
-                        music.insertOrUpdateTrack(track.copy(totalDurationMs = track.totalDurationMs + tick.elapsedMs))
+                    val span = lastRecordMono?.let { previous -> com.lirix.app.analytics.ListeningIntervals.confirmedSpan(
+                        previous, monotonicMs, lastRecordWall, now, true) }
+                    if (span != null) {
+                        activeSession = com.lirix.app.analytics.ListeningIntervals.append(session, span)
+                        pendingDurationMs += span.durationMs
+                        nextWall = span.endMs
                     }
                 }
             }
+            lastRecordMono = monotonicMs
+            lastRecordWall = nextWall
+            // Keep one-second accounting in memory; checkpoint at most every 15 seconds.
+            // Boundaries always flush before replacing the active session.
+            if (tick.startedKey != null || allowed?.isPlaying != true || pendingDurationMs >= 15_000L) flushLocked()
             if (tick.startedKey != null && allowed != null) {
                 activeSession?.let { music.updateSession(it.copy(isCompleted = true)) }
                 val parsed = MusicTrackParser.parseTrackMetadata(allowed.title, allowed.artist, allowed.title, allowed.artist)
@@ -80,18 +97,35 @@ class DesktopLibraryRepository(val database: AppDatabase, private val scope: Cor
                         firstPlayedAt = now, lastPlayedAt = now, albumArtUri = allowed.albumArtUri)
                 music.insertOrUpdateTrack(track)
                 val session = ListeningSessionEntity(trackKey = track.trackKey, sourcePackage = allowed.packageName,
-                    startTimeMs = now, endTimeMs = now, durationMs = 0)
+                    startTimeMs = now, endTimeMs = now, durationMs = 0, listeningIntervalsJson = "[]")
                 activeSession = session.copy(id = music.insertSession(session))
             }
-        } }
+        } } }
 
-    suspend fun saveLyrics(key: String, plain: String?, lrc: String?, chords: String?, provider: String = "USER") =
+    suspend fun flush() = withContext(Dispatchers.IO) { mutex.withLock { flushLocked() } }
+
+    private suspend fun flushLocked() {
+        val session = activeSession ?: return
+        val duration = pendingDurationMs
+        if (duration <= 0L) return
+        database.libraryTransaction {
+            music.updateSession(session)
+            music.getTrackByKey(session.trackKey)?.let { track ->
+                music.insertOrUpdateTrack(track.copy(totalDurationMs = track.totalDurationMs + duration))
+            }
+        }
+        pendingDurationMs = 0L
+    }
+
+    suspend fun saveLyrics(key: String, plain: String?, lrc: String?, chords: String?, provider: String = "USER", sourceAttributionJson: String? = null) =
         withContext(Dispatchers.IO) { mutex.withLock {
+            database.libraryTransaction {
             val old = database.lyricsDao().getLyrics(key)
-            val effective = if (old?.provider == "USER" && provider != "USER") old
-                else LyricsCacheEntity(key, plain, lrc, chords, old?.userNotes, provider)
+            val effective = if (old != null && isManualLyricsProvider(old.provider) && !isManualLyricsProvider(provider)) old
+                else LyricsCacheEntity(key, plain, lrc, chords, old?.userNotes, provider, sourceAttributionJson = sourceAttributionJson)
             database.lyricsDao().saveLyrics(effective)
             music.updateLyrics(key, effective.plainLyrics, effective.syncedLyricsLrc)
+            }
         } }
 
     suspend fun savedLyrics(key: String) = withContext(Dispatchers.IO) { database.lyricsDao().getLyrics(key) }

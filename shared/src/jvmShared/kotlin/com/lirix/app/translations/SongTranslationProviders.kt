@@ -10,6 +10,7 @@ import java.net.URI
 class SongTranslationProviders(
     private val amalgama: AmalgamaTranslationProvider = AmalgamaTranslationProvider(),
     private val multilingual: LyricsTranslateProvider = LyricsTranslateProvider(),
+    private val lyrsense: LyrsenseTranslationProvider = LyrsenseTranslationProvider(),
     private val rustoeng: RustoengTranslationProvider = RustoengTranslationProvider(),
     private val englishPrimary: suspend (String, String, Boolean) -> TranslationSearchResult = { title, artist, refresh -> multilingual.find(title, artist, "en", refresh) },
     private val englishFallback: suspend (String, String, Boolean) -> TranslationSearchResult = { title, artist, refresh -> rustoeng.find(title, artist, refresh) },
@@ -18,6 +19,7 @@ class SongTranslationProviders(
     suspend fun load(url: String): SongTranslation = when (URI(url.trim()).host?.lowercase()) {
         "lyricstranslate.com", "www.lyricstranslate.com" -> multilingual.load(url)
         "rustoeng.com", "www.rustoeng.com" -> rustoeng.load(url)
+        "lyrsense.com" -> lyrsense.load(url)
         else -> amalgama.load(url)
     }
 
@@ -32,6 +34,11 @@ class SongTranslationProviders(
                 if (result != TranslationSearchResult.Missing) return result
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { firstError = e }
+            try {
+                val result = lyrsense.find(title, artist, refresh)
+                if (result != TranslationSearchResult.Missing) return result
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { if (firstError == null) firstError = e }
         }
         val result = multilingual.find(title, artist, language, refresh)
         if (result == TranslationSearchResult.Missing && firstError != null) throw firstError

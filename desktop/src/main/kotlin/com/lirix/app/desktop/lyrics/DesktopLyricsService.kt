@@ -1,5 +1,13 @@
 package com.lirix.app.desktop.lyrics
 
+import com.lirix.app.feature.lyrics.AdditionalLyricsResult
+import com.lirix.app.feature.lyrics.KugouLyricsProvider
+import com.lirix.app.feature.lyrics.AkkordsProProvider
+import com.lirix.app.feature.lyrics.LyricsOvhProvider
+import com.lirix.app.storage.LyricsAttribution
+import com.lirix.app.storage.LyricsSourceAttribution
+import com.lirix.app.storage.isManualLyricsProvider
+
 import com.lirix.app.feature.lyrics.AmDmChordParser
 import com.lirix.app.feature.lyrics.LrcSyncEngine
 import com.lirix.app.feature.lyrics.MyChordsParser
@@ -49,7 +57,8 @@ data class DesktopLyricsState(
     val source: String? = null,
     val hasLyrics: Boolean = false,
     val errorMessage: String? = null,
-    val syncedLyricsLrc: String? = null
+    val syncedLyricsLrc: String? = null,
+    val sourceAttributionJson: String? = null
 )
 
 class DesktopLyricsService(
@@ -58,7 +67,9 @@ class DesktopLyricsService(
     private val cacheDirectory: File? = null,
     private val savedLookup: (suspend (String) -> LyricsCacheEntity?)? = null,
     private val persistLyrics: (suspend (String, String?, String?, String?, String) -> Unit)? = null,
-    private val automaticLookup: (suspend (String, String, String, String, Set<String>) -> DesktopLyricsState)? = null
+    private val automaticLookup: (suspend (String, String, String, String, Set<String>) -> DesktopLyricsState)? = null,
+    private val additionalLookup: (suspend (String, String, String, Long?) -> AdditionalLyricsResult?)? = null,
+    private val httpFetch: (suspend (String, Map<String, String>) -> String?)? = null
 ) {
     private val _lyricsState = MutableStateFlow(DesktopLyricsState())
     val lyricsState: StateFlow<DesktopLyricsState> = _lyricsState.asStateFlow()
@@ -66,6 +77,9 @@ class DesktopLyricsService(
     private val memoryCache = ConcurrentHashMap<String, DesktopLyricsState>()
     private var activeJob: Job? = null
     private var currentTrackKey: String = ""
+    private val additionalKugou by lazy { KugouLyricsProvider() }
+    private val additionalAkkords by lazy { AkkordsProProvider() }
+    private val additionalOvh by lazy { LyricsOvhProvider() }
 
     private val diskCacheDir: File by lazy {
         cacheDirectory?.let { return@lazy it.apply { mkdirs() } }
@@ -76,7 +90,7 @@ class DesktopLyricsService(
         }
     }
 
-    fun onTrackChanged(rawTitle: String?, rawArtist: String?, album: String? = null, forceRefresh: Boolean = false) {
+    fun onTrackChanged(rawTitle: String?, rawArtist: String?, album: String? = null, forceRefresh: Boolean = false, durationMs: Long? = null) {
         val title = rawTitle?.trim().orEmpty()
         val artist = rawArtist?.trim().orEmpty()
         if (title.isBlank()) {
@@ -103,14 +117,14 @@ class DesktopLyricsService(
             }
             fun savedState(saved: LyricsCacheEntity) = stateFromSaved(trackKey, cleanTitle, cleanArtist,
                 saved.plainLyrics, saved.syncedLyricsLrc, saved.chordsAmDm,
-                if (saved.provider == "USER") "Сохранено вами" else saved.provider)
+                if (isManualLyricsProvider(saved.provider)) "Сохранено вами" else saved.provider, saved.sourceAttributionJson)
             try {
                 val saved = savedLookup?.invoke(trackKey) ?: repository?.savedLyrics(trackKey)
                 val rejected = repository?.database?.lyricsDao()?.getRejectedSourceIds(trackKey)
                     .orEmpty().map(::canonicalSourceId).toSet()
                 if (!isCurrent()) return@launch
                 // Explicit user edits, including clearing, always win over automatic results.
-                if (saved?.provider == "USER" || (!forceRefresh && saved != null &&
+                if (isManualLyricsProvider(saved?.provider) || (!forceRefresh && saved != null &&
                     isUsableAutomatic(savedState(saved), rejected))) {
                     _lyricsState.value = savedState(saved!!)
                     return@launch
@@ -125,19 +139,20 @@ class DesktopLyricsService(
                 // Save first; a cancelled/stale write must never populate a later cache hit.
                 suspend fun acceptAutomatic(candidate: DesktopLyricsState) {
                     if (!isCurrent()) return
+                    val artistToShow = candidate.displayArtist.takeIf { it.isNotBlank() && it != "Unknown Artist" } ?: cleanArtist
                     var effective = candidate.copy(trackKey = trackKey, displayTitle = cleanTitle,
-                        displayArtist = cleanArtist, isLoading = false)
+                        displayArtist = artistToShow, isLoading = false)
                     if (candidate.hasLyrics) {
                         writeLyrics(trackKey, candidate.plainLyrics, candidate.syncedLyricsLrc,
-                            candidate.chords, candidate.source ?: "NONE")
+                            candidate.chords, candidate.source ?: "NONE", candidate.sourceAttributionJson)
                         if (!isCurrent()) return
                         // The repository also protects USER against other automatic callers.
                         val stored = repository?.savedLyrics(trackKey)
                         if (!isCurrent()) return
-                        if (stored?.provider == "USER") effective = savedState(stored)
+                        if (stored != null && isManualLyricsProvider(stored.provider)) effective = savedState(stored)
                         memoryCache[trackKey] = effective
-                        if (stored?.provider != "USER") saveToDiskCache(trackKey, effective.syncedLyricsLrc,
-                            effective.plainLyrics, effective.chords, effective.source)
+                        if (!isManualLyricsProvider(stored?.provider)) saveToDiskCache(trackKey, effective.syncedLyricsLrc,
+                            effective.plainLyrics, effective.chords, effective.source, effective.sourceAttributionJson, effective.displayArtist)
                     }
                     if (isCurrent()) _lyricsState.value = effective
                 }
@@ -162,14 +177,15 @@ class DesktopLyricsService(
                 }
                 if (!isCurrent()) return@launch
                 val found = automaticLookup?.invoke(title, artist, cleanTitle, cleanArtist, rejected)
-                    ?: lookupAutomatic(title, artist, cleanTitle, cleanArtist, rejected)
+                    ?: lookupAutomatic(title, artist, cleanTitle, cleanArtist, rejected, durationMs)
                 if (!isCurrent()) return@launch
                 // Normalize injected and production results through the same parser/content check.
-                val normalized = stateFromSaved(trackKey, cleanTitle, cleanArtist, found.plainLyrics,
-                    found.syncedLyricsLrc, found.chords, found.source ?: "NONE")
+                val resolvedDisplayArtist = found.displayArtist.takeIf { it.isNotBlank() && it != "Unknown Artist" } ?: cleanArtist
+                val normalized = stateFromSaved(trackKey, cleanTitle, resolvedDisplayArtist, found.plainLyrics,
+                    found.syncedLyricsLrc, found.chords, found.source ?: "NONE", found.sourceAttributionJson)
                     .copy(errorMessage = found.errorMessage)
                 val result = if (isUsableAutomatic(normalized, rejected)) normalized else
-                    DesktopLyricsState(trackKey = trackKey, displayTitle = cleanTitle, displayArtist = cleanArtist,
+                    DesktopLyricsState(trackKey = trackKey, displayTitle = cleanTitle, displayArtist = resolvedDisplayArtist,
                         errorMessage = found.errorMessage ?: "Текст не найден в открытых базах")
                 acceptAutomatic(result)
             } catch (e: Exception) {
@@ -191,9 +207,9 @@ class DesktopLyricsService(
         if (currentTrackKey == key) _lyricsState.value = state
     }
 
-    private suspend fun writeLyrics(key: String, plain: String?, lrc: String?, chords: String?, provider: String) {
+    private suspend fun writeLyrics(key: String, plain: String?, lrc: String?, chords: String?, provider: String, attribution: String? = null) {
         if (persistLyrics != null) persistLyrics.invoke(key, plain, lrc, chords, provider)
-        else repository?.saveLyrics(key, plain, lrc, chords, provider)
+        else repository?.saveLyrics(key, plain, lrc, chords, provider, attribution)
     }
 
     fun rejectCurrentSource(title: String, artist: String, album: String) {
@@ -209,12 +225,18 @@ class DesktopLyricsService(
 
     private fun canonicalSourceId(source: String): String {
         val name = source.trim()
+        if (name in setOf("builtin:lyrics-ovh", "builtin:kugou", "builtin:akkords-pro", "builtin:textpesni", "builtin:vse-pesni", "builtin:lyricfind", "builtin:amalgama", "builtin:genius")) return name
         return when {
             name.startsWith("rule:") -> name
-            name.equals("USER", true) || name == "Сохранено вами" -> "USER"
+            isManualLyricsProvider(name) || name == "Сохранено вами" -> "USER"
             name.startsWith("LrcLib", true) || name.equals("builtin:lrclib", true) -> "builtin:lrclib"
             name.equals("AMDM", true) || name.contains("AmDm", true) || name.contains("MyChords", true) -> "builtin:amdm"
             name.equals("Web Scraper", true) || name.equals("builtin:web", true) -> "builtin:web"
+            name.equals("Textpesni", true) -> "builtin:textpesni"
+            name.equals("Vse-Pesni", true) -> "builtin:vse-pesni"
+            name.equals("LyricFind", true) -> "builtin:lyricfind"
+            name.equals("Amalgama", true) -> "builtin:amalgama"
+            name.equals("Genius", true) -> "builtin:genius"
             else -> name
         }
     }
@@ -224,7 +246,19 @@ class DesktopLyricsService(
         return state.hasLyrics && provider.isNotBlank() && !provider.equals("NONE", true) && provider !in rejected
     }
 
-    private suspend fun lookupAutomatic(title: String, artist: String, cleanTitle: String, cleanArtist: String, rejected: Set<String>): DesktopLyricsState {
+    private fun shouldResolveArtist(currentArtist: String, incomingArtist: String?, rawArtist: String): Boolean {
+        if (incomingArtist.isNullOrBlank()) return false
+        if (currentArtist.isBlank() || currentArtist.equals("Unknown Artist", ignoreCase = true)) return true
+        if (MusicTrackParser.isLikelyChannelOrNonArtist(currentArtist)) return true
+        if (MusicTrackParser.isLikelyChannelOrNonArtist(rawArtist)) return true
+        if (MusicTrackParser.matchesAcronym(currentArtist, incomingArtist)) return true
+        if (MusicTrackParser.matchesAcronym(rawArtist, incomingArtist)) return true
+        if (MusicTrackParser.matchesChannelName(rawArtist, incomingArtist)) return true
+        if (MusicTrackParser.matchesChannelName(currentArtist, incomingArtist)) return true
+        return false
+    }
+
+    private suspend fun lookupAutomatic(title: String, artist: String, cleanTitle: String, cleanArtist: String, rejected: Set<String>, durationMs: Long?): DesktopLyricsState {
         // Generate smart search pairs
         val searchPairs = buildSearchCandidates(title, artist, cleanTitle, cleanArtist)
 
@@ -232,7 +266,22 @@ class DesktopLyricsService(
         var foundPlain: String? = null
         var foundSource: String? = null
         var foundChords: String? = null
+        var attribution = LyricsAttribution()
+        val extras = mutableMapOf<String, AdditionalLyricsResult?>()
+        suspend fun additional(id: String): AdditionalLyricsResult? {
+            if (id in rejected) return null
+            if (extras.containsKey(id)) return extras[id]
+            val result = additionalLookup?.invoke(id, title, artist, durationMs) ?: if (additionalLookup != null) null else when (id) {
+                "builtin:kugou" -> additionalKugou.find(title, artist, durationMs)
+                "builtin:akkords-pro" -> additionalAkkords.find(title, artist)
+                "builtin:lyrics-ovh" -> additionalOvh.find(title, artist)
+                else -> null
+            }
+            extras[id] = result
+            return result
+        }
 
+        var resolvedArtist = cleanArtist
         // 1. Query LrcLib
         for (pair in searchPairs.takeIf { "builtin:lrclib" !in rejected }.orEmpty()) {
             val (art, tit) = pair
@@ -241,6 +290,9 @@ class DesktopLyricsService(
                 foundLrc = lrcLibResult.syncedLyrics
                 foundPlain = lrcLibResult.plainLyrics
                 foundSource = "LrcLib"
+                if (shouldResolveArtist(resolvedArtist, lrcLibResult.artistName, artist)) {
+                    resolvedArtist = lrcLibResult.artistName!!
+                }
                 logInfo(TAG, "LrcLib match found using '$art' - '$tit'")
                 break
             }
@@ -250,9 +302,11 @@ class DesktopLyricsService(
         if (foundLrc == null && foundPlain == null && "builtin:lrclib" !in rejected) {
             val rawQueries = listOf(
                 "$cleanArtist $cleanTitle",
+                cleanTitle,
                 title,
+                cleanNoise(title),
                 title.replace(Regex("""\s*[-—–]\s*"""), " ")
-            ).distinct()
+            ).filter { it.isNotBlank() && it != "Unknown Artist" }.distinct()
 
             for (query in rawQueries) {
                 val searchHit = searchLrcLibByQuery(query)
@@ -260,10 +314,21 @@ class DesktopLyricsService(
                     foundLrc = searchHit.syncedLyrics
                     foundPlain = searchHit.plainLyrics
                     foundSource = "LrcLib (Search)"
+                    if (shouldResolveArtist(resolvedArtist, searchHit.artistName, artist)) {
+                        resolvedArtist = searchHit.artistName!!
+                    }
                     logInfo(TAG, "LrcLib search hit with query '$query'")
                     break
                 }
             }
+        }
+
+        // Retain LRCLIB plain text when no independent synced match exists.
+        if (foundLrc.isNullOrBlank()) additional("builtin:kugou")?.let { hit ->
+            foundLrc = hit.syncedLyricsLrc
+            foundPlain = foundPlain ?: hit.plainLyrics
+            foundSource = hit.sourceId
+            attribution = attribution.copy(lyrics = LyricsSourceAttribution(hit.sourceId, hit.sourceUrl, hit.author))
         }
 
         // 2. Query Chords (AmDm.ru & MyChords.net)
@@ -284,21 +349,78 @@ class DesktopLyricsService(
             }
         }
 
-        // 3. Fallback Scrapers (Genius / Textpesni) if still no lyrics
-        if (foundLrc == null && foundPlain == null && "builtin:web" !in rejected) {
+        if (foundChords.isNullOrBlank()) additional("builtin:akkords-pro")?.let { hit ->
+            foundChords = hit.chordsText
+            attribution = attribution.copy(chords = LyricsSourceAttribution(hit.sourceId, hit.sourceUrl, hit.author))
+            if (foundPlain.isNullOrBlank() && foundLrc.isNullOrBlank()) {
+                foundPlain = hit.plainLyrics
+                foundSource = hit.sourceId
+                attribution = attribution.copy(lyrics = LyricsSourceAttribution(hit.sourceId, hit.sourceUrl, hit.author))
+            }
+        }
+
+        // 3. Fallback Scrapers (Textpesni, Vse-Pesni, LyricFind, Amalgama, Genius) if still no lyrics
+        if (foundLrc == null && foundPlain == null) {
             for (pair in searchPairs) {
                 val (art, tit) = pair
-                val scrapedText = fetchFallbackLyrics(art, tit)
-                if (!scrapedText.isNullOrBlank()) {
-                    foundPlain = scrapedText
-                    foundSource = "Web Scraper"
-                    break
+                if (art.isBlank() && tit.isBlank()) continue
+
+                // 3.1 Textpesni (Russian hits, lyrics, translations)
+                if ("builtin:textpesni" !in rejected && "builtin:web" !in rejected) {
+                    val hit = scrapeTextpesni(art, tit)
+                    if (!hit.isNullOrBlank()) {
+                        foundPlain = hit
+                        foundSource = "Textpesni"
+                        break
+                    }
+                }
+                // 3.2 Vse-Pesni (Extensive niche & Russian catalog)
+                if ("builtin:vse-pesni" !in rejected && "builtin:web" !in rejected) {
+                    val hit = scrapeVsePesni(art, tit)
+                    if (!hit.isNullOrBlank()) {
+                        foundPlain = hit
+                        foundSource = "Vse-Pesni"
+                        break
+                    }
+                }
+                // 3.3 LyricFind (Global international & multi-language lyrics catalog)
+                if ("builtin:lyricfind" !in rejected && "builtin:web" !in rejected) {
+                    val hit = scrapeLyricFind(art, tit)
+                    if (!hit.isNullOrBlank()) {
+                        foundPlain = hit
+                        foundSource = "LyricFind"
+                        break
+                    }
+                }
+                // 3.4 Amalgama-Lab (Foreign lyrics and translations)
+                if ("builtin:amalgama" !in rejected && "builtin:web" !in rejected && art.isNotBlank() && tit.isNotBlank()) {
+                    val hit = scrapeAmalgama(art, tit)
+                    if (!hit.isNullOrBlank()) {
+                        foundPlain = hit
+                        foundSource = "Amalgama"
+                        break
+                    }
+                }
+                // 3.5 Genius (Public international web search & lyrics scraping)
+                if ("builtin:genius" !in rejected && "builtin:web" !in rejected) {
+                    val hit = scrapeGenius(art, tit)
+                    if (!hit.isNullOrBlank()) {
+                        foundPlain = hit
+                        foundSource = "Genius"
+                        break
+                    }
                 }
             }
         }
 
+        if (foundLrc.isNullOrBlank() && foundPlain.isNullOrBlank()) additional("builtin:lyrics-ovh")?.let { hit ->
+            foundPlain = hit.plainLyrics
+            foundSource = hit.sourceId
+            attribution = attribution.copy(lyrics = LyricsSourceAttribution(hit.sourceId, hit.sourceUrl, hit.author))
+        }
+
         val parsedLrcLines = if (!foundLrc.isNullOrBlank()) {
-            LrcSyncEngine.parseLrcLinesStrict(foundLrc).map {
+            LrcSyncEngine.parseLrcLinesStrict(foundLrc.orEmpty()).map {
                 LrcLine(it.timestampMs, it.text)
             }
         } else {
@@ -311,25 +433,26 @@ class DesktopLyricsService(
             isLoading = false,
             trackKey = "",
             displayTitle = cleanTitle,
-            displayArtist = cleanArtist,
+            displayArtist = resolvedArtist,
             lrcLines = parsedLrcLines,
             plainLyrics = foundPlain,
             chords = foundChords,
             source = foundSource,
             hasLyrics = hasContent,
             errorMessage = if (!hasContent) "Текст не найден в открытых базах" else null,
-            syncedLyricsLrc = foundLrc
+            syncedLyricsLrc = foundLrc,
+            sourceAttributionJson = attribution.encode()
         )
 
     }
 
-    private fun stateFromSaved(key: String, title: String, artist: String, plain: String?, lrc: String?, chords: String?, source: String) =
+    private fun stateFromSaved(key: String, title: String, artist: String, plain: String?, lrc: String?, chords: String?, source: String, attribution: String? = null) =
         DesktopLyricsState(trackKey = key, displayTitle = title, displayArtist = artist,
             lrcLines = lrc?.let { LrcSyncEngine.parseLrcLinesStrict(it).map { line -> LrcLine(line.timestampMs, line.text) } }.orEmpty(),
             plainLyrics = plain, chords = chords, source = source,
-            hasLyrics = !plain.isNullOrBlank() || !lrc.isNullOrBlank() || !chords.isNullOrBlank(), syncedLyricsLrc = lrc)
+            hasLyrics = !plain.isNullOrBlank() || !lrc.isNullOrBlank() || !chords.isNullOrBlank(), syncedLyricsLrc = lrc, sourceAttributionJson = attribution)
 
-    private fun buildSearchCandidates(
+    internal fun buildSearchCandidates(
         rawTitle: String,
         rawArtist: String,
         cleanTitle: String,
@@ -337,8 +460,19 @@ class DesktopLyricsService(
     ): List<Pair<String, String>> {
         val candidates = mutableListOf<Pair<String, String>>()
 
-        // If rawTitle contains "Artist - Title" (common in YouTube and browser players)
-        val dashSeparators = listOf(" — ", " – ", " - ", " // ")
+        // Standard clean pair (highest priority if valid)
+        if (cleanTitle.isNotBlank()) {
+            if (cleanArtist.isNotBlank() && cleanArtist != "Unknown Artist") {
+                candidates.add(cleanArtist to cleanTitle)
+            }
+            val stripped = MusicTrackParser.stripChannelSuffix(cleanArtist)
+            if (stripped.isNotBlank() && stripped != cleanArtist && stripped != "Unknown Artist") {
+                candidates.add(stripped to cleanTitle)
+            }
+        }
+
+        // If rawTitle contains "Artist - Title" or "Title - Artist"
+        val dashSeparators = listOf(" — ", " – ", " - ", " // ", " | ", " • ", " ~ ", " :: ", " : ")
         for (sep in dashSeparators) {
             val idx = rawTitle.indexOf(sep)
             if (idx > 0 && idx + sep.length < rawTitle.length) {
@@ -346,28 +480,31 @@ class DesktopLyricsService(
                 val right = cleanNoise(rawTitle.substring(idx + sep.length))
                 if (left.isNotBlank() && right.isNotBlank()) {
                     candidates.add(left to right)
+                    candidates.add(right to left)
+                    candidates.add("" to right)
+                    candidates.add("" to left)
                 }
             }
         }
 
-        // Standard clean pair
-        if (cleanArtist.isNotBlank() && cleanTitle.isNotBlank()) {
-            candidates.add(cleanArtist to cleanTitle)
+        // Raw pair
+        if (rawArtist.isNotBlank() && rawTitle.isNotBlank()) {
+            val stripped = cleanNoise(rawTitle)
+            if (stripped.isNotBlank() && (rawArtist != cleanArtist || stripped != cleanTitle)) {
+                candidates.add(cleanArtist to stripped)
+            }
         }
 
-        // Raw pair
-        if (rawArtist.isNotBlank() && rawTitle.isNotBlank() && (rawArtist != cleanArtist || rawTitle != cleanTitle)) {
-            candidates.add(cleanArtist to cleanNoise(rawTitle))
+        // Always include title-only candidate
+        if (cleanTitle.isNotBlank()) {
+            candidates.add("" to cleanTitle)
         }
 
         return candidates.distinct()
     }
 
     internal fun cleanNoise(str: String): String {
-        return str
-            .replace(Regex("""(?i)\s*[\(\[](official\s*(music\s*)?video|video|audio|lyrics|hd|4k|remix|clip|live)[\)\]]"""), "")
-            .replace(Regex("""(?i)\s*-\s*(youtube(\s*music)?|spotify|яндекс\s*музыка)\s*$"""), "")
-            .trim()
+        return MusicTrackParser.cleanTitle(str)
     }
 
     private val json = Json {
@@ -376,7 +513,12 @@ class DesktopLyricsService(
         coerceInputValues = true
     }
 
-    private data class LrcLibDto(val syncedLyrics: String?, val plainLyrics: String?)
+    private data class LrcLibDto(
+        val syncedLyrics: String?,
+        val plainLyrics: String?,
+        val artistName: String? = null,
+        val trackName: String? = null
+    )
 
     private suspend fun fetchFromLrcLib(artist: String, title: String): LrcLibDto? = withContext(Dispatchers.IO) {
         if (artist.isBlank() || title.isBlank()) return@withContext null
@@ -390,9 +532,11 @@ class DesktopLyricsService(
             if (root is JsonObject) {
                 val synced = root["syncedLyrics"]?.jsonPrimitive?.contentOrNull
                 val plain = root["plainLyrics"]?.jsonPrimitive?.contentOrNull
+                val art = root["artistName"]?.jsonPrimitive?.contentOrNull
+                val trk = root["trackName"]?.jsonPrimitive?.contentOrNull
 
                 if (!synced.isNullOrBlank() || !plain.isNullOrBlank()) {
-                    return@withContext LrcLibDto(synced, plain)
+                    return@withContext LrcLibDto(synced, plain, art, trk)
                 }
             }
         } catch (e: Exception) {
@@ -414,8 +558,10 @@ class DesktopLyricsService(
                     if (item is JsonObject) {
                         val synced = item["syncedLyrics"]?.jsonPrimitive?.contentOrNull
                         val plain = item["plainLyrics"]?.jsonPrimitive?.contentOrNull
+                        val art = item["artistName"]?.jsonPrimitive?.contentOrNull
+                        val trk = item["trackName"]?.jsonPrimitive?.contentOrNull
                         if (!synced.isNullOrBlank() || !plain.isNullOrBlank()) {
-                            return@withContext LrcLibDto(synced, plain)
+                            return@withContext LrcLibDto(synced, plain, art, trk)
                         }
                     }
                 }
@@ -684,29 +830,289 @@ class DesktopLyricsService(
         }
     }
 
-    private suspend fun fetchFallbackLyrics(artist: String, title: String): String? = withContext(Dispatchers.IO) {
+    suspend fun scrapeTextpesni(artist: String, title: String): String? = withContext(Dispatchers.IO) {
+        val query = listOf(artist, title).filter { it.isNotBlank() }.joinToString(" ")
+        if (query.isBlank()) return@withContext null
         try {
-            val q = URLEncoder.encode("$artist $title", "UTF-8")
-            // Textpesni.com
-            val searchHtml = httpGet("https://textpesni.com/search?q=$q")
+            val q = URLEncoder.encode(query, "UTF-8")
+            val searchUrl = "https://textpesni.com/search?q=$q"
+            val html = httpGet(searchUrl) ?: return@withContext null
+
+            val songPathMatch = Regex("""<a\s+[^>]*href=["'](/song/[^"']+)["'][^>]*>(.*?)</a>""").find(html)
+                ?: Regex("""<a\s+[^>]*href=["'](https?://textpesni\.com/[^"']+)["'][^>]*>(.*?)</a>""").find(html)
+            val songUrl = songPathMatch?.let {
+                val candidateText = cleanHtml(it.groupValues[2])
+                if (!matchesSearchQuery(candidateText, "", title, artist)) return@let null
+                val path = it.groupValues[1]
+                if (path.startsWith("http")) path else "https://textpesni.com$path"
+            } ?: return@withContext null
+
+            val songHtml = httpGet(songUrl) ?: return@withContext null
+            val rawContainers = extractBalancedTags(songHtml, "class=\"song-text\"")
+                .ifEmpty { extractBalancedTags(songHtml, "id=\"song-text\"") }
+                .ifEmpty { extractBalancedTags(songHtml, "song-text") }
+
+            val rawLyrics = rawContainers.firstOrNull() ?: return@withContext null
+            val clean = cleanHtml(rawLyrics)
+            if (clean.length > 50) return@withContext clean
+        } catch (_: Exception) {}
+        null
+    }
+
+    suspend fun scrapeVsePesni(artist: String, title: String): String? = withContext(Dispatchers.IO) {
+        val query = listOf(artist, title).filter { it.isNotBlank() }.joinToString(" ")
+        if (query.isBlank()) return@withContext null
+        try {
+            val q = URLEncoder.encode(query, "UTF-8")
+            val searchUrl = "https://vse-pesni.com/?s=$q"
+            val searchHtml = httpGet(searchUrl) ?: return@withContext null
+
+            val searchList = Regex("""(?s)<ul[^>]*class=["'][^"']*search-results-list[^"']*["'][^>]*>(.*?)</ul>""")
+                .find(searchHtml)?.groupValues?.get(1) ?: return@withContext null
+
+            val itemMatches = Regex("""<a\s+[^>]*href=["']((?:https?://vse-pesni\.com)?/song/[^"']+)["'][^>]*>(.*?)</a>""")
+                .findAll(searchList)
+
+            var matchedSongUrl: String? = null
+            for (item in itemMatches) {
+                val candidateUrl = item.groupValues[1]
+                val candidateText = cleanHtml(item.groupValues[2])
+                if (matchesSearchQuery(candidateText, "", title, artist)) {
+                    matchedSongUrl = if (candidateUrl.startsWith("http")) candidateUrl else "https://vse-pesni.com$candidateUrl"
+                    break
+                }
+            }
+
+            val songUrl = matchedSongUrl ?: return@withContext null
+            val songHtml = httpGet(songUrl) ?: return@withContext null
+
+            val rawContainers = extractBalancedTags(songHtml, "itemprop=\"lyrics\"", "div")
+                .ifEmpty { extractBalancedTags(songHtml, "class=\"can_copy\"", "div") }
+                .ifEmpty { extractBalancedTags(songHtml, "song_text", "div") }
+                .ifEmpty {
+                    Regex("""(?s)<div[^>]*class=["'][^"']*can_copy[^"']*["'][^>]*>(.*?)</div>""").find(songHtml)?.let { listOf(it.groupValues[1]) } ?: emptyList()
+                }
+
+            val rawLyrics = rawContainers.firstOrNull() ?: return@withContext null
+            val withoutWidgets = rawLyrics
+                .replace(Regex("""(?s)<div[^>]*class=["'][^"']*custom-html-widget[^"']*["'][^>]*>.*?</div>"""), "")
+                .replace(Regex("""(?s)<div[^>]*class=["'][^"']*textwidget[^"']*["'][^>]*>.*?</div>"""), "")
+                .replace(Regex("""(?s)<button[^>]*class=["'][^"']*copy-button[^"']*["'][^>]*>.*?</button>"""), "")
+
+            val clean = cleanHtml(withoutWidgets)
+            if (clean.length > 50) return@withContext clean
+        } catch (_: Exception) {}
+        null
+    }
+
+    suspend fun scrapeLyricFind(artist: String, title: String): String? = withContext(Dispatchers.IO) {
+        val query = listOf(artist, title).filter { it.isNotBlank() }.joinToString(" ")
+        if (query.isBlank()) return@withContext null
+        try {
+            val q = URLEncoder.encode(query, "UTF-8")
+            val searchUrl = "https://lyrics.lyricfind.com/search?q=$q"
+            val searchHtml = httpGet(searchUrl)
+
+            var songUrl: String? = null
+
             if (searchHtml != null) {
-                val songPath = Regex("""<a\s+[^>]*href=["'](/song/[^"']+)["']""").find(searchHtml)?.groupValues?.get(1)
-                if (songPath != null) {
-                    val songHtml = httpGet("https://textpesni.com$songPath")
-                    if (songHtml != null) {
-                        val rawBlock = Regex("""(?s)<div[^>]*class=["'][^"']*song-text[^"']*["'][^>]*>(.*?)</div>""").find(songHtml)?.groupValues?.get(1)
-                        if (!rawBlock.isNullOrBlank()) {
-                            return@withContext cleanHtml(rawBlock)
-                        }
+                val linkMatches = Regex("""<a\s+[^>]*href=["']((?:https?://lyrics\.lyricfind\.com)?/lyrics/[^"']+)["'][^>]*>(.*?)</a>""")
+                    .findAll(searchHtml)
+
+                for (match in linkMatches) {
+                    val candidateUrl = match.groupValues[1]
+                    val candidateText = cleanHtml(match.groupValues[2])
+                    if (matchesSearchQuery(candidateText, "", title, artist)) {
+                        songUrl = if (candidateUrl.startsWith("http")) candidateUrl else "https://lyrics.lyricfind.com$candidateUrl"
+                        break
                     }
                 }
+            }
+
+            if (songUrl == null && artist.isNotBlank() && title.isNotBlank()) {
+                val artistSlug = transliterateSlug(artist)
+                val titleSlug = transliterateSlug(title)
+                songUrl = "https://lyrics.lyricfind.com/lyrics/$artistSlug-$titleSlug"
+            }
+
+            val targetUrl = songUrl ?: return@withContext null
+            val songHtml = httpGet(targetUrl) ?: return@withContext null
+
+            val rawContainers = extractBalancedTags(songHtml, "class=\"track-lyrics\"", "div")
+                .ifEmpty { extractBalancedTags(songHtml, "class=\"lyrics\"", "div") }
+                .ifEmpty { extractBalancedTags(songHtml, "class=\"lf-lyrics\"", "div") }
+                .ifEmpty { extractBalancedTags(songHtml, "id=\"lyrics\"", "div") }
+                .ifEmpty {
+                    Regex("""(?s)<(?:div|p)[^>]*class=["'][^"']*(?:track-lyrics|lyrics|lf-lyrics|song-lyrics)[^"']*["'][^>]*>(.*?)</(?:div|p)>""")
+                        .findAll(songHtml)
+                        .map { it.groupValues[1] }
+                        .toList()
+                }
+
+            val rawLyrics = rawContainers.firstOrNull() ?: return@withContext null
+            val clean = cleanHtml(rawLyrics)
+            if (clean.length > 50) return@withContext clean
+        } catch (_: Exception) {}
+        null
+    }
+
+    suspend fun scrapeAmalgama(artist: String, title: String): String? = withContext(Dispatchers.IO) {
+        if (artist.isBlank() || title.isBlank()) return@withContext null
+        try {
+            val translitArtist = transliterateForUrl(artist)
+            val translitTitle = transliterateForUrl(title)
+            val firstLetter = translitArtist.firstOrNull()?.toString() ?: "a"
+
+            val url = "https://www.amalgama-lab.com/songs/$firstLetter/$translitArtist/$translitTitle.html"
+            val html = httpGet(url) ?: return@withContext null
+
+            val originalLines = Regex("""(?s)<div class=["']original["']>(.*?)</div>""").findAll(html)
+                .map { cleanHtml(it.groupValues[1]) }
+                .filter { it.isNotBlank() }
+                .toList()
+
+            if (originalLines.isNotEmpty()) {
+                val fullLyrics = originalLines.joinToString("\n")
+                if (fullLyrics.length > 50) return@withContext fullLyrics
             }
         } catch (_: Exception) {}
         null
     }
 
+    suspend fun scrapeGenius(artist: String, title: String): String? = withContext(Dispatchers.IO) {
+        val query = listOf(artist, title).filter { it.isNotBlank() }.joinToString(" ")
+        if (query.isBlank()) return@withContext null
+        try {
+            val q = URLEncoder.encode(query, "UTF-8")
+            val searchUrl = "https://genius.com/api/search/multi?per_page=3&q=$q"
+            val jsonStr = httpGet(searchUrl) ?: return@withContext null
+
+            val urlRegex = Regex(""""url"\s*:\s*"(https://genius\.com/[^"]+)"""")
+            val songUrl = urlRegex.find(jsonStr)?.groupValues?.get(1)
+            if (songUrl.isNullOrBlank()) return@withContext null
+
+            val pageHtml = httpGet(songUrl) ?: return@withContext null
+
+            val rawContainers = extractBalancedTags(pageHtml, "data-lyrics-container=\"true\"")
+                .ifEmpty {
+                    Regex("""(?s)<div[^>]*data-lyrics-container=["']true["'][^>]*>(.*?)</div>""")
+                        .findAll(pageHtml)
+                        .map { it.groupValues[1] }
+                        .toList()
+                }
+
+            val containers = rawContainers
+                .map { cleanHtml(it) }
+                .filter { it.isNotBlank() }
+
+            if (containers.isNotEmpty()) {
+                val full = containers.joinToString("\n\n")
+                if (full.length > 50) return@withContext full
+            }
+        } catch (_: Exception) {}
+        null
+    }
+
+    internal fun extractBalancedTags(
+        html: String,
+        attributeMarker: String,
+        tagName: String = "div"
+    ): List<String> {
+        val results = mutableListOf<String>()
+        val openPrefix = "<$tagName"
+        val closeTag = "</$tagName>"
+        var idx = 0
+
+        while (idx < html.length) {
+            val markerIdx = html.indexOf(attributeMarker, idx)
+            if (markerIdx == -1) break
+
+            val tagStart = html.lastIndexOf(openPrefix, markerIdx)
+            if (tagStart == -1) {
+                idx = markerIdx + attributeMarker.length
+                continue
+            }
+
+            val contentStart = html.indexOf('>', markerIdx)
+            if (contentStart == -1) break
+            val innerStart = contentStart + 1
+
+            var depth = 1
+            var curr = innerStart
+
+            while (depth > 0 && curr < html.length) {
+                val nextOpen = html.indexOf(openPrefix, curr)
+                val nextClose = html.indexOf(closeTag, curr)
+
+                if (nextClose == -1) break
+
+                if (nextOpen != -1 && nextOpen < nextClose) {
+                    depth++
+                    curr = nextOpen + openPrefix.length
+                } else {
+                    depth--
+                    if (depth == 0) {
+                        results.add(html.substring(innerStart, nextClose))
+                    }
+                    curr = nextClose + closeTag.length
+                }
+            }
+            idx = curr.coerceAtLeast(markerIdx + attributeMarker.length)
+        }
+        return results
+    }
+
+    internal fun matchesSearchQuery(
+        candidateTitle: String,
+        candidateArtist: String,
+        queryTitle: String,
+        queryArtist: String
+    ): Boolean {
+        if (queryTitle.isBlank() && queryArtist.isBlank()) return true
+
+        fun tokenize(str: String): Set<String> {
+            return str.lowercase()
+                .replace(Regex("""[^\p{L}\p{Nd}]+"""), " ")
+                .split(" ")
+                .map { it.trim() }
+                .filter { it.length >= 2 && it !in STOP_WORDS }
+                .toSet()
+        }
+
+        val titleTokens = tokenize(queryTitle)
+        val artistTokens = tokenize(queryArtist)
+        val candidateTokens = tokenize("$candidateTitle $candidateArtist")
+
+        if (titleTokens.isNotEmpty()) {
+            val matchesTitle = titleTokens.any { it in candidateTokens }
+            if (!matchesTitle) return false
+        }
+
+        if (artistTokens.isNotEmpty() && candidateArtist.isNotBlank()) {
+            val matchesArtist = artistTokens.any { it in candidateTokens }
+            if (!matchesArtist && titleTokens.isEmpty()) return false
+        }
+
+        return true
+    }
+
+    private fun transliterateForUrl(str: String): String {
+        return str.lowercase()
+            .replace(Regex("""[^a-z0-9_]+"""), "_")
+            .trim('_')
+    }
+
+    private fun transliterateSlug(str: String): String {
+        return str.lowercase()
+            .replace(Regex("""[^a-z0-9]+"""), "-")
+            .trim('-')
+    }
+
     private fun cleanHtml(html: String): String {
         return html
+            .replace(Regex("""(?s)<div[^>]*data-exclude-from-selection=["']true["'][^>]*>.*?</div>"""), "")
+            .replace(Regex("""(?s)<script.*?</script>"""), "")
+            .replace(Regex("""(?s)<style.*?</style>"""), "")
             .replace(Regex("""(?i)<br\s*/?>"""), "\n")
             .replace(Regex("""(?i)</p>"""), "\n\n")
             .replace(Regex("""<[^>]+>"""), "")
@@ -715,16 +1121,34 @@ class DesktopLyricsService(
             .replace("&amp;", "&")
             .replace("&apos;", "'")
             .replace("&#39;", "'")
+            .replace("&laquo;", "«")
+            .replace("&raquo;", "»")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
             .lines()
-            .map { it.trim() }
+            .map { it.trimEnd() }
+            .filterNot { line ->
+                val trimmed = line.trim()
+                trimmed.contains("Contributors") || trimmed.contains("Translations")
+            }
+            .fold(mutableListOf<String>()) { acc, line ->
+                if (line.isNotBlank() || (acc.isNotEmpty() && acc.last().isNotBlank())) {
+                    acc.add(line)
+                }
+                acc
+            }
             .joinToString("\n")
             .trim()
     }
 
-    private fun saveToDiskCache(trackKey: String, lrc: String?, plain: String?, chords: String?, source: String?) {
+    private fun saveToDiskCache(trackKey: String, lrc: String?, plain: String?, chords: String?, source: String?, attribution: String? = null, artist: String? = null) {
         try {
             val file = File(diskCacheDir, "$trackKey.cache")
             val content = buildString {
+                if (!artist.isNullOrBlank()) {
+                    appendLine("[ARTIST]")
+                    appendLine(artist)
+                }
                 appendLine("[SOURCE]")
                 appendLine(source.orEmpty())
                 appendLine("[CHORDS]")
@@ -733,6 +1157,8 @@ class DesktopLyricsService(
                 appendLine(lrc.orEmpty())
                 appendLine("[PLAIN_LYRICS]")
                 appendLine(plain.orEmpty())
+                appendLine("[ATTRIBUTION]")
+                appendLine(attribution.orEmpty())
             }
             file.writeText(content, Charsets.UTF_8)
         } catch (e: Exception) {
@@ -746,10 +1172,15 @@ class DesktopLyricsService(
             if (!file.exists() || file.length() == 0L) return null
 
             val text = file.readText(Charsets.UTF_8)
+            val cachedArtist = if (text.startsWith("[ARTIST]\n")) {
+                text.substringAfter("[ARTIST]\n").substringBefore("\n[SOURCE]").trim().ifBlank { null }
+            } else null
+            val effectiveArtist = cachedArtist ?: artist
             val source = text.substringAfter("[SOURCE]\n").substringBefore("\n[CHORDS]").trim()
             val chords = text.substringAfter("[CHORDS]\n").substringBefore("\n[SYNCED_LRC]").trim().ifBlank { null }
             val lrc = text.substringAfter("[SYNCED_LRC]\n").substringBefore("\n[PLAIN_LYRICS]").trim().ifBlank { null }
-            val plain = text.substringAfter("[PLAIN_LYRICS]\n").trim().ifBlank { null }
+            val plain = text.substringAfter("[PLAIN_LYRICS]\n").substringBefore("\n[ATTRIBUTION]\n").trim().ifBlank { null }
+            val attribution = text.substringAfter("\n[ATTRIBUTION]\n", "").trim().ifBlank { null }
 
             val lrcLines = if (!lrc.isNullOrBlank()) {
                 LrcSyncEngine.parseLrcLinesStrict(lrc).map { LrcLine(it.timestampMs, it.text) }
@@ -761,11 +1192,12 @@ class DesktopLyricsService(
                 isLoading = false,
                 trackKey = trackKey,
                 displayTitle = title,
-                displayArtist = artist,
+                displayArtist = effectiveArtist,
                 lrcLines = lrcLines,
                 plainLyrics = plain,
                 chords = chords,
                 source = source,
+                sourceAttributionJson = attribution,
                 hasLyrics = lrcLines.isNotEmpty() || plain != null || chords != null,
                 syncedLyricsLrc = lrc
             )
@@ -774,9 +1206,10 @@ class DesktopLyricsService(
         }
     }
 
-    private fun httpGet(urlStr: String): String? = httpGetWithHeaders(urlStr, emptyMap())
+    private suspend fun httpGet(urlStr: String): String? = httpGetWithHeaders(urlStr, emptyMap())
 
-    private fun httpGetWithHeaders(urlStr: String, headers: Map<String, String>): String? {
+    private suspend fun httpGetWithHeaders(urlStr: String, headers: Map<String, String>): String? {
+        if (httpFetch != null) return httpFetch.invoke(urlStr, headers)
         var conn: HttpURLConnection? = null
         try {
             val url = URI.create(urlStr).toURL()

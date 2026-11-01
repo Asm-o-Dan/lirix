@@ -53,7 +53,9 @@ internal static class Program
                     var cmd = JsonSerializer.Deserialize(line, BridgeJsonContext.Default.CommandMessage);
                     if (cmd != null && !string.IsNullOrEmpty(cmd.Cmd))
                     {
-                        await watcher.ExecuteCommandAsync(cmd);
+                        if (cmd.Cmd == "enableMeter") meter.SetEnabled(true);
+                        else if (cmd.Cmd == "disableMeter") meter.SetEnabled(false);
+                        else await watcher.ExecuteCommandAsync(cmd);
                     }
                 }
                 catch

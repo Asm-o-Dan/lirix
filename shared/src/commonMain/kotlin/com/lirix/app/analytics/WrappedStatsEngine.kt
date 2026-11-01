@@ -78,7 +78,8 @@ data class WrappedStats(
     val topObsession: TopObsessionItem? = null,
     val timeOfDayDistribution: Map<TimeOfDaySlot, Float>,
     val weeklyActivity: List<DayOfWeekActivity> = emptyList(),
-    val archetype: ListeningArchetype
+    val archetype: ListeningArchetype,
+    val hasLegacyListeningData: Boolean = false
 )
 
 /**
@@ -113,30 +114,8 @@ object WrappedStatsEngine {
         activeSessionId: Long? = null,
         trackDurationMs: Long? = null
     ): Long {
-        // ПРАВИЛО 1: Если сессия НЕ является текущей активной — возвращаем СТРОГО сохраненный durationMs!
-        if (activeSessionId == null || session.id != activeSessionId) {
-            return session.durationMs
-        }
-
-        // ПРАВИЛО 2: Для ЕДИНСТВЕННОЙ активной сессии вычисляем реальный прогресс
-        val livePos = if (livePlayback != null && livePlayback.isPlaying) {
-            if (livePlayback.lastPositionUpdateTimeMs > 0L) {
-                livePlayback.currentPositionMs()
-            } else {
-                livePlayback.basePositionMs
-            }
-        } else {
-            0L
-        }
-
-        // Ограничиваем максимальную длительность одной песни (не больше длительности трека или 15 минут)
-        val maxTrackCap = trackDurationMs?.takeIf { it > 0L }
-            ?: (livePlayback?.durationMs?.takeIf { it > 0L } ?: (15 * 60 * 1000L))
-
-        val elapsedWallTime = (referenceTimestampMs - session.startTimeMs).coerceIn(0L, maxTrackCap)
-        val effective = maxOf(session.durationMs, livePos, elapsedWallTime)
-
-        return minOf(effective, maxTrackCap)
+        // Only confirmed persisted listening counts. A media position or an open session is not elapsed listening.
+        return session.durationMs.coerceAtLeast(0L)
     }
 
     fun calculateStats(
@@ -165,21 +144,13 @@ object WrappedStatsEngine {
             )
         }
 
-        val filteredSessions = when (timeframe) {
-            AnalyticsTimeframe.TODAY -> {
-                val startToday = startOfDayMs(referenceTimestampMs)
-                sessions.filter { it.startTimeMs >= startToday && it.startTimeMs <= referenceTimestampMs }
-            }
-            AnalyticsTimeframe.WEEK -> {
-                val startWeek = referenceTimestampMs - 7 * 86_400_000L
-                sessions.filter { it.startTimeMs >= startWeek && it.startTimeMs <= referenceTimestampMs }
-            }
-            AnalyticsTimeframe.MONTH -> {
-                val startMonth = referenceTimestampMs - 30 * 86_400_000L
-                sessions.filter { it.startTimeMs >= startMonth && it.startTimeMs <= referenceTimestampMs }
-            }
-            AnalyticsTimeframe.ALL_TIME -> sessions
+        val periodStart = when (timeframe) {
+            AnalyticsTimeframe.TODAY -> startOfDayMs(referenceTimestampMs)
+            AnalyticsTimeframe.WEEK -> referenceTimestampMs - 7 * 86_400_000L
+            AnalyticsTimeframe.MONTH -> referenceTimestampMs - 30 * 86_400_000L
+            AnalyticsTimeframe.ALL_TIME -> Long.MIN_VALUE
         }
+        val filteredSessions = ListeningIntervals.project(sessions, periodStart, referenceTimestampMs)
 
         val trackMap = tracks.associateBy { it.trackKey }
 
@@ -192,15 +163,7 @@ object WrappedStatsEngine {
         val topTracks: List<TopTrackItem>
         val topObsession: TopObsessionItem?
 
-        val activeSession: MusicListeningSessionEntity? = if (!includeLiveSessionEstimate) null else if (livePlayback != null && livePlayback.isPlaying) {
-            val liveTrackKey = MusicTrackParser.computeTrackKey(livePlayback.title, livePlayback.artist, livePlayback.album)
-            filteredSessions.lastOrNull { s ->
-                !s.isCompleted && (s.trackKey == liveTrackKey || s.sourcePackage == livePlayback.packageName)
-            } ?: filteredSessions.lastOrNull { !it.isCompleted && (referenceTimestampMs - it.endTimeMs < 60_000L) }
-        } else {
-            filteredSessions.lastOrNull { !it.isCompleted && (referenceTimestampMs - it.endTimeMs < 30_000L) }
-        }
-        val activeSessionId: Long? = activeSession?.id
+        val activeSessionId: Long? = null
 
         if (filteredSessions.isNotEmpty()) {
             val rawTotalListeningTimeMs = filteredSessions.sumOf { session ->
@@ -213,11 +176,7 @@ object WrappedStatsEngine {
                     trackDurationMs = trackDuration
                 )
             }
-            totalListeningTimeMs = if (timeframe == AnalyticsTimeframe.TODAY) {
-                rawTotalListeningTimeMs.coerceAtMost(24 * 3600 * 1000L)
-            } else {
-                rawTotalListeningTimeMs
-            }
+            totalListeningTimeMs = rawTotalListeningTimeMs
             val sessionCountsByTrack = filteredSessions.groupingBy { it.trackKey }.eachCount()
             val sessionDurationsByTrack = filteredSessions.groupBy { it.trackKey }
                 .mapValues { (key, list) ->
@@ -419,13 +378,11 @@ object WrappedStatsEngine {
                 else -> 0
             }
             dayCounts[idx] += 1
-            dayDurations[idx] += calculateEffectiveSessionDuration(
-                session = session,
-                referenceTimestampMs = referenceTimestampMs,
-                livePlayback = livePlayback,
-                activeSessionId = activeSessionId,
-                trackDurationMs = trackMap[session.trackKey]?.totalDurationMs
-            )
+        }
+        for ((day, duration) in ListeningIntervals.dailyDurations(filteredSessions)) {
+            cal.timeInMillis = day
+            val idx = (cal.get(Calendar.DAY_OF_WEEK) + 5) % 7
+            dayDurations[idx] += duration
         }
         val weeklyActivity = dayNames.mapIndexed { i, name ->
             DayOfWeekActivity(
@@ -458,19 +415,14 @@ object WrappedStatsEngine {
             topObsession = topObsession,
             timeOfDayDistribution = timeOfDayDistribution,
             weeklyActivity = weeklyActivity,
-            archetype = archetype
+            archetype = archetype,
+            hasLegacyListeningData = sessions.any { it.listeningIntervalsJson.isBlank() } ||
+                (sessions.isEmpty() && tracks.any { it.totalDurationMs > 0 })
         )
     }
 
     private fun startOfDayMs(timestamp: Long): Long {
-        val cal = Calendar.getInstance().apply {
-            timeInMillis = timestamp
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        return cal.timeInMillis
+        return calendarPeriodTick(timestamp).dayStartMs
     }
 }
 

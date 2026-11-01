@@ -2,6 +2,7 @@ package com.lirix.app.ingestion
 
 import android.content.ComponentName
 import android.content.Context
+import android.graphics.Bitmap
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -24,6 +25,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.security.MessageDigest
+import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -42,45 +44,74 @@ class MediaSessionCollector private constructor(private val context: Context) {
     private val lastTrackMap = ConcurrentHashMap<String, String>()
     private val albumArtStorage = com.lirix.app.storage.AlbumArtStorage(context)
     private var heartbeatJob: kotlinx.coroutines.Job? = null
+    private var heartbeatPackage: String? = null
+    private data class SavedArtwork(val bitmap: WeakReference<Bitmap>, val generation: Int)
+    private val savedArtwork = LinkedHashMap<String, SavedArtwork>()
+
+    private data class ListeningObservation(
+        val snapshot: LivePlaybackSnapshot?, val state: String,
+        val wall: Long = System.currentTimeMillis(),
+        val mono: Long = android.os.SystemClock.elapsedRealtime(),
+        val progressOnly: Boolean = false
+    )
+    private val listeningObservations = kotlinx.coroutines.channels.Channel<ListeningObservation>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+    private val accountingJob = scope.launch {
+        var engine: com.lirix.app.feature.MusicFeatureEngine? = null
+        var prefetchedKey: String? = null
+        var lastIdentity: List<String?>? = null
+        var lastStateMono = Long.MIN_VALUE
+        for (observation in listeningObservations) {
+            try {
+                val currentEngine = engine ?: AppDatabase.getInstance(context).let { db ->
+                    com.lirix.app.feature.MusicFeatureEngine(db.musicDao(), db.lyricsDao(), blacklistDao = db.blacklistDao())
+                        .also { engine = it; it.startBlacklistSync(scope, db) }
+                }
+                val snapshot = observation.snapshot
+                if (snapshot == null) {
+                    if (observation.mono < lastStateMono) continue
+                    currentEngine.stopListeningProgress(timestamp = observation.wall, monotonicMs = observation.mono)
+                    lastIdentity = null
+                    lastStateMono = observation.mono
+                } else if (observation.progressOnly) {
+                    currentEngine.updateActiveSessionProgress(snapshot.packageName,
+                        timestamp = observation.wall, monotonicMs = observation.mono)
+                } else {
+                    if (observation.mono < lastStateMono) continue
+                    lastStateMono = observation.mono
+                    val identity = listOf(snapshot.packageName, snapshot.title, snapshot.artist,
+                        snapshot.album, observation.state, snapshot.albumArtUri)
+                    if (identity == lastIdentity) continue
+                    val track = currentEngine.recordPlaybackSignal(snapshot.title, snapshot.artist, snapshot.album,
+                        snapshot.packageName, playbackState = observation.state,
+                        timestamp = observation.wall, albumArtUri = snapshot.albumArtUri, monotonicMs = observation.mono)
+                    lastIdentity = identity
+                    if (track != null && observation.state == "PLAYING" && prefetchedKey != track.trackKey) {
+                        prefetchedKey = track.trackKey
+                        currentEngine.prefetchLyricsAsync(context, scope, track)
+                    }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { Timber.tag(TAG).w(e, "Failed to record confirmed listening interval") }
+        }
+    }
+
+    private fun enqueuePlayback(snapshot: LivePlaybackSnapshot?, state: String) {
+        listeningObservations.trySend(ListeningObservation(snapshot, state))
+    }
 
     private fun syncHeartbeat(isPlaying: Boolean, packageName: String) {
+        if (isPlaying && heartbeatPackage == packageName && heartbeatJob?.isActive == true) return
         heartbeatJob?.cancel()
-        if (!isPlaying) {
-            scope.launch {
-                try {
-                    val db = com.lirix.app.storage.AppDatabase.getInstance(context)
-                    val engine = com.lirix.app.feature.MusicFeatureEngine(db.musicDao(), db.lyricsDao())
-                    val currentPos = _livePlaybackFlow.value?.currentPositionMs()
-                    engine.updateActiveSessionProgress(
-                        sourcePackage = packageName,
-                        currentPlaybackPositionMs = currentPos,
-                        timestamp = System.currentTimeMillis()
-                    )
-                } catch (e: Exception) {
-                    Timber.tag(TAG).w(e, "Error finalizing active session")
-                }
-            }
-            return
-        }
-
+        heartbeatJob = null
+        heartbeatPackage = if (isPlaying) packageName else null
+        if (!isPlaying) return
         heartbeatJob = scope.launch {
             while (isActive) {
                 delay(5000L)
-                try {
-                    val snapshot = _livePlaybackFlow.value
-                    if (snapshot != null && snapshot.isPlaying && snapshot.packageName == packageName) {
-                        val currentPos = snapshot.currentPositionMs()
-                        val db = com.lirix.app.storage.AppDatabase.getInstance(context)
-                        val engine = com.lirix.app.feature.MusicFeatureEngine(db.musicDao(), db.lyricsDao())
-                        engine.updateActiveSessionProgress(
-                            sourcePackage = packageName,
-                            currentPlaybackPositionMs = currentPos,
-                            timestamp = System.currentTimeMillis()
-                        )
-                    }
-                } catch (e: Exception) {
-                    Timber.tag(TAG).w(e, "Error updating heartbeat session progress")
-                }
+                val snapshot = _livePlaybackFlow.value
+                if (snapshot == null || !snapshot.isPlaying || snapshot.packageName != packageName) return@launch
+                val observation = ListeningObservation(snapshot, "PLAYING", progressOnly = true)
+                if (_livePlaybackFlow.value === snapshot) listeningObservations.send(observation)
             }
         }
     }
@@ -124,6 +155,13 @@ class MediaSessionCollector private constructor(private val context: Context) {
 
     private fun updateControllers(controllers: List<MediaController>?) {
         if (controllers.isNullOrEmpty()) {
+            enqueuePlayback(null, "STOPPED")
+            val previous = _livePlaybackFlow.value
+            if (previous != null) syncHeartbeat(false, previous.packageName)
+            else {
+                heartbeatJob?.cancel()
+                heartbeatJob = null
+            }
             // Все сессии закрыты: разрегистрируем колбэки и переходим в IDLE
             for ((pkg, callback) in activeControllers) {
                 try {
@@ -174,6 +212,11 @@ class MediaSessionCollector private constructor(private val context: Context) {
 
         // Если текущий отображаемый трек принадлежал удаленному пакету, переключаем на живой
         val currentSnapshot = _livePlaybackFlow.value
+        if (currentSnapshot?.packageName in removedPkgs) {
+            enqueuePlayback(null, "STOPPED")
+            syncHeartbeat(false, currentSnapshot!!.packageName)
+            _livePlaybackFlow.value = null
+        }
         if (currentSnapshot == null || currentSnapshot.packageName in removedPkgs || !currentSnapshot.isPlaying) {
             val bestTarget = resolveTargetController(controllers)
             if (bestTarget != null) {
@@ -182,6 +225,7 @@ class MediaSessionCollector private constructor(private val context: Context) {
         }
     }
 
+    @Synchronized
     private fun extractAndSaveAlbumArt(title: String, artist: String, album: String, metadata: MediaMetadata?): String? {
         val trackKey = com.lirix.app.feature.MusicFeatureEngine.computeTrackKey(title, artist, album)
         val rawBitmap = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
@@ -189,9 +233,21 @@ class MediaSessionCollector private constructor(private val context: Context) {
         val artUriStr = metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
             ?: metadata?.getString(MediaMetadata.METADATA_KEY_ART_URI)
 
-        if (rawBitmap != null) {
+        if (rawBitmap != null && !rawBitmap.isRecycled) {
+            val saved = savedArtwork[trackKey]
+            val previousBitmap = saved?.bitmap?.get()
+            val unchanged = previousBitmap != null && !previousBitmap.isRecycled &&
+                previousBitmap.generationId == saved?.generation &&
+                (previousBitmap === rawBitmap || previousBitmap.sameAs(rawBitmap))
+            if (unchanged) {
+                albumArtStorage.getAlbumArtPath(trackKey)?.let { return it }
+            }
             val savedPath = kotlinx.coroutines.runBlocking(Dispatchers.IO) {
                 albumArtStorage.saveBitmap(trackKey, rawBitmap)
+            }
+            if (savedPath != null) {
+                savedArtwork[trackKey] = SavedArtwork(WeakReference(rawBitmap), rawBitmap.generationId)
+                while (savedArtwork.size > 8) savedArtwork.remove(savedArtwork.keys.first())
             }
             return savedPath ?: artUriStr ?: albumArtStorage.getAlbumArtPath(trackKey)
         }
@@ -199,7 +255,15 @@ class MediaSessionCollector private constructor(private val context: Context) {
     }
 
     private fun handlePlaybackChange(controller: MediaController, state: PlaybackState?) {
-        if (state == null) return
+        if (state == null) {
+            val previous = _livePlaybackFlow.value?.takeIf { it.packageName == controller.packageName } ?: return
+            val paused = previous.copy(isPlaying = false, basePositionMs = previous.currentPositionMs(),
+                lastPositionUpdateTimeMs = android.os.SystemClock.elapsedRealtime())
+            _livePlaybackFlow.value = paused
+            enqueuePlayback(paused, "PAUSED")
+            syncHeartbeat(false, controller.packageName)
+            return
+        }
         activeMediaControllers[controller.packageName] = controller
 
         val current = _livePlaybackFlow.value
@@ -239,8 +303,9 @@ class MediaSessionCollector private constructor(private val context: Context) {
             PlaybackState.STATE_PAUSED -> "PAUSED"
             PlaybackState.STATE_STOPPED -> "STOPPED"
             PlaybackState.STATE_BUFFERING -> "BUFFERING"
-            else -> "OTHER"
+            else -> "PAUSED"
         }
+        enqueuePlayback(_livePlaybackFlow.value?.takeIf { it.packageName == controller.packageName }, stateName)
         syncHeartbeat(isPlaying, controller.packageName)
         emitMediaEvent(controller.packageName, metadata, stateName)
     }
@@ -250,7 +315,8 @@ class MediaSessionCollector private constructor(private val context: Context) {
         activeMediaControllers[controller.packageName] = controller
 
         val current = _livePlaybackFlow.value
-        val isPlaying = controller.playbackState?.state == PlaybackState.STATE_PLAYING
+        val state = controller.playbackState
+        val isPlaying = state?.state == PlaybackState.STATE_PLAYING
         if (current != null && current.isPlaying && current.packageName != controller.packageName && !isPlaying) {
             // Защита активного воспроизведения
             return
@@ -260,7 +326,6 @@ class MediaSessionCollector private constructor(private val context: Context) {
         val artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)?.trim().orEmpty()
         val album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM)?.trim().orEmpty()
         val duration = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION)
-        val state = controller.playbackState
         val basePos = state?.position ?: 0L
         val updateTime = if ((state?.lastPositionUpdateTime ?: 0L) > 0L) state!!.lastPositionUpdateTime else android.os.SystemClock.elapsedRealtime()
         val speed = if ((state?.playbackSpeed ?: 0f) > 0f) state!!.playbackSpeed else 1.0f
@@ -280,8 +345,15 @@ class MediaSessionCollector private constructor(private val context: Context) {
                 albumArtUri = finalArtUri
             )
         }
+        val observedState = when (state?.state) {
+            PlaybackState.STATE_PLAYING -> "PLAYING"
+            PlaybackState.STATE_BUFFERING -> "BUFFERING"
+            PlaybackState.STATE_STOPPED -> "STOPPED"
+            else -> "PAUSED"
+        }
+        enqueuePlayback(_livePlaybackFlow.value?.takeIf { it.packageName == controller.packageName }, observedState)
         syncHeartbeat(isPlaying, controller.packageName)
-        emitMediaEvent(controller.packageName, metadata, "UPDATE")
+        emitMediaEvent(controller.packageName, metadata, observedState)
     }
 
     private fun emitMediaEvent(packageName: String, metadata: MediaMetadata?, stateName: String) {
@@ -345,34 +417,6 @@ class MediaSessionCollector private constructor(private val context: Context) {
         Timber.tag(TAG).i("Recorded Media Event: [%s] %s - %s (%s)", packageName, artist, title, stateName)
 
         val db = com.lirix.app.storage.AppDatabase.getInstance(context)
-        val musicEngine = com.lirix.app.feature.MusicFeatureEngine(db.musicDao(), db.lyricsDao(), blacklistDao = db.blacklistDao())
-
-        if (!title.isNullOrBlank()) {
-            val cleanArtist = artist.orEmpty().ifBlank { "Unknown Artist" }
-            val cleanAlbum = album.orEmpty()
-            val trackKeyForArt = com.lirix.app.feature.MusicFeatureEngine.computeTrackKey(title, cleanArtist, cleanAlbum)
-            val finalArtUri = albumArtStorage.getAlbumArtPath(trackKeyForArt)
-                ?: _livePlaybackFlow.value?.takeIf { it.title == title }?.albumArtUri
-
-            val recordedTrack = musicEngine.recordPlaybackSignal(
-                title = title,
-                artist = cleanArtist,
-                album = cleanAlbum,
-                sourcePackage = packageName,
-                playbackState = stateName,
-                timestamp = now,
-                albumArtUri = finalArtUri
-            )
-
-            if (recordedTrack != null) {
-                musicEngine.prefetchLyricsAsync(
-                    context = context,
-                    scope = scope,
-                    track = recordedTrack
-                )
-            }
-        }
-
         // Show status bar prompt notification for lyrics when music is active
         if (stateName == "PLAYING" || stateName == "UPDATE") {
             if (!title.isNullOrBlank()) {
@@ -396,7 +440,9 @@ class MediaSessionCollector private constructor(private val context: Context) {
 
     @Synchronized
     fun stopListening() {
+        enqueuePlayback(null, "STOPPED")
         heartbeatJob?.cancel()
+        heartbeatJob = null
         debounceFilter.cancelAll()
         if (isSessionListenerRegistered && sessionManager != null) {
             try {
@@ -416,6 +462,7 @@ class MediaSessionCollector private constructor(private val context: Context) {
         activeControllers.clear()
         activeMediaControllers.clear()
         lastTrackMap.clear()
+        savedArtwork.clear()
         _livePlaybackFlow.value = null
         com.lirix.app.feature.MusicLyricsNotificationManager.cancelLyricsPrompt(context)
     }
@@ -449,6 +496,9 @@ class MediaSessionCollector private constructor(private val context: Context) {
         fun resetInstanceForTesting() {
             synchronized(this) {
                 instance?.stopListening()
+                instance?.listeningObservations?.close()
+                instance?.accountingJob?.cancel()
+                instance?.scope?.coroutineContext?.get(kotlinx.coroutines.Job)?.cancel()
                 instance = null
             }
         }

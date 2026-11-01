@@ -21,12 +21,17 @@ import com.lirix.app.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.sqrt
@@ -317,6 +322,9 @@ class AndroidAudioCaptureEngine(
  */
 class AudioCastForegroundService : Service() {
 
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var castJob: Job? = null
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -360,13 +368,28 @@ class AudioCastForegroundService : Service() {
                     AndroidCastSourceManager.getInstance().attachMediaProjection(mediaProjection, deviceName)
 
                     val endpointHex = intent.getStringExtra(EXTRA_ENDPOINT_HEX)
-                    CoroutineScope(Dispatchers.IO).launch {
-                        com.lirix.app.connect.AndroidConnectManager.getInstance(applicationContext).startAudioCastToDevice(
-                            deviceName = deviceName,
-                            endpointHex = endpointHex,
-                            projection = mediaProjection
-                        )
+                    castJob?.cancel()
+                    castJob = serviceScope.launch {
+                        try {
+                            val started = withContext(Dispatchers.IO) {
+                                com.lirix.app.connect.AndroidConnectManager.getInstance(applicationContext).startAudioCastToDevice(
+                                    deviceName = deviceName,
+                                    endpointHex = endpointHex,
+                                    projection = mediaProjection
+                                )
+                            }
+                            if (started) {
+                                AndroidCastSourceManager.getInstance().isCasting.first { !it }
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            Log.e("LirixCast", "cast-service-start-failed", e)
+                        }
+                        stopCastInternal()
                     }
+                } else {
+                    stopCastInternal()
                 }
             }
             ACTION_STOP_CAST -> {
@@ -390,6 +413,7 @@ class AudioCastForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        serviceScope.cancel()
         stopCastInternal()
         super.onDestroy()
     }

@@ -84,7 +84,8 @@ fun WrappedScreen() {
     val tracks by db.musicDao().observeRecentTracks().collectAsStateWithLifecycle(initialValue = emptyList())
     val sessions by db.musicDao().observeAllSessions().collectAsStateWithLifecycle(initialValue = emptyList())
     val rawAchievements by db.achievementDao().observeAchievements().collectAsStateWithLifecycle(initialValue = emptyList())
-    val livePlayback by com.lirix.app.ingestion.MediaSessionCollector.livePlaybackFlow.collectAsStateWithLifecycle(initialValue = null)
+    val calendarPeriod by remember { com.lirix.app.analytics.calendarPeriodChanges() }
+        .collectAsStateWithLifecycle(initialValue = com.lirix.app.analytics.calendarPeriodTick())
 
     var selectedTimeframe by rememberSaveable { mutableStateOf(AnalyticsTimeframe.MONTH) }
     var calculatedStats by remember { mutableStateOf<Pair<AnalyticsTimeframe, WrappedStats>?>(null) }
@@ -156,7 +157,7 @@ fun WrappedScreen() {
         )
     }
 
-    LaunchedEffect(selectedTimeframe, tracks, sessions, livePlayback?.isPlaying) {
+    LaunchedEffect(selectedTimeframe, tracks, sessions, calendarPeriod) {
         val period = selectedTimeframe
         val result = withContext(Dispatchers.Default) {
             WrappedStatsEngine.calculateStats(
@@ -275,6 +276,7 @@ fun WrappedScreen() {
                 )
             }
         }
+
 
         // 3. Honest Facts Section (Typography list, no SaaS cards)
         if (stats != null) item {

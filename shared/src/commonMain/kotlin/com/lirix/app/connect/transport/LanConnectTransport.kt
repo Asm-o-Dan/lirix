@@ -105,9 +105,8 @@ class LanConnectTransport(
                 datagramSocket.sendBufferSize = 65536
                 udpSocket = datagramSocket
 
-                startReaders(socket, datagramSocket)
-
                 _state.value = ConnectState.CONNECTED
+                startReaders(socket, datagramSocket)
                 return@withContext Result.success(Unit)
             } catch (e: Exception) {
                 lastException = e
@@ -136,8 +135,11 @@ class LanConnectTransport(
                 }
             } catch (_: Exception) {
             } finally {
-                if (_state.value == ConnectState.CONNECTED) {
-                    _state.value = ConnectState.DISCONNECTED
+                synchronized(this@LanConnectTransport) {
+                    if (tcpSocket === socket) {
+                        disconnectInternal("Control connection closed")
+                        _state.value = ConnectState.DISCONNECTED
+                    }
                 }
             }
         }
@@ -170,6 +172,7 @@ class LanConnectTransport(
     override fun incomingControlMessages(): Flow<ByteArray> = incomingControlFlow.asSharedFlow()
 
     override suspend fun sendDatagram(datagram: ByteArray): Unit = withContext(Dispatchers.IO) {
+        check(_state.value == ConnectState.CONNECTED) { "Transport not connected" }
         val dSocket = udpSocket ?: throw IllegalStateException("Transport not connected")
         val host = targetHost ?: throw IllegalStateException("Transport not connected")
         val packet = DatagramPacket(datagram, datagram.size, host, targetPort)
@@ -185,6 +188,7 @@ class LanConnectTransport(
         }
     }
 
+    @Synchronized
     private fun disconnectInternal(reason: String) {
         tcpReaderJob?.cancel()
         tcpReaderJob = null

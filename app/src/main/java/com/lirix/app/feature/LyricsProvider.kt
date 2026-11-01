@@ -3,6 +3,13 @@ package com.lirix.app.feature
 import com.lirix.app.feature.lyrics.AmDmChordParser
 import com.lirix.app.feature.lyrics.CustomRuleLyricsProvider
 import com.lirix.app.feature.lyrics.MyChordsParser
+import com.lirix.app.feature.lyrics.AdditionalLyricsResult
+import com.lirix.app.feature.lyrics.KugouLyricsProvider
+import com.lirix.app.feature.lyrics.LyricsOvhProvider
+import com.lirix.app.feature.lyrics.AkkordsProProvider
+import com.lirix.app.storage.LyricsAttribution
+import com.lirix.app.storage.LyricsSourceAttribution
+import kotlinx.coroutines.CancellationException
 import com.lirix.app.storage.CustomLyricsRuleEntity
 import com.lirix.app.storage.LyricsDao
 import com.lirix.app.storage.AutomaticLookupCandidate
@@ -11,7 +18,6 @@ import com.lirix.app.feature.lyrics.LookupTarget
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import com.lirix.app.storage.TrackEntity
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -35,7 +41,8 @@ data class LyricsResult(
     val syncedLyrics: String? = null,
     val plainLyrics: String? = null,
     val sourceId: String = "",
-    val chords: String? = null
+    val chords: String? = null,
+    val sourceAttributionJson: String? = null
 )
 
 object LyricsSourceIds {
@@ -44,6 +51,9 @@ object LyricsSourceIds {
     const val LRCLIB = "builtin:lrclib"
     const val AMDM = "builtin:amdm"
     const val MYCHORDS = "builtin:mychords"
+    const val KUGOU = "builtin:kugou"
+    const val LYRICS_OVH = "builtin:lyrics-ovh"
+    const val AKKORDS_PRO = "builtin:akkords-pro"
     const val VSE_PESNI = "builtin:vse-pesni"
     const val NONE = "none"
 }
@@ -937,13 +947,19 @@ class FallbackLyricsScraper(
  *
  * Automatically saves retrieved lyrics back to Room via onLyricsDiscovered callback.
  */
+// Reuse source cooldown/missing caches across per-screen/per-track aggregator instances.
+private val additionalKugou by lazy { KugouLyricsProvider() }
+private val additionalAkkords by lazy { AkkordsProProvider() }
+private val additionalOvh by lazy { LyricsOvhProvider() }
+
 class AggregatedLyricsProvider(
     private val lrcLibProvider: LyricsProvider? = LrcLibLyricsProvider(),
     private val fallbackScraper: LyricsProvider? = FallbackLyricsScraper(),
     private val offlineAdapter: LyricsProvider = OfflineLyricsAdapter(),
     private val lyricsDao: LyricsDao? = null,
     private val customRuleFactory: ((CustomLyricsRuleEntity) -> LyricsProvider)? = null,
-    private val onLyricsDiscovered: (suspend (trackKey: String, plain: String?, synced: String?) -> Unit)? = null
+    private val onLyricsDiscovered: (suspend (trackKey: String, plain: String?, synced: String?) -> Unit)? = null,
+    private val additionalLookup: (suspend (String, TrackEntity) -> AdditionalLyricsResult?)? = null
 ) : LyricsProvider {
 
     /** Automatic recovery is side-effect free and never treats private notes as song words. */
@@ -966,9 +982,12 @@ class AggregatedLyricsProvider(
         }
         suspend fun candidate(result: LyricsResult): AutomaticLookupCandidate {
             val plain = result.plainLyrics ?: result.lyricsText.takeIf { result.syncedLyrics.isNullOrBlank() }
-            val ownChords = result.chords?.takeIf { it.isNotBlank() }?.let { AutomaticLookupField(it, result.sourceId) }
-            return AutomaticLookupCandidate(plain?.takeIf { it.isNotBlank() }?.let { AutomaticLookupField(it, result.sourceId) },
-                result.syncedLyrics?.takeIf { it.isNotBlank() }?.let { AutomaticLookupField(it, result.sourceId) },
+            val attribution = LyricsAttribution.decode(result.sourceAttributionJson)
+            fun field(text: String, origin: LyricsSourceAttribution?) = AutomaticLookupField(text,
+                origin?.sourceId ?: result.sourceId, origin?.sourceUrl, origin?.author)
+            val ownChords = result.chords?.takeIf { it.isNotBlank() }?.let { field(it, attribution.chords) }
+            return AutomaticLookupCandidate(plain?.takeIf { it.isNotBlank() }?.let { field(it, attribution.lyrics) },
+                result.syncedLyrics?.takeIf { it.isNotBlank() }?.let { field(it, attribution.lyrics) },
                 ownChords ?: fetchAutomaticChordTabs(cleanTrack, rejected))
         }
         for (rule in lyricsDao?.getActiveRules().orEmpty()) {
@@ -977,8 +996,35 @@ class AggregatedLyricsProvider(
             attempt(customRuleFactory?.invoke(rule) ?: CustomRuleLyricsProvider(rule), id)?.let { return candidate(it) }
         }
         val primary = attempt(lrcLibProvider, LyricsSourceIds.LRCLIB)
+        if (!primary?.syncedLyrics.isNullOrBlank()) return candidate(primary!!)
+        currentCoroutineContext().ensureActive()
+        val extra = if (LyricsSourceIds.KUGOU in rejected) null
+            else if (additionalLookup != null) additionalLookup.invoke(LyricsSourceIds.KUGOU, cleanTrack)
+            else if (fallbackScraper is FallbackLyricsScraper && LyricsSourceIds.KUGOU !in rejected)
+                additionalKugou.find(cleanTrack.title, cleanTrack.artist) else null
+        if (extra != null && extra.sourceId !in rejected) {
+            return AutomaticLookupCandidate(
+                primary?.plainLyrics?.let { AutomaticLookupField(it, primary.sourceId) }
+                    ?: extra.plainLyrics?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) },
+                extra.syncedLyricsLrc?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) },
+                extra.chordsText?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) }
+                    ?: fetchAutomaticChordTabs(cleanTrack, rejected))
+        }
         if (primary != null) return candidate(primary)
         attempt(fallbackScraper)?.let { return candidate(it) }
+        for (id in listOf(LyricsSourceIds.AKKORDS_PRO, LyricsSourceIds.LYRICS_OVH)) {
+            currentCoroutineContext().ensureActive()
+            if (id in rejected) continue
+            val extra = if (additionalLookup != null) additionalLookup.invoke(id, cleanTrack)
+                else if (fallbackScraper is FallbackLyricsScraper) when (id) {
+                    LyricsSourceIds.AKKORDS_PRO -> additionalAkkords.find(cleanTrack.title, cleanTrack.artist)
+                    else -> additionalOvh.find(cleanTrack.title, cleanTrack.artist)
+                } else null
+            if (extra != null && extra.sourceId !in rejected) return AutomaticLookupCandidate(
+                extra.plainLyrics?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) },
+                extra.syncedLyricsLrc?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) },
+                extra.chordsText?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) })
+        }
         return AutomaticLookupCandidate()
     }
 
@@ -1006,158 +1052,107 @@ class AggregatedLyricsProvider(
                     result.sourceId !in setOf("", LyricsSourceIds.NONE, LyricsSourceIds.USER_NOTE) && !result.chords.isNullOrBlank())
                     return AutomaticLookupField(result.chords, result.sourceId)
             }
+            currentCoroutineContext().ensureActive()
+            if (LyricsSourceIds.AKKORDS_PRO !in rejectedSourceIds) {
+                val extra = if (additionalLookup != null) additionalLookup.invoke(LyricsSourceIds.AKKORDS_PRO, track)
+                    else if (fallbackScraper is FallbackLyricsScraper) additionalAkkords.find(track.title, track.artist) else null
+                val chords = extra?.chordsText
+                if (extra != null && extra.sourceId !in rejectedSourceIds && !chords.isNullOrBlank())
+                    return AutomaticLookupField(chords, extra.sourceId, extra.sourceUrl, extra.author)
+            }
         } catch (e: CancellationException) { throw e }
         catch (_: Exception) { /* A legacy null/error remains unresolved, never confirmed absence. */ }
         currentCoroutineContext().ensureActive()
         return null
     }
 
+    override suspend fun getLyrics(track: TrackEntity) = getLyrics(track, emptySet(), false)
 
-    override suspend fun getLyrics(track: TrackEntity): LyricsResult {
-        return getLyrics(track, emptySet(), false)
-    }
-
-    override suspend fun getLyrics(
-        track: TrackEntity,
-        rejectedSourceIds: Set<String>,
-        forceNetwork: Boolean
-    ): LyricsResult {
-        // 1. Check local Room cache first (100% offline instant return)
-        if (!forceNetwork && LyricsSourceIds.ROOM_CACHE !in rejectedSourceIds) {
-            if (!track.syncedLyrics.isNullOrBlank() || !track.plainLyrics.isNullOrBlank()) {
-                val textToDisplay = track.syncedLyrics ?: track.plainLyrics ?: ""
-                return LyricsResult(
-                    hasLyrics = true,
-                    lyricsText = textToDisplay,
-                    source = "Локальный кэш Room",
-                    isUserNote = false,
-                    syncedLyrics = track.syncedLyrics,
-                    plainLyrics = track.plainLyrics,
-                    sourceId = LyricsSourceIds.ROOM_CACHE
-                )
-            }
+    override suspend fun getLyrics(track: TrackEntity, rejectedSourceIds: Set<String>, forceNetwork: Boolean): LyricsResult {
+        val extra = mutableMapOf<String, AdditionalLyricsResult?>()
+        suspend fun additional(id: String): AdditionalLyricsResult? {
+            if (id in rejectedSourceIds) return null
+            if (extra.containsKey(id)) return extra[id]
+            val hit = if (additionalLookup != null) additionalLookup.invoke(id, track)
+                else if (fallbackScraper is FallbackLyricsScraper) when (id) {
+                    LyricsSourceIds.KUGOU -> {
+                        val snapshot = com.lirix.app.ingestion.MediaSessionCollector.livePlaybackFlow.value
+                        val duration = snapshot?.takeIf { it.title == track.title && it.artist == track.artist }?.durationMs
+                        additionalKugou.find(track.title, track.artist, duration)
+                    }
+                    LyricsSourceIds.AKKORDS_PRO -> additionalAkkords.find(track.title, track.artist)
+                    LyricsSourceIds.LYRICS_OVH -> additionalOvh.find(track.title, track.artist)
+                    else -> null
+                } else null // Explicitly disabling/replacing web scrapers also disables their new default backends.
+            extra[id] = hit
+            return hit
         }
-
-        // 2. Check user notes
+        fun converted(hit: AdditionalLyricsResult): LyricsResult {
+            val attribution = LyricsSourceAttribution(hit.sourceId, hit.sourceUrl, hit.author)
+            return LyricsResult(true, hit.syncedLyricsLrc ?: hit.plainLyrics ?: hit.chordsText.orEmpty(), hit.sourceName,
+                syncedLyrics = hit.syncedLyricsLrc, plainLyrics = hit.plainLyrics, sourceId = hit.sourceId, chords = hit.chordsText,
+                sourceAttributionJson = LyricsAttribution(
+                    attribution.takeIf { !hit.plainLyrics.isNullOrBlank() || !hit.syncedLyricsLrc.isNullOrBlank() },
+                    attribution.takeIf { !hit.chordsText.isNullOrBlank() }).encode())
+        }
+        suspend fun finish(result: LyricsResult): LyricsResult {
+            var enriched = result
+            if (result.chords.isNullOrBlank()) {
+                val oldChords = fetchChordTabs(track, rejectedSourceIds, forceNetwork)
+                if (!oldChords.isNullOrBlank()) enriched = result.copy(chords = oldChords)
+                else additional(LyricsSourceIds.AKKORDS_PRO)?.takeIf { !it.chordsText.isNullOrBlank() }?.let { chords ->
+                    val old = LyricsAttribution.decode(result.sourceAttributionJson)
+                    enriched = result.copy(chords = chords.chordsText,
+                        sourceAttributionJson = old.copy(chords = LyricsSourceAttribution(chords.sourceId, chords.sourceUrl, chords.author)).encode())
+                }
+            }
+            onLyricsDiscovered?.invoke(track.trackKey, enriched.plainLyrics, enriched.syncedLyrics)
+            return enriched
+        }
+        if (!forceNetwork && LyricsSourceIds.ROOM_CACHE !in rejectedSourceIds && (!track.syncedLyrics.isNullOrBlank() || !track.plainLyrics.isNullOrBlank())) {
+            val cache = lyricsDao?.getLyrics(track.trackKey)
+            return LyricsResult(true, track.syncedLyrics ?: track.plainLyrics.orEmpty(), "Локальный кэш Room",
+                syncedLyrics = track.syncedLyrics, plainLyrics = track.plainLyrics, sourceId = LyricsSourceIds.ROOM_CACHE,
+                chords = cache?.chordsAmDm, sourceAttributionJson = cache?.sourceAttributionJson)
+        }
         if (LyricsSourceIds.USER_NOTE !in rejectedSourceIds && track.userNotes.isNotBlank()) {
-            val userNoteResult = offlineAdapter.getLyrics(track, rejectedSourceIds, forceNetwork)
-            if (userNoteResult.hasLyrics && userNoteResult.sourceId !in rejectedSourceIds) {
-                return userNoteResult
-            }
+            val note = offlineAdapter.getLyrics(track, rejectedSourceIds, forceNetwork)
+            if (note.hasLyrics && note.sourceId !in rejectedSourceIds) return note
         }
-
-        // 2.5. Query custom user/community rules (TASK-LYR-04-C)
-        val activeRules = lyricsDao?.getActiveRules().orEmpty()
-        for (rule in activeRules) {
-            val ruleSourceId = "rule:${rule.id}"
-            if (ruleSourceId !in rejectedSourceIds) {
-                val factory = customRuleFactory ?: { r: CustomLyricsRuleEntity -> CustomRuleLyricsProvider(r) }
-                val ruleProvider = factory(rule)
-                val ruleResult = ruleProvider.getLyrics(track, rejectedSourceIds, forceNetwork)
-                if (ruleResult.hasLyrics && ruleResult.sourceId !in rejectedSourceIds) {
-                    var effectiveResult = if (ruleResult.sourceId.isBlank()) {
-                        ruleResult.copy(sourceId = ruleSourceId)
-                    } else {
-                        ruleResult
-                    }
-                    if (effectiveResult.chords.isNullOrBlank() && (LyricsSourceIds.AMDM !in rejectedSourceIds || LyricsSourceIds.MYCHORDS !in rejectedSourceIds)) {
-                        val chords = fetchChordTabs(track, rejectedSourceIds, forceNetwork)
-                        if (!chords.isNullOrBlank()) {
-                            effectiveResult = effectiveResult.copy(chords = chords)
-                        }
-                    }
-                    onLyricsDiscovered?.invoke(track.trackKey, effectiveResult.plainLyrics, effectiveResult.syncedLyrics)
-                    return effectiveResult
-                }
-            }
+        for (rule in lyricsDao?.getActiveRules().orEmpty()) {
+            if ("rule:${rule.id}" in rejectedSourceIds) continue
+            val result = (customRuleFactory?.invoke(rule) ?: CustomRuleLyricsProvider(rule)).getLyrics(track, rejectedSourceIds, forceNetwork)
+            if (result.hasLyrics && result.sourceId !in rejectedSourceIds) return finish(result.copy(sourceId = result.sourceId.ifBlank { "rule:${rule.id}" }))
         }
-
-        // 3. Query primary source: LrcLib API (synced & plain lyrics)
-        if (lrcLibProvider != null && LyricsSourceIds.LRCLIB !in rejectedSourceIds) {
-            val lrcResult = lrcLibProvider.getLyrics(track, rejectedSourceIds, forceNetwork)
-            if (lrcResult.hasLyrics && lrcResult.sourceId !in rejectedSourceIds) {
-                var effectiveResult = if (lrcResult.sourceId.isBlank()) {
-                    lrcResult.copy(sourceId = LyricsSourceIds.LRCLIB)
-                } else {
-                    lrcResult
-                }
-                // Hybrid mode: fetch chords from AmDm / MyChords if not provided by LRCLIB
-                if (effectiveResult.chords.isNullOrBlank() && (LyricsSourceIds.AMDM !in rejectedSourceIds || LyricsSourceIds.MYCHORDS !in rejectedSourceIds)) {
-                    val chords = fetchChordTabs(track, rejectedSourceIds, forceNetwork)
-                    if (!chords.isNullOrBlank()) {
-                        effectiveResult = effectiveResult.copy(chords = chords)
-                    }
-                }
-                onLyricsDiscovered?.invoke(track.trackKey, effectiveResult.plainLyrics, effectiveResult.syncedLyrics)
-                return effectiveResult
-            }
+        val primary = if (LyricsSourceIds.LRCLIB !in rejectedSourceIds) lrcLibProvider?.getLyrics(track, rejectedSourceIds, forceNetwork)
+            ?.takeIf { it.hasLyrics && it.sourceId !in rejectedSourceIds } else null
+        if (!primary?.syncedLyrics.isNullOrBlank()) return finish(primary!!.copy(sourceId = primary.sourceId.ifBlank { LyricsSourceIds.LRCLIB }))
+        // A plain-only LRCLIB hit must still allow a genuine synced backend to contribute.
+        additional(LyricsSourceIds.KUGOU)?.let { hit ->
+            val result = converted(hit)
+            return finish(result.copy(plainLyrics = primary?.plainLyrics ?: result.plainLyrics))
         }
-
-        // 4. Query fallback scrapers
-        if (fallbackScraper != null) {
-            val fallbackResult = fallbackScraper.getLyrics(track, rejectedSourceIds, forceNetwork)
-            if (fallbackResult.hasLyrics && fallbackResult.sourceId !in rejectedSourceIds && (fallbackResult.sourceId.isNotBlank() || LyricsSourceIds.AMDM !in rejectedSourceIds)) {
-                var effectiveResult = if (fallbackResult.sourceId.isBlank()) {
-                    fallbackResult.copy(sourceId = LyricsSourceIds.AMDM)
-                } else {
-                    fallbackResult
-                }
-                if (effectiveResult.chords.isNullOrBlank() && effectiveResult.sourceId != LyricsSourceIds.AMDM && effectiveResult.sourceId != LyricsSourceIds.MYCHORDS && (LyricsSourceIds.AMDM !in rejectedSourceIds || LyricsSourceIds.MYCHORDS !in rejectedSourceIds)) {
-                    val chords = fetchChordTabs(track, rejectedSourceIds, forceNetwork)
-                    if (!chords.isNullOrBlank()) {
-                        effectiveResult = effectiveResult.copy(chords = chords)
-                    }
-                }
-                onLyricsDiscovered?.invoke(track.trackKey, effectiveResult.plainLyrics, effectiveResult.syncedLyrics)
-                return effectiveResult
-            }
+        if (primary != null) return finish(primary.copy(sourceId = primary.sourceId.ifBlank { LyricsSourceIds.LRCLIB }))
+        fallbackScraper?.getLyrics(track, rejectedSourceIds, forceNetwork)?.takeIf { it.hasLyrics && it.sourceId !in rejectedSourceIds }?.let {
+            return finish(it.copy(sourceId = it.sourceId.ifBlank { LyricsSourceIds.AMDM }))
         }
-
-        // 5. Final fallback: offline helper
-        if (LyricsSourceIds.USER_NOTE !in rejectedSourceIds) {
-            return offlineAdapter.getLyrics(track, rejectedSourceIds, forceNetwork)
-        }
-
-        return LyricsResult(
-            hasLyrics = false,
-            lyricsText = "Текст не найден в доступных базах",
-            source = "Система",
-            sourceId = LyricsSourceIds.NONE
-        )
+        additional(LyricsSourceIds.AKKORDS_PRO)?.let { return finish(converted(it)) }
+        additional(LyricsSourceIds.LYRICS_OVH)?.let { return finish(converted(it)) }
+        return if (LyricsSourceIds.USER_NOTE !in rejectedSourceIds) offlineAdapter.getLyrics(track, rejectedSourceIds, forceNetwork)
+            else LyricsResult(false, "Текст не найден в доступных базах", "Система", sourceId = LyricsSourceIds.NONE)
     }
 
-    private suspend fun fetchChordTabs(
-        track: TrackEntity,
-        rejectedSourceIds: Set<String>,
-        forceNetwork: Boolean
-    ): String? {
-        if (fallbackScraper == null) return null
+    private suspend fun fetchChordTabs(track: TrackEntity, rejected: Set<String>, forceNetwork: Boolean): String? {
         return try {
             if (fallbackScraper is FallbackLyricsScraper) {
-                val cleanArtist = LrcLibLyricsProvider.cleanArtistName(track.artist)
-                val cleanTitle = LrcLibLyricsProvider.cleanTrackName(track.title)
-
-                // 1. Try AmDm first
-                if (LyricsSourceIds.AMDM !in rejectedSourceIds) {
-                    val amdmChords = fallbackScraper.scrapeAmDmDetails(cleanArtist, cleanTitle)?.chords
-                    if (!amdmChords.isNullOrBlank()) return amdmChords
-                }
-
-                // 2. Cascade to MyChords if AmDm yields no chords
-                if (LyricsSourceIds.MYCHORDS !in rejectedSourceIds) {
-                    val myChordsChords = fallbackScraper.scrapeMyChordsDetails(cleanArtist, cleanTitle)?.chords
-                    if (!myChordsChords.isNullOrBlank()) return myChordsChords
-                }
-
+                val artist = LrcLibLyricsProvider.cleanArtistName(track.artist)
+                val title = LrcLibLyricsProvider.cleanTrackName(track.title)
+                if (LyricsSourceIds.AMDM !in rejected) fallbackScraper.scrapeAmDmDetails(artist, title)?.chords?.takeIf { it.isNotBlank() }?.let { return it }
+                if (LyricsSourceIds.MYCHORDS !in rejected) fallbackScraper.scrapeMyChordsDetails(artist, title)?.chords?.takeIf { it.isNotBlank() }?.let { return it }
                 null
-            } else {
-                val res = fallbackScraper.getLyrics(track, rejectedSourceIds, forceNetwork)
-                res.chords
-            }
-        } catch (e: Exception) {
-            Timber.w(e, "Error fetching fallback chord tabs for %s", track.title)
-            null
-        }
+            } else fallbackScraper?.getLyrics(track, rejected, forceNetwork)?.chords
+        } catch (e: CancellationException) { throw e }
+        catch (_: Exception) { null }
     }
 }
 

@@ -108,8 +108,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameMillis
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -146,10 +144,12 @@ import androidx.compose.ui.res.stringResource
 import com.lirix.app.R
 import androidx.lifecycle.repeatOnLifecycle
 import com.lirix.app.feature.lyrics.*
+import com.lirix.app.ui.components.PlaybackUiClock
 import com.lirix.app.feature.lyrics.romanization.*
 import com.lirix.app.ui.i18n.findHostActivity
 import com.lirix.app.ui.components.RomanizationModeDialog
 import com.lirix.app.ui.components.RomanizedKaraokeLine
+import com.lirix.app.ui.components.PlaybackClockContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lirix.app.feature.lyrics.ChordAutoscrollCalculator
 import com.lirix.app.feature.lyrics.ChordTransposer
@@ -393,7 +393,10 @@ fun NowPlayingScreen(
     var localPlaybackPositionMs by remember { mutableLongStateOf(0L) }
     var localIsPlaying by remember { mutableStateOf(false) }
     val isPlaying = livePlayback?.isPlaying ?: localIsPlaying
-    var playbackPositionMs by remember { mutableLongStateOf(0L) }
+    var localPositionAnchorMs by remember { mutableLongStateOf(android.os.SystemClock.elapsedRealtime()) }
+    val playbackClock = remember(livePlayback, localPlaybackPositionMs, localPositionAnchorMs, localIsPlaying, syncOffsetMs) {
+        PlaybackUiClock(livePlayback, localPlaybackPositionMs, localPositionAnchorMs, localIsPlaying, syncOffsetMs)
+    }
     val canSeek = (livePlayback != null && livePlayback!!.durationMs > 0L) || localIsPlaying
     val totalTrackDuration = livePlayback?.durationMs ?: 0L
 
@@ -507,32 +510,6 @@ fun NowPlayingScreen(
 
     var isNotificationPermissionGranted by remember {
         mutableStateOf(NotificationListener.isPermissionGranted(context))
-    }
-
-    // High-precision playback position updates
-    LaunchedEffect(livePlayback?.isPlaying, livePlayback?.lastPositionUpdateTimeMs, livePlayback?.basePositionMs, syncOffsetMs, localIsPlaying) {
-        val snapshot = livePlayback
-        if (snapshot != null) {
-            while (isActive) {
-                withFrameMillis {
-                    val raw = snapshot.currentPositionMs()
-                    playbackPositionMs = karaokeLyricPosition(raw, syncOffsetMs)
-                }
-            }
-        } else if (localIsPlaying) {
-            var lastTick = android.os.SystemClock.elapsedRealtime()
-            while (isActive) {
-                withFrameMillis {
-                    val now = android.os.SystemClock.elapsedRealtime()
-                    val delta = now - lastTick
-                    lastTick = now
-                    localPlaybackPositionMs += delta
-                    playbackPositionMs = karaokeLyricPosition(localPlaybackPositionMs, syncOffsetMs)
-                }
-            }
-        } else {
-            playbackPositionMs = karaokeLyricPosition(localPlaybackPositionMs, syncOffsetMs)
-        }
     }
 
     // Subscribe by identity; shared automatic jobs may finish under their own key after this UI leaves.
@@ -689,6 +666,8 @@ fun NowPlayingScreen(
                     },
                     onTogglePlaying = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        localPlaybackPositionMs = playbackClock.rawPositionMs()
+                        localPositionAnchorMs = android.os.SystemClock.elapsedRealtime()
                         localIsPlaying = !isPlaying
                         MediaSessionCollector.togglePlayPause()
                     },
@@ -698,14 +677,16 @@ fun NowPlayingScreen(
                     },
                     onShare = { showShareDialog = true }, overflow = overflow,
                     seek = {
+                        PlaybackClockContent(playbackClock) { playbackPositionMs ->
                             com.lirix.app.ui.components.LandscapePlayerSeekBar(
                                 positionMs = karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration),
                                 durationMs = totalTrackDuration,
                                 onSeek = { target ->
                                     localPlaybackPositionMs = target
-                                    playbackPositionMs = karaokeLyricPosition(target, syncOffsetMs)
+                                localPositionAnchorMs = android.os.SystemClock.elapsedRealtime()
                                     MediaSessionCollector.seekTo(target)
                                 })
+                        }
                     })
 
                 // Правая колонка суфлёра (520dp)
@@ -721,7 +702,7 @@ fun NowPlayingScreen(
                         currentTrack = currentTrack,
                         isLoadingLyrics = isLoadingLyrics,
                         lookupPhase = lookupPhase, onRetryLookup = lookupRecovery::retry,
-                        playbackPositionMs = playbackPositionMs,
+                        playbackClock = playbackClock,
                         isPlaying = isPlaying,
                         syncOffsetMs = syncOffsetMs,
                         canSeek = canSeek,
@@ -731,7 +712,7 @@ fun NowPlayingScreen(
                         onSeekTo = { targetMs ->
                             val rawTarget = karaokeMediaSeekPosition(targetMs, syncOffsetMs, totalTrackDuration)
                             localPlaybackPositionMs = rawTarget
-                            playbackPositionMs = karaokeLyricPosition(rawTarget, syncOffsetMs)
+                            localPositionAnchorMs = android.os.SystemClock.elapsedRealtime()
                             MediaSessionCollector.seekTo(rawTarget)
                         },
                         onStartTapSync = { openTapSync() },
@@ -937,7 +918,7 @@ fun NowPlayingScreen(
                         currentTrack = currentTrack,
                         isLoadingLyrics = isLoadingLyrics,
                         lookupPhase = lookupPhase, onRetryLookup = lookupRecovery::retry,
-                        playbackPositionMs = playbackPositionMs,
+                        playbackClock = playbackClock,
                         isPlaying = isPlaying,
                         syncOffsetMs = syncOffsetMs,
                         canSeek = canSeek,
@@ -947,7 +928,7 @@ fun NowPlayingScreen(
                         onSeekTo = { targetMs ->
                             val rawTarget = karaokeMediaSeekPosition(targetMs, syncOffsetMs, totalTrackDuration)
                             localPlaybackPositionMs = rawTarget
-                            playbackPositionMs = karaokeLyricPosition(rawTarget, syncOffsetMs)
+                            localPositionAnchorMs = android.os.SystemClock.elapsedRealtime()
                             MediaSessionCollector.seekTo(rawTarget)
                         },
                         onStartTapSync = { openTapSync() },
@@ -971,66 +952,67 @@ fun NowPlayingScreen(
 
                 // 4. Трекбар времени (48dp): скрывается в режиме «Фокус» и при редактировании заметок
                 AnimatedVisibility(visible = !isFocusMode && !isHideControlsForNotes) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = formatMs(karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration)),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                fontFeatureSettings = FontFeature.tabularFigures()
-                            ),
-                            color = lirixColors.textSecondary
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        if (totalTrackDuration > 0L) {
-                            Slider(
-                                value = karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration).toFloat(),
-                                onValueChange = { newPos ->
-                                    val target = newPos.toLong()
-                                    localPlaybackPositionMs = target
-                                    playbackPositionMs = karaokeLyricPosition(target, syncOffsetMs)
-                                    MediaSessionCollector.seekTo(target)
-                                },
-                                valueRange = 0f..totalTrackDuration.toFloat(),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = lirixColors.accentPrimary,
-                                    activeTrackColor = lirixColors.accentPrimary,
-                                    inactiveTrackColor = lirixColors.borderSubtle
+                    PlaybackClockContent(playbackClock) { playbackPositionMs ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = formatMs(karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration)),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    fontFeatureSettings = FontFeature.tabularFigures()
                                 ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .heightIn(min = 48.dp)
+                                color = lirixColors.textSecondary
                             )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(2.dp)
-                                    .background(lirixColors.borderSubtle)
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            if (totalTrackDuration > 0L) {
+                                Slider(
+                                    value = karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration).toFloat(),
+                                    onValueChange = { newPos ->
+                                        val target = newPos.toLong()
+                                        localPlaybackPositionMs = target
+                                        localPositionAnchorMs = android.os.SystemClock.elapsedRealtime()
+                                        MediaSessionCollector.seekTo(target)
+                                    },
+                                    valueRange = 0f..totalTrackDuration.toFloat(),
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = lirixColors.accentPrimary,
+                                        activeTrackColor = lirixColors.accentPrimary,
+                                        inactiveTrackColor = lirixColors.borderSubtle
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 48.dp)
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(2.dp)
+                                        .background(lirixColors.borderSubtle)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Text(
+                                text = if (totalTrackDuration > 0L) formatMs(totalTrackDuration) else "--:--",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    fontFeatureSettings = FontFeature.tabularFigures()
+                                ),
+                                color = lirixColors.textMuted
                             )
                         }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Text(
-                            text = if (totalTrackDuration > 0L) formatMs(totalTrackDuration) else "--:--",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                fontFeatureSettings = FontFeature.tabularFigures()
-                            ),
-                            color = lirixColors.textMuted
-                        )
                     }
-
                 }
 
                 // 5. Контекстная строка сдвига и размера текста (48dp): только для караоке с синхронизацией
@@ -1074,7 +1056,8 @@ fun NowPlayingScreen(
                         onTogglePlayback = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             val newPlaying = !isPlaying
-
+                            localPlaybackPositionMs = playbackClock.rawPositionMs()
+                            localPositionAnchorMs = android.os.SystemClock.elapsedRealtime()
                             localIsPlaying = newPlaying
                             MediaSessionCollector.togglePlayPause()
                         },
@@ -1198,7 +1181,8 @@ fun NowPlayingScreen(
                 val lrc = lyricsCache?.syncedLyricsLrc
                 if (!lrc.isNullOrBlank()) {
                     val parsed = parseLrcLinesStrict(lrc)
-                    val idx = parsed.indexOfLast { it.timestampMs <= playbackPositionMs }
+                    val positionMs = playbackClock.positionMs()
+                    val idx = parsed.indexOfLast { it.timestampMs <= positionMs }
                     if (idx != -1) parsed[idx].text else parsed.firstOrNull()?.text
                 } else {
                     lyricsCache?.plainLyrics?.lineSequence()?.firstOrNull { it.isNotBlank() }
@@ -1236,7 +1220,7 @@ fun NowPlayingScreen(
                 onDismissRequest = { showConnectBottomSheet = false },
                 currentTrackTitle = currentTrack?.title ?: stringResource(R.string.connect_title),
                 currentTrackArtist = currentTrack?.artist ?: stringResource(R.string.connect_wireless_pairing),
-                playbackPositionMs = playbackPositionMs,
+                playbackPositionMs = playbackClock.positionMs(),
                 connectManager = connectManager
             )
         }
@@ -1264,7 +1248,7 @@ internal fun RenderTeleprompterContent(
     isLoadingLyrics: Boolean,
     lookupPhase: LookupPhase = LookupPhase.Incomplete,
     onRetryLookup: (() -> Unit)? = null,
-    playbackPositionMs: Long,
+    playbackClock: PlaybackUiClock,
     isPlaying: Boolean,
     syncOffsetMs: Long,
     canSeek: Boolean,
@@ -1382,22 +1366,26 @@ internal fun RenderTeleprompterContent(
                 val hasPlain = !effectivePlain.isNullOrBlank()
 
                 if (hasLrc) {
-                    HighFidelityKaraokePlayer(
-                        lrcText = effectiveSynced,
-                        plainText = effectivePlain,
-                        playbackPositionMs = playbackPositionMs,
-                        isPlaying = isPlaying,
-                        onSeekTo = onSeekTo,
-                        onStartTapSync = onStartTapSync,
-                        fontScale = fontScale,
-                        isLandscape = isLandscape,
-                        canSeek = canSeek,
-                        isReducedMotion = isReducedMotion,
-                        romanizationMode = romanizationMode,
-                        readingResults = readingResults,
-                        modifier = Modifier.fillMaxSize()
-                    )
-
+                    val timestamps = remember(effectiveSynced) {
+                        parseLrcLinesStrict(effectiveSynced.orEmpty()).map { it.timestampMs }
+                    }
+                    PlaybackClockContent(playbackClock, lyricTimestamps = timestamps) { playbackPositionMs ->
+                        HighFidelityKaraokePlayer(
+                            lrcText = effectiveSynced,
+                            plainText = effectivePlain,
+                            playbackPositionMs = playbackPositionMs,
+                            isPlaying = isPlaying,
+                            onSeekTo = onSeekTo,
+                            onStartTapSync = onStartTapSync,
+                            fontScale = fontScale,
+                            isLandscape = isLandscape,
+                            canSeek = canSeek,
+                            isReducedMotion = isReducedMotion,
+                            romanizationMode = romanizationMode,
+                            readingResults = readingResults,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 } else if (hasPlain) {
                     PlainLyricsReadingView(
                         lyricsText = effectivePlain.orEmpty(),

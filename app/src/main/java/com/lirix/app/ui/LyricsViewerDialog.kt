@@ -26,6 +26,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -75,7 +77,7 @@ private fun parseLrc(raw: String): List<LrcLine> {
  *
  * Displays synced LRC karaoke (with [mm:ss] badges) when available,
  * or plain scrollable text as fallback.
- * Provides "Скопировать" button and source attribution.
+ * Provides copying and track information through the track menu.
  */
 @Composable
 fun LyricsViewerDialog(
@@ -90,6 +92,8 @@ fun LyricsViewerDialog(
     var result by remember { mutableStateOf<LyricsResult?>(null) }
     var errorMessage by remember { mutableStateOf<Int?>(null) }
     var errorDetail by remember { mutableStateOf("") }
+    var infoOpen by remember(event.id) { mutableStateOf(false) }
+    var menuOpen by remember(event.id) { mutableStateOf(false) }
 
     val parsedInfo = remember(event) { MusicTrackParser.parse(event) }
     val trackTitle = parsedInfo.title
@@ -156,7 +160,7 @@ fun LyricsViewerDialog(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = trackTitle.ifBlank { stringResource(R.string.viewer_title) },
                         style = MaterialTheme.typography.titleMedium,
@@ -169,6 +173,12 @@ fun LyricsViewerDialog(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+                Box {
+                    TextButton(onClick = { menuOpen = true }) { Text(stringResource(R.string.menu_overflow)) }
+                    DropdownMenu(menuOpen, { menuOpen = false }) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.menu_track_info)) }, onClick = { menuOpen = false; infoOpen = true })
                     }
                 }
             }
@@ -266,16 +276,6 @@ fun LyricsViewerDialog(
                             )
                         }
 
-                        // Source attribution
-                        if (!lyricsResult.source.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = stringResource(R.string.viewer_source, lyricsResult.source.orEmpty()),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 10.sp
-                            )
-                        }
                     }
                 }
             }
@@ -312,4 +312,12 @@ fun LyricsViewerDialog(
             }
         }
     )
+    if (infoOpen) {
+        val db = remember(context) { AppDatabase.getInstance(context) }
+        val track = remember(trackTitle, artist, album) { TrackEntity(
+            trackKey = MusicFeatureEngine.computeTrackKey(trackTitle, artist, album), title = trackTitle,
+            artist = artist, album = album, sourcePackage = event.sourcePackage
+        ) }
+        com.lirix.app.ui.components.TrackInfoDialog(track, db.lyricsDao(), db.songTranslationDao(), onDismiss = { infoOpen = false })
+    }
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -122,6 +124,11 @@ fun DesktopTeleprompterView(
                     index = activeLineIndex,
                     scrollOffset = 0
                 )
+            } else if (activeLineIndex == -1 && lines.isNotEmpty()) {
+                lazyListState.animateScrollToItem(
+                    index = 0,
+                    scrollOffset = 0
+                )
             }
         }
 
@@ -150,6 +157,7 @@ fun DesktopTeleprompterView(
                         isActive = isActive,
                         distance = distance,
                         effectiveAccent = effectiveAccent,
+                        isFirstLineIntro = index == 0 && activeLineIndex == -1,
                         onSeekRequested = { onSeekRequested(line.timestampMs) },
                         modifier = if (isActive) Modifier.onSizeChanged { activeRowHeightPx = it.height } else Modifier
                     )
@@ -167,7 +175,8 @@ private fun TeleprompterLineRow(
     distance: Int,
     effectiveAccent: Color,
     onSeekRequested: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isFirstLineIntro: Boolean = false
 ) {
     val typography = LocalLirixTypography.current
     val colors = LirixThemeTokens.colors
@@ -193,15 +202,42 @@ private fun TeleprompterLineRow(
         }
     }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onSeekRequested() }
-            .onPointerEvent(PointerEventType.Enter) { isHovered = true }
-            .onPointerEvent(PointerEventType.Exit) { isHovered = false }
-            .padding(vertical = 4.dp)
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        if (isFirstLineIntro) {
+            Surface(
+                color = colors.surfaceElevated.copy(alpha = 0.85f),
+                shape = RoundedCornerShape(6.dp),
+                border = BorderStroke(1.dp, colors.borderSubtle),
+                modifier = Modifier.padding(start = 58.dp, bottom = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(effectiveAccent)
+                    )
+                    Text(
+                        text = com.lirix.app.ui.i18n.LirixStrings.message("Вступление…"),
+                        style = typography.timecodeAndBadges,
+                        color = effectiveAccent
+                    )
+                }
+            }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onSeekRequested() }
+                .onPointerEvent(PointerEventType.Enter) { isHovered = true }
+                .onPointerEvent(PointerEventType.Exit) { isHovered = false }
+                .padding(vertical = 4.dp)
+        ) {
         // ---------------------------------------------------------------------
         // 1. Fixed 44 dp Slot for Zero Layout Shift (placed left of marker)
         // ---------------------------------------------------------------------
@@ -272,6 +308,7 @@ private fun TeleprompterLineRow(
             modifier = Modifier.weight(1f)
         )
     }
+}
 }
 
 /**

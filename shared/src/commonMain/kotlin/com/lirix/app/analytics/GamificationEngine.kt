@@ -50,31 +50,27 @@ object GamificationEngine {
         var nightSessionCount = 0     // 01:00 - 05:00 (hour in 1..4)
         var hasMidnightSession = false // 00:00 - 00:05 (hour == 0 && minute in 0..5)
 
-        for (session in sessions) {
-            cal.timeInMillis = session.startTimeMs
-            val hour = cal.get(Calendar.HOUR_OF_DAY)
-            val minute = cal.get(Calendar.MINUTE)
-
-            if (hour in 6..9) morningSessionCount++
-            if (hour in 18..22) eveningSessionCount++
-            if (hour in 1..4 || hour in 2..5) nightSessionCount++
-            if (hour == 0 && minute in 0..5) hasMidnightSession = true
+        val countedSessions = ListeningIntervals.project(sessions, Long.MIN_VALUE, now)
+        for (session in countedSessions) {
+            val intervals = ListeningIntervals.read(session)
+            if (ListeningIntervals.overlapsLocalWindow(intervals, 6, 10)) morningSessionCount++
+            if (ListeningIntervals.overlapsLocalWindow(intervals, 18, 23)) eveningSessionCount++
+            if (ListeningIntervals.overlapsLocalWindow(intervals, 1, 6)) nightSessionCount++
+            if (ListeningIntervals.overlapsLocalWindow(intervals, 0, 0, 6)) hasMidnightSession = true
         }
 
-        val hasMarathonSession = sessions.any { it.durationMs >= 2 * 3600 * 1000L }
-        val hasShortSession = sessions.any { it.durationMs >= 15 * 60 * 1000L }
+        val hasMarathonSession = countedSessions.any { it.durationMs >= 2 * 3600 * 1000L }
+        val hasShortSession = countedSessions.any { it.durationMs >= 15 * 60 * 1000L }
 
         // Дневной марафон >= 5 часов
-        val dailyDurationMap = mutableMapOf<String, Long>()
-        for (session in sessions) {
-            val dayKey = sdf.format(Date(session.startTimeMs))
-            dailyDurationMap[dayKey] = (dailyDurationMap[dayKey] ?: 0L) + session.durationMs
-        }
+        val dailyDurationMap = ListeningIntervals.dailyDurations(
+            countedSessions
+        )
         val maxDailyDurationMs = dailyDurationMap.values.maxOfOrNull { it } ?: 0L
         val has5hDailyMarathon = maxDailyDurationMs >= 5 * 3600 * 1000L
 
         // Стрики дней
-        val maxStreakDays = calculateMaxStreak(sessions)
+        val maxStreakDays = calculateMaxStreak(countedSessions)
 
         // Секретные повторы в сутки (15 повторов одного трека за одни сутки)
         val sessionsPerTrackPerDay = mutableMapOf<String, Int>()
@@ -278,7 +274,7 @@ object GamificationEngine {
     private fun calculateMaxStreak(sessions: List<MusicListeningSessionEntity>): Int {
         if (sessions.isEmpty()) return 0
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-        val uniqueDates = sessions.map { sdf.format(Date(it.startTimeMs)) }
+        val uniqueDates = ListeningIntervals.dailyDurations(sessions).keys.map { sdf.format(Date(it)) }
             .distinct()
             .sorted()
         if (uniqueDates.isEmpty()) return 0

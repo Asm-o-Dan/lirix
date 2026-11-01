@@ -60,7 +60,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -71,12 +70,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import com.lirix.app.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,8 +96,6 @@ import com.lirix.app.ui.theme.LiterataFontFamily
 import com.lirix.app.ui.theme.GolosTextFontFamily
 import com.lirix.app.ui.theme.FontFeature
 import com.lirix.app.ui.theme.toSentenceCase
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 
@@ -146,16 +145,9 @@ fun LrcTapSyncStudioDialog(
     var isPreviewOpen by remember { mutableStateOf(false) }
     var isEditingLyrics by remember { mutableStateOf(false) }
 
-    // Realtime playback position tracker (50ms ticker)
-    var currentPlaybackPositionMs by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(livePlayback?.isPlaying, livePlayback?.lastPositionUpdateTimeMs) {
-        while (isActive) {
-            val snapshot = livePlayback
-            if (snapshot != null) {
-                currentPlaybackPositionMs = snapshot.currentPositionMs()
-            }
-            delay(50L)
-        }
+    // The clock is sampled by the time label only; tap actions read the exact current position.
+    val playbackClock = remember(livePlayback, matchesTrack) {
+        PlaybackUiClock(snapshot = livePlayback.takeIf { matchesTrack })
     }
 
     // Pulsing animation for the active line cue
@@ -215,7 +207,7 @@ fun LrcTapSyncStudioDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Закрыть студию",
+                            contentDescription = stringResource(R.string.tap_sync_close_cd),
                             tint = tokens.textSecondary
                         )
                     }
@@ -227,7 +219,7 @@ fun LrcTapSyncStudioDialog(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = trackTitle.ifBlank { "Студия караоке" },
+                            text = trackTitle.ifBlank { stringResource(R.string.tap_sync_fallback_title) },
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontFamily = GolosTextFontFamily,
                                 fontWeight = FontWeight.SemiBold,
@@ -261,7 +253,7 @@ fun LrcTapSyncStudioDialog(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = "Редактировать текст",
+                                contentDescription = stringResource(R.string.tap_sync_edit_text_cd),
                                 tint = tokens.textSecondary
                             )
                         }
@@ -277,7 +269,7 @@ fun LrcTapSyncStudioDialog(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Visibility,
-                                contentDescription = "Предпросмотр LRC",
+                                contentDescription = stringResource(R.string.tap_sync_preview_lrc_cd),
                                 tint = if (hasAnyMarked) tokens.accentPrimary else tokens.textMuted
                             )
                         }
@@ -295,7 +287,7 @@ fun LrcTapSyncStudioDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Строка ${minOf(currentIndex + 1, lines.size)} из ${lines.size}",
+                        text = stringResource(R.string.tap_sync_line_progress, minOf(currentIndex + 1, lines.size), lines.size),
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontFamily = GolosTextFontFamily,
                             fontWeight = FontWeight.Medium,
@@ -310,7 +302,7 @@ fun LrcTapSyncStudioDialog(
                         border = androidx.compose.foundation.BorderStroke(1.dp, tokens.borderSubtle)
                     ) {
                         Text(
-                            text = "Размечено: $markedCount / ${lines.size}",
+                            text = stringResource(R.string.tap_sync_marked_progress, markedCount, lines.size),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = GolosTextFontFamily,
                                 fontWeight = FontWeight.SemiBold,
@@ -339,7 +331,7 @@ fun LrcTapSyncStudioDialog(
 
                 // 3. Central Teleprompter Focus Area
                 if (!matchesTrack) {
-                    Text("Сейчас играет другая песня или источник недоступен. Разметка остаётся у «$trackTitle»; запись меток и управление воспроизведением приостановлены.",
+                    Text(stringResource(R.string.tap_sync_playback_warning, trackTitle),
                         color = tokens.textSecondary, style = MaterialTheme.typography.bodySmall)
                 }
                 Surface(
@@ -412,7 +404,10 @@ fun LrcTapSyncStudioDialog(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .scale(pulseScale)
+                                    .graphicsLayer {
+                                        scaleX = pulseScale
+                                        scaleY = pulseScale
+                                    }
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(tokens.surfaceCard)
                                     .border(
@@ -599,16 +594,18 @@ fun LrcTapSyncStudioDialog(
                         // Position / Duration
                         val durationMs = livePlayback?.durationMs ?: 0L
                         Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = LrcSyncEngine.formatTimeLabel(currentPlaybackPositionMs),
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontFamily = GolosTextFontFamily,
-                                    fontFeatureSettings = FontFeature.tabularFigures(),
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 14.sp
-                                ),
-                                color = tokens.textPrimary
-                            )
+                            PlaybackClockContent(playbackClock, intervalMs = 50L) { currentPlaybackPositionMs ->
+                                Text(
+                                    text = LrcSyncEngine.formatTimeLabel(currentPlaybackPositionMs),
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontFamily = GolosTextFontFamily,
+                                        fontFeatureSettings = FontFeature.tabularFigures(),
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp
+                                    ),
+                                    color = tokens.textPrimary
+                                )
+                            }
                             if (durationMs > 0L) {
                                 Text(
                                     text = "/ ${LrcSyncEngine.formatTimeLabel(durationMs)}",
@@ -712,7 +709,7 @@ fun LrcTapSyncStudioDialog(
                         .clickable(enabled = !isSaving && (matchesTrack || isAllFinished)) {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             if (!isSaving && matchesTrack && currentIndex < lines.size) {
-                                val currentMs = livePlayback?.currentPositionMs() ?: currentPlaybackPositionMs
+                                val currentMs = playbackClock.rawPositionMs()
                                 lines = LrcSyncEngine.recordTimestamp(lines, currentIndex, currentMs, reactionLagMs)
                                 currentIndex++
                                 if (currentIndex >= lines.size) {
@@ -768,7 +765,7 @@ fun LrcTapSyncStudioDialog(
                             lines = undoneLines
                             currentIndex = newIdx
                             // Smart audio cue seek: rewind 2 seconds to allow user to hear cue again
-                            val rewindTarget = maxOf(0L, currentPlaybackPositionMs - 2000L)
+                            val rewindTarget = maxOf(0L, playbackClock.rawPositionMs() - 2000L)
                             if (seekSupported) MediaSessionCollector.seekTo(rewindTarget)
                         },
                         enabled = canUndo && !isSaving,

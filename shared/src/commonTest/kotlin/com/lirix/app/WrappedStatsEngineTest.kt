@@ -293,7 +293,7 @@ class WrappedStatsEngineTest {
             sourcePackage = "com.spotify.music",
             startTimeMs = refTime - 120_000L,
             endTimeMs = refTime,
-            durationMs = 0L,
+            durationMs = 120_000L,
             isCompleted = false
         )
 
@@ -318,16 +318,13 @@ class WrappedStatsEngineTest {
         )
 
         // With strict active session isolation, the 100 old sessions contribute 0 ms,
-        // and ONLY the 1 active session is extrapolated (approx 120_000 ms = 2 minutes).
+        // and ONLY the 1 active session has 120_000 ms of persisted listening.
         // Without isolation, 100 sessions * 3-4 hours = 300-400 hours!
         assertTrue(
             "totalListeningTimeMs must be reasonably small (< 15 minutes), but was ${stats.totalListeningTimeMs} ms",
             stats.totalListeningTimeMs < 15 * 60 * 1000L
         )
-        assertTrue(
-            "totalListeningTimeMs must account for the active track progress (>= 120_000 ms), but was ${stats.totalListeningTimeMs} ms",
-            stats.totalListeningTimeMs >= 120_000L
-        )
+        assertEquals("Only persisted listening is counted", 120_000L, stats.totalListeningTimeMs)
     }
 
     @Test

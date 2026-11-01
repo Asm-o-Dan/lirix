@@ -120,7 +120,9 @@ internal fun DesktopTapSyncDialog(track: TrackEntity, playback: LivePlaybackSnap
     var position by remember { mutableLongStateOf(0) }
     var preview by remember { mutableStateOf(false) }
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
-    LaunchedEffect(playback) { while (isActive) { position = playback?.currentPositionMs() ?: 0; delay(40) } }
+    LaunchedEffect(playback) {
+        com.lirix.app.desktop.ui.components.desktopPlaybackPositions(playback, tickMs = 40).collect { position = it }
+    }
     LaunchedEffect(index) { if (lines.isNotEmpty()) list.animateScrollToItem(index.coerceAtMost(lines.lastIndex)) }
     fun stamp() { if (!draft.saving && playback != null && index in lines.indices) { lines = LrcSyncEngine.recordTimestamp(lines, index, playback.currentPositionMs()); index++ } }
     fun undo() { if (!draft.saving) { val (updated, target) = LrcSyncEngine.undoTimestamp(lines, index); lines = updated; index = target } }

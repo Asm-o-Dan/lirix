@@ -58,6 +58,8 @@ public class ProtocolTests
 
     [Theory]
     [InlineData("{\"cmd\":\"playPause\"}", "playPause", null)]
+    [InlineData("{\"cmd\":\"enableMeter\"}", "enableMeter", null)]
+    [InlineData("{\"cmd\":\"disableMeter\"}", "disableMeter", null)]
     [InlineData("{\"cmd\":\"skipNext\"}", "skipNext", null)]
     [InlineData("{\"cmd\":\"skipPrevious\"}", "skipPrevious", null)]
     [InlineData("{\"cmd\":\"seek\",\"positionMs\":120000}", "seek", 120000L)]

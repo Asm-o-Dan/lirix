@@ -137,6 +137,8 @@ class SongTranslationTest {
                 assertEquals("Original", db.lyricsDao().getLyrics("key")!!.plainLyrics)
                 assertEquals("Am", db.lyricsDao().getLyrics("key")!!.chordsAmDm)
                 assertEquals(1, db.musicDao().getAllSessions().size)
+                assertEquals(1000L, db.musicDao().getAllSessions().single().durationMs)
+                assertEquals("", db.musicDao().getAllSessions().single().listeningIntervalsJson)
                 assertTrue(db.songTranslationDao().get("other-track").isEmpty())
             } finally { db.close() }
         } finally { directory.deleteRecursively() }

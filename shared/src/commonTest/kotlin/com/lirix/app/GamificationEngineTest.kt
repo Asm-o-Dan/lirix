@@ -31,6 +31,7 @@ class GamificationEngineTest {
 
     private fun createTimestampAtHour(hour: Int): Long {
         val calendar = Calendar.getInstance(TimeZone.getDefault()).apply {
+            add(Calendar.DAY_OF_MONTH, -1)
             set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
@@ -205,6 +206,7 @@ class GamificationEngineTest {
         // 1. Morning sessions (06:00 - 10:00) -> 5 sessions
         val morningSessions = (1..5).map { i ->
             val time = Calendar.getInstance().apply {
+                add(Calendar.DAY_OF_MONTH, -1)
                 set(Calendar.HOUR_OF_DAY, 8)
                 set(Calendar.MINUTE, i * 5)
             }.timeInMillis
@@ -214,6 +216,7 @@ class GamificationEngineTest {
         // 2. Evening sessions (18:00 - 23:00) -> 10 sessions
         val eveningSessions = (1..10).map { i ->
             val time = Calendar.getInstance().apply {
+                add(Calendar.DAY_OF_MONTH, -1)
                 set(Calendar.HOUR_OF_DAY, 20)
                 set(Calendar.MINUTE, i * 3)
             }.timeInMillis
@@ -222,6 +225,7 @@ class GamificationEngineTest {
 
         // 3. Secret midnight session (00:00 - 00:05)
         val midnightTime = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_MONTH, -1)
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 2)
         }.timeInMillis

@@ -89,6 +89,7 @@ fun DesktopWorkspace(
     var syncTrack by remember { mutableStateOf<TrackEntity?>(null) }
     var exportTrack by remember { mutableStateOf<TrackEntity?>(null) }
     var translationTrack by remember { mutableStateOf<TrackEntity?>(null) }
+    var infoTrack by remember { mutableStateOf<TrackEntity?>(null) }
     val translationProvider = remember { com.lirix.app.translations.SongTranslationProviders() }
     var message by remember { mutableStateOf<String?>(null) }
     var sourceTrack by remember { mutableStateOf<TrackEntity?>(null) }
@@ -152,6 +153,7 @@ fun DesktopWorkspace(
                         ShortcutButton("Tap-to-Sync", "Ctrl+T", currentTrack != null) { syncTrack = currentTrack }
                         ShortcutButton(com.lirix.app.ui.i18n.LirixStrings.message("Постер"), "Ctrl+Shift+S", currentTrack != null, ::exportCurrent)
                         TextButton(onClick = { sourceTrack = currentTrack }, enabled = currentTrack != null) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Источники")) }
+                        TrackInfoMenu(currentTrack != null) { infoTrack = currentTrack }
                     }
                     DesktopDeckScreen(playback, ingress, selectedTheme, onTheme, lyrics, hudVisible, onToggleHud,
                         onToggleCompactMode = onMini, audioLevels = audioLevels, modifier = Modifier.weight(1f), connectRequestVersion = connectRequest,
@@ -164,7 +166,7 @@ fun DesktopWorkspace(
                 }
                 1 -> DesktopLibraryPanel(tracks, sessions, selectedKey, query, { query = it }, searchFocus,
                     onSelect = { selectedKey = it.trackKey }, onFavorite = { t -> repository.favorite(t.trackKey, !t.isFavorite) },
-                    onNotes = { t, notes -> repository.editNotes(t.trackKey, notes) }, onEdit = { editor = it }, onPoster = { exportTrack = it }, onTranslation = { translationTrack = it },
+                    onNotes = { t, notes -> repository.editNotes(t.trackKey, notes) }, onEdit = { editor = it }, onPoster = { exportTrack = it }, onTranslation = { translationTrack = it }, onInfo = { infoTrack = it },
                     notesDrafts = notesDrafts, onNotesDraft = { key, value ->
                         if (tracks.firstOrNull { it.trackKey == key }?.userNotes == value) notesDrafts.remove(key)
                         else notesDrafts[key] = value
@@ -177,6 +179,11 @@ fun DesktopWorkspace(
         }
     }
     if (themeDialog) ThemeSelectionDialog(selectedTheme, onTheme) { themeDialog = false }
+    infoTrack?.let { track ->
+        val language = automaticTranslations?.language?.collectAsState()?.value ?: "ru"
+        com.lirix.app.ui.components.TrackInfoDialog(track, repository.database.lyricsDao(), repository.database.songTranslationDao(),
+            language = language, onDismiss = { infoTrack = null })
+    }
     editor?.let { track -> DesktopLyricsEditor(track, repository, drafts.lyricsFor(track), onDismiss = { drafts.lyrics.remove(track.trackKey); editor = null }) { plain, lrc, chords ->
         lyricsService.saveUserLyrics(track.trackKey, track.title, track.artist, plain, lrc, chords)
     } }
@@ -205,7 +212,7 @@ fun DesktopWorkspace(
 @OptIn(ExperimentalLayoutApi::class)
 private fun DesktopLibraryPanel(tracks: List<TrackEntity>, sessions: List<ListeningSessionEntity>, selectedKey: String?, query: String,
     onQuery: (String) -> Unit, focus: FocusRequester, onSelect: (TrackEntity) -> Unit, onFavorite: (TrackEntity) -> Unit,
-    onNotes: (TrackEntity, String) -> Unit, onEdit: (TrackEntity) -> Unit, onPoster: (TrackEntity) -> Unit, onTranslation: (TrackEntity) -> Unit,
+    onNotes: (TrackEntity, String) -> Unit, onEdit: (TrackEntity) -> Unit, onPoster: (TrackEntity) -> Unit, onTranslation: (TrackEntity) -> Unit, onInfo: (TrackEntity) -> Unit,
     notesDrafts: Map<String, String>, onNotesDraft: (String, String) -> Unit) {
     val c = LirixThemeTokens.colors
     var filter by remember { mutableStateOf(DesktopLibraryFilter.ALL) }
@@ -257,6 +264,7 @@ private fun DesktopLibraryPanel(tracks: List<TrackEntity>, sessions: List<Listen
                 TextButton(onClick = { onEdit(picked) }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Редактировать текст"), maxLines = 1, softWrap = false) }
                 TextButton(onClick = { onPoster(picked) }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Постер"), maxLines = 1, softWrap = false) }
                 TextButton(onClick = { onTranslation(picked) }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Перевод"), maxLines = 1, softWrap = false) }
+                TrackInfoMenu(true) { onInfo(picked) }
             }
             val notes = notesDrafts[picked.trackKey] ?: picked.userNotes
             OutlinedTextField(notes, { onNotesDraft(picked.trackKey, it) }, label = { Text(com.lirix.app.ui.i18n.LirixStrings.message("Заметки к песне")) }, modifier = Modifier.fillMaxWidth(), minLines = 3)
@@ -271,6 +279,17 @@ private fun DesktopLibraryPanel(tracks: List<TrackEntity>, sessions: List<Listen
 }
 
 @Composable
+private fun TrackInfoMenu(enabled: Boolean, onInfo: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { expanded = true }, enabled = enabled) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Меню")) }
+        DropdownMenu(expanded, { expanded = false }) {
+            DropdownMenuItem(text = { Text(com.lirix.app.ui.i18n.LirixStrings.message("Инфо о треке")) }, onClick = { expanded = false; onInfo() })
+        }
+    }
+}
+
+@Composable
 private fun DesktopWrappedPanel(tracks: List<TrackEntity>, sessions: List<ListeningSessionEntity>, achievements: List<AchievementEntity>,
     onMessage: (String) -> Unit) {
     val c = LirixThemeTokens.colors
@@ -278,7 +297,9 @@ private fun DesktopWrappedPanel(tracks: List<TrackEntity>, sessions: List<Listen
     var stats by remember { mutableStateOf<WrappedStats?>(null) }
     var posterSnapshot by remember { mutableStateOf<Pair<WrappedStats, AnalyticsTimeframe>?>(null) }
     var showAchievements by remember { mutableStateOf(false) }
-    LaunchedEffect(tracks, sessions, period) {
+    val calendarPeriod by remember { com.lirix.app.analytics.calendarPeriodChanges() }
+        .collectAsState(initial = com.lirix.app.analytics.calendarPeriodTick())
+    LaunchedEffect(tracks, sessions, period, calendarPeriod) {
         stats = null
         stats = withContext(Dispatchers.Default) { WrappedStatsEngine.calculateStats(tracks, sessions, period, includeLiveSessionEstimate = false) }
     }
@@ -289,6 +310,7 @@ private fun DesktopWrappedPanel(tracks: List<TrackEntity>, sessions: List<Listen
             Button(onClick = { posterSnapshot = s to period }) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Создать постер итогов")) }
             Text(com.lirix.app.ui.i18n.LirixStrings.message("{0} ч {1} мин в музыке", s.totalListeningTimeMs / 3_600_000, (s.totalListeningTimeMs / 60_000) % 60), color = c.textPrimary, fontSize = 36.sp)
             Text(com.lirix.app.ui.i18n.LirixStrings.message("Треков: {0} · Исполнителей: {1}", s.uniqueTracksCount, s.uniqueArtistsCount), color = c.textSecondary)
+            if (s.hasLegacyListeningData) Text(com.lirix.app.ui.i18n.LirixStrings.message("В старой истории время приблизительное. Новые прослушивания учитываются по фактическому воспроизведению."), color = c.textSecondary)
             if (s.uniqueTracksCount > 0) {
                 Text(s.archetype.titleRu, color = c.accentPrimary, fontSize = 22.sp)
                 Text(s.archetype.descriptionRu, color = c.textSecondary)

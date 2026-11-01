@@ -7,12 +7,16 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
+import android.content.BroadcastReceiver
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
@@ -21,7 +25,6 @@ import androidx.core.content.ContextCompat
 import com.lirix.app.MainActivity
 import com.lirix.app.feature.AggregatedLyricsProvider
 import com.lirix.app.feature.MusicFeatureEngine
-import com.lirix.app.ingestion.LivePlaybackSnapshot
 import com.lirix.app.ingestion.MediaSessionCollector
 import com.lirix.app.ingestion.SyncOffsetStore
 import com.lirix.app.storage.AppDatabase
@@ -33,12 +36,18 @@ import com.lirix.app.ui.parseLrcLinesStrict
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -64,6 +73,15 @@ class FloatingLyricsService : Service() {
     private var currentCachedLyrics: LyricsCacheEntity? = null
     private var cachedLrcLines: List<KaraokeLine> = emptyList()
     private var lastLoadedTrackKey: String? = null
+    private val screenInteractive = MutableStateFlow(false)
+    private val refreshSignal = MutableStateFlow(0)
+    @Volatile private var isFetchingLyrics = false
+    private var screenReceiverRegistered = false
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            screenInteractive.value = (getSystemService(POWER_SERVICE) as PowerManager).isInteractive
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -88,6 +106,16 @@ class FloatingLyricsService : Service() {
         startForegroundServiceNotification()
 
         initOverlayView()
+        ContextCompat.registerReceiver(
+            this, screenReceiver,
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_SCREEN_OFF)
+            },
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        screenReceiverRegistered = true
+        screenInteractive.value = (getSystemService(POWER_SERVICE) as PowerManager).isInteractive
         startPlaybackSync()
         _isRunning.value = true
         Timber.i("FloatingLyricsService started successfully")
@@ -205,32 +233,48 @@ class FloatingLyricsService : Service() {
     private fun startPlaybackSync() {
         syncJob = serviceScope.launch {
             val db = AppDatabase.getInstance(applicationContext)
+            val offsetChanges = callbackFlow {
+                val preferences = getSharedPreferences("media_sync_offsets", MODE_PRIVATE)
+                val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> trySend(Unit) }
+                preferences.registerOnSharedPreferenceChangeListener(listener)
+                trySend(Unit)
+                awaitClose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+            }
+            // A calibration change must also update paused lyrics, without a polling timer.
+            combine(screenInteractive, MediaSessionCollector.livePlaybackFlow, refreshSignal, offsetChanges) { interactive, snapshot, _, _ ->
+                interactive to snapshot
+            }.collectLatest { (interactive, snapshot) ->
+                if (!interactive) return@collectLatest
+                do {
+                    try {
+                        if (snapshot != null && snapshot.title.isNotBlank()) {
+                            val trackKey = MusicFeatureEngine.computeTrackKey(
+                                snapshot.title,
+                                snapshot.artist.ifBlank { "Unknown Artist" },
+                                snapshot.album
+                            )
 
-            while (isActive) {
-                try {
-                    val snapshot: LivePlaybackSnapshot? = MediaSessionCollector.livePlaybackFlow.value
-                    if (snapshot != null && snapshot.title.isNotBlank()) {
-                        val trackKey = MusicFeatureEngine.computeTrackKey(
-                            snapshot.title,
-                            snapshot.artist.ifBlank { "Unknown Artist" },
-                            snapshot.album
-                        )
-
-                        // Reload lyrics cache if track changed
-                        if (trackKey != lastLoadedTrackKey) {
-                            lastLoadedTrackKey = trackKey
-                            currentCachedLyrics = db.lyricsDao().getLyrics(trackKey)
-                            cachedLrcLines = currentCachedLyrics?.syncedLyricsLrc?.let { parseLrcLinesStrict(it) } ?: emptyList()
-
-                            // If lyrics not in Room cache, trigger asynchronous prefetch from network
-                            val lacksLyrics = currentCachedLyrics == null ||
-                                (currentCachedLyrics?.syncedLyricsLrc.isNullOrBlank() && currentCachedLyrics?.plainLyrics.isNullOrBlank())
-
-                            if (lacksLyrics) {
+                            // Reload lyrics cache if track changed
+                            if (trackKey != lastLoadedTrackKey) {
+                                // collectLatest can cancel the Room read; commit the key only after it succeeds.
+                                val loadedLyrics = db.lyricsDao().getLyrics(trackKey)
                                 fetchLyricsJob?.cancel()
-                                fetchLyricsJob = serviceScope.launch(Dispatchers.IO) {
-                                    try {
-                                        com.lirix.app.feature.lyrics.AutomaticLookupCoordinator.get(db).lookup(trackKey,
+                                fetchLyricsJob = null
+                                isFetchingLyrics = false
+                                lastLoadedTrackKey = trackKey
+                                currentCachedLyrics = loadedLyrics
+                                cachedLrcLines = currentCachedLyrics?.syncedLyricsLrc?.let { parseLrcLinesStrict(it) } ?: emptyList()
+
+                                // If lyrics not in Room cache, trigger asynchronous prefetch from network
+                                val lacksLyrics = currentCachedLyrics == null ||
+                                    (currentCachedLyrics?.syncedLyricsLrc.isNullOrBlank() && currentCachedLyrics?.plainLyrics.isNullOrBlank())
+
+                                if (lacksLyrics) {
+                                    fetchLyricsJob?.cancel()
+                                    isFetchingLyrics = true
+                                    fetchLyricsJob = serviceScope.launch(Dispatchers.IO) {
+                                        try {
+                                            com.lirix.app.feature.lyrics.AutomaticLookupCoordinator.get(db).lookup(trackKey,
                                             com.lirix.app.feature.lyrics.LookupTarget.LYRICS,
                                             com.lirix.app.feature.lyrics.LookupNetworkMonitor.usable(applicationContext))
                                         kotlinx.coroutines.currentCoroutineContext().ensureActive()
@@ -238,83 +282,91 @@ class FloatingLyricsService : Service() {
                                             currentCachedLyrics = db.lyricsDao().getLyrics(trackKey)
                                             cachedLrcLines = currentCachedLyrics?.syncedLyricsLrc?.let { parseLrcLinesStrict(it) } ?: emptyList()
                                         }
-                                    } catch (e: kotlinx.coroutines.CancellationException) { throw e
-                                    } catch (e: Exception) {
-                                        Timber.tag(TAG).w(e, "Error prefetching lyrics for %s", trackKey)
+                                    } catch (e: CancellationException) {
+                                            throw e
+                                        } catch (e: Exception) {
+                                            Timber.tag(TAG).w(e, "Error prefetching lyrics for %s", trackKey)
+                                        } finally {
+                                            if (lastLoadedTrackKey == trackKey) {
+                                                isFetchingLyrics = false
+                                                refreshSignal.update { it + 1 }
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        // Calculate current extrapolated position with calibration offset
-                        val offsetMs = syncOffsetStore.getOffset(trackKey)
-                        val extrapolatedPos = (snapshot.currentPositionMs() + offsetMs).coerceAtLeast(0L)
+                            // Calculate current extrapolated position with calibration offset
+                            val offsetMs = syncOffsetStore.getOffset(trackKey)
+                            val extrapolatedPos = (snapshot.currentPositionMs() + offsetMs).coerceAtLeast(0L)
 
-                        val hasSynced = cachedLrcLines.isNotEmpty()
-                        val hasPlain = !currentCachedLyrics?.plainLyrics.isNullOrBlank()
-                        val isFetching = fetchLyricsJob?.isActive == true
+                            val hasSynced = cachedLrcLines.isNotEmpty()
+                            val hasPlain = !currentCachedLyrics?.plainLyrics.isNullOrBlank()
+                            val isFetching = isFetchingLyrics
 
-                        // Resolve active lyrics line
-                        var activeText = ""
-                        var prevText: String? = null
-                        var nextText: String? = null
+                            // Resolve active lyrics line
+                            var activeText = ""
+                            var prevText: String? = null
+                            var nextText: String? = null
 
-                        if (hasSynced) {
-                            val activeIdx = cachedLrcLines.indexOfLast { it.timestampMs <= extrapolatedPos }
-                            if (activeIdx in cachedLrcLines.indices) {
-                                activeText = cachedLrcLines[activeIdx].text
-                                prevText = if (activeIdx > 0) cachedLrcLines[activeIdx - 1].text else null
-                                nextText = if (activeIdx < cachedLrcLines.lastIndex) cachedLrcLines[activeIdx + 1].text else null
-                            } else if (cachedLrcLines.isNotEmpty()) {
-                                nextText = cachedLrcLines.first().text
+                            if (hasSynced) {
+                                val activeIdx = cachedLrcLines.indexOfLast { it.timestampMs <= extrapolatedPos }
+                                if (activeIdx in cachedLrcLines.indices) {
+                                    activeText = cachedLrcLines[activeIdx].text
+                                    prevText = if (activeIdx > 0) cachedLrcLines[activeIdx - 1].text else null
+                                    nextText = if (activeIdx < cachedLrcLines.lastIndex) cachedLrcLines[activeIdx + 1].text else null
+                                } else if (cachedLrcLines.isNotEmpty()) {
+                                    nextText = cachedLrcLines.first().text
+                                }
+                            } else if (hasPlain) {
+                                activeText = "📜 Текст без таймкодов (статичный)"
+                                prevText = null
+                                nextText = null
+                            } else if (isFetching) {
+                                activeText = "Загрузка текста..."
+                                prevText = null
+                                nextText = null
                             }
-                        } else if (hasPlain) {
-                            activeText = "📜 Текст без таймкодов (статичный)"
-                            prevText = null
-                            nextText = null
-                        } else if (isFetching) {
-                            activeText = "Загрузка текста..."
-                            prevText = null
-                            nextText = null
+
+                            _overlayState.value = _overlayState.value.copy(
+                                isPlaying = snapshot.isPlaying,
+                                title = snapshot.title,
+                                artist = snapshot.artist,
+                                album = snapshot.album,
+                                albumArtUri = snapshot.albumArtUri,
+                                activeLineText = activeText,
+                                previousLineText = prevText,
+                                nextLineText = nextText,
+                                currentChord = null,
+                                hasLyrics = hasSynced || hasPlain,
+                                isSynced = hasSynced
+                            )
+                        } else {
+                            // Music idle state
+                            fetchLyricsJob?.cancel()
+                            isFetchingLyrics = false
+                            lastLoadedTrackKey = null
+                            currentCachedLyrics = null
+                            cachedLrcLines = emptyList()
+                            _overlayState.value = _overlayState.value.copy(
+                                isPlaying = false,
+                                activeLineText = "",
+                                previousLineText = null,
+                                nextLineText = null,
+                                hasLyrics = false,
+                                isSynced = false
+                            )
                         }
-
-                        _overlayState.value = _overlayState.value.copy(
-                            isPlaying = snapshot.isPlaying,
-                            title = snapshot.title,
-                            artist = snapshot.artist,
-                            album = snapshot.album,
-                            albumArtUri = snapshot.albumArtUri,
-                            currentPositionMs = extrapolatedPos,
-                            durationMs = snapshot.durationMs,
-                            activeLineText = activeText,
-                            previousLineText = prevText,
-                            nextLineText = nextText,
-                            currentChord = null,
-                            hasLyrics = hasSynced || hasPlain,
-                            isSynced = hasSynced
-                        )
-                    } else {
-                        // Music idle state
-                        fetchLyricsJob?.cancel()
-                        lastLoadedTrackKey = null
-                        currentCachedLyrics = null
-                        cachedLrcLines = emptyList()
-                        _overlayState.value = _overlayState.value.copy(
-                            isPlaying = false,
-                            activeLineText = "",
-                            previousLineText = null,
-                            nextLineText = null,
-                            hasLyrics = false,
-                            isSynced = false
-                        )
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Timber.w(e, "Error in FloatingLyricsService sync loop")
                     }
-                } catch (e: Exception) {
-                    Timber.w(e, "Error in FloatingLyricsService sync loop")
-                }
 
-                // Smooth refresh rate: 100ms when playing, 500ms when paused
-                val delayTime = if (_overlayState.value.isPlaying) 100L else 500L
-                delay(delayTime)
+                    // Paused/idle/static lyrics update on events. Only visible timed lyrics need a clock.
+                    if (snapshot?.isPlaying != true || cachedLrcLines.isEmpty()) break
+                    delay(100L)
+                } while (isActive)
             }
         }
     }
@@ -329,6 +381,10 @@ class FloatingLyricsService : Service() {
 
     override fun onDestroy() {
         _isRunning.value = false
+        if (screenReceiverRegistered) {
+            unregisterReceiver(screenReceiver)
+            screenReceiverRegistered = false
+        }
         fetchLyricsJob?.cancel()
         syncJob?.cancel()
         serviceScope.cancel()

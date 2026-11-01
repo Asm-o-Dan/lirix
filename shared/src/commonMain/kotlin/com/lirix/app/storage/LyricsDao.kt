@@ -32,6 +32,18 @@ interface LyricsDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveLyrics(entity: LyricsCacheEntity)
 
+    @Query("UPDATE music_tracks SET plainLyrics = :plain, syncedLyrics = :synced WHERE trackKey = :key")
+    suspend fun updateAutomaticTrackLyrics(key: String, plain: String?, synced: String?)
+
+    /** A background source must never replace a manual edit made while HTTP was in flight. */
+    @Transaction
+    suspend fun saveAutomaticIfNotUser(entity: LyricsCacheEntity): Boolean {
+        if (isManualLyricsProvider(getLyrics(entity.trackKey)?.provider)) return false
+        saveLyrics(entity)
+        updateAutomaticTrackLyrics(entity.trackKey, entity.plainLyrics, entity.syncedLyricsLrc)
+        return true
+    }
+
     @Query("SELECT * FROM music_tracks WHERE trackKey = :trackKey LIMIT 1")
     suspend fun getAutomaticLookupTrack(trackKey: String): TrackEntity?
 

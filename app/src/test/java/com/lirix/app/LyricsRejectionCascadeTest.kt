@@ -174,7 +174,7 @@ class LyricsRejectionCascadeTest {
             }
         }
 
-        val aggregator = AggregatedLyricsProvider(
+        val aggregator = AggregatedLyricsProvider(additionalLookup = { _, _ -> null },
             lrcLibProvider = mockLrcLib,
             fallbackScraper = mockAmDm
         )
@@ -221,7 +221,7 @@ class LyricsRejectionCascadeTest {
             }
         }
 
-        val aggregator = AggregatedLyricsProvider(
+        val aggregator = AggregatedLyricsProvider(additionalLookup = { _, _ -> null },
             lrcLibProvider = mockLrcLib,
             fallbackScraper = mockAmDm
         )
@@ -260,7 +260,7 @@ class LyricsRejectionCascadeTest {
             }
         }
 
-        val aggregator = AggregatedLyricsProvider(
+        val aggregator = AggregatedLyricsProvider(additionalLookup = { _, _ -> null },
             lrcLibProvider = mockLrcLib,
             fallbackScraper = object : LyricsProvider {
                 override suspend fun getLyrics(track: TrackEntity) = LyricsResult(false, "", "", sourceId = LyricsSourceIds.NONE)
@@ -309,7 +309,7 @@ class LyricsRejectionCascadeTest {
             }
         }
 
-        val aggregator = AggregatedLyricsProvider(
+        val aggregator = AggregatedLyricsProvider(additionalLookup = { _, _ -> null },
             lrcLibProvider = mockLrcLib,
             fallbackScraper = mockAmDm
         )

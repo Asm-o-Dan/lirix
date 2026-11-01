@@ -120,7 +120,7 @@ class AmDmChordCascadeTest {
             }
         }
 
-        val aggregator = AggregatedLyricsProvider(
+        val aggregator = AggregatedLyricsProvider(additionalLookup = { _, _ -> null },
             lrcLibProvider = mockLrcLib,
             fallbackScraper = mockAmDm
         )

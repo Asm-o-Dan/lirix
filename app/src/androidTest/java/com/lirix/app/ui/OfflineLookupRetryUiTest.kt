@@ -215,7 +215,7 @@ private fun ProductionLookupReader(mode: NowPlayingMode, cache: LyricsCacheEntit
     phase: LookupPhase, retry: () -> Unit, notes: String = "keep note", onNotes: (String) -> Unit = {}) {
     RenderTeleprompterContent(selectedMode = mode, lyricsCache = cache, currentTrack = track,
         isLoadingLyrics = phase == LookupPhase.Loading, lookupPhase = phase, onRetryLookup = retry,
-        playbackPositionMs = 0L,
+        playbackClock = PlaybackUiClock(),
         isPlaying = false, syncOffsetMs = 0L, canSeek = false, fontScale = 1f,
         isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE, isReducedMotion = true, onSeekTo = {}, onStartTapSync = {},
         onOpenTeachMode = {}, transposeSemitones = 0, onTransposeChange = {},

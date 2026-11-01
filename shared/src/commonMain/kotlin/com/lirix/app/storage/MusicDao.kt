@@ -14,6 +14,22 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface MusicDao {
 
+    @Query("UPDATE music_tracks SET totalDurationMs = totalDurationMs + :deltaMs, lastPlayedAt = MAX(lastPlayedAt, :timestamp), isFavorite = CASE WHEN totalDurationMs + :deltaMs >= 900000 THEN 1 ELSE isFavorite END WHERE trackKey = :trackKey")
+    suspend fun addListeningCredit(trackKey: String, deltaMs: Long, timestamp: Long)
+
+    @Transaction
+    suspend fun commitListeningProgress(session: ListeningSessionEntity, deltaMs: Long, timestamp: Long) {
+        updateSession(session)
+        addListeningCredit(session.trackKey, deltaMs, timestamp)
+    }
+
+    @Transaction
+    suspend fun commitPlaybackState(track: TrackEntity, session: ListeningSessionEntity, completed: ListeningSessionEntity?): Long {
+        completed?.let { updateSession(it) }
+        insertOrUpdateTrack(track)
+        return if (session.id == 0L) insertSession(session) else { updateSession(session); session.id }
+    }
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateTrack(track: TrackEntity)
 

@@ -9,8 +9,10 @@ import com.lirix.app.connect.proto.ConnectMessageCodec
 import com.lirix.app.connect.proto.Envelope
 import com.lirix.app.connect.proto.LirixConnectMsg
 import com.lirix.app.connect.transport.ConnectTransport
+import com.lirix.app.connect.transport.ConnectState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -18,6 +20,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import android.util.Log
 
@@ -54,6 +57,7 @@ class AndroidCastSourceManager(
     private var activeTransport: ConnectTransport? = null
     private var incomingMessagesJob: Job? = null
     private var senderJob: Job? = null
+    private var connectionJob: Job? = null
     private var stopMessageJob: Job? = null
     private var outgoingChunks: Channel<AudioChunk>? = null
     var mediaProjection: MediaProjection? = null
@@ -84,6 +88,7 @@ class AndroidCastSourceManager(
         stopMessageJob?.join()
         stopMessageJob = null
         if (_isCasting.value) return true
+        if (transport.state.value != ConnectState.CONNECTED) return false
 
         val targetProjection = projection ?: this.mediaProjection
         activeTransport = transport
@@ -115,113 +120,133 @@ class AndroidCastSourceManager(
             return false
         }
 
-        // Подписка на входящие отчеты CastStatus от удаленного узла
-        incomingMessagesJob = scope.launch {
-            try {
-                transport.incomingControlMessages().collect { frameBytes ->
-                    try {
-                        val env = ConnectMessageCodec.decode(frameBytes)
-                        val body = env.body
-                        if (body is LirixConnectMsg.CastStatus) {
-                            handleCastStatus(body)
-                        }
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        Log.e("LirixCast", "control-decode-failed", e)
-                    }
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.e("LirixCast", "control-stream-closed", e)
+        // Serialize capture startup with stopCast: a disconnect during setup must not restart capture.
+        return synchronized(this) {
+            if (activeTransport !== transport || transport.state.value != ConnectState.CONNECTED) {
+                stopCastIfActive(transport)
+                return@synchronized false
             }
-        }
 
-        // Создаем bounded Channel и единственный sender worker до запуска capture (устранение гонки)
-        val channel = Channel<AudioChunk>(capacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-        outgoingChunks = channel
-
-        senderJob = scope.launch {
-            var currentSeq = 0
-            try {
-                for (chunk in channel) {
-                    val initialTs = chunk.timestampSample and 0xFFFFFFFFL
-                    val datagrams = try {
-                        packetizePcm16Stereo(chunk.pcmData, currentSeq, initialTs)
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        Log.e("LirixCast", "packetize-failed", e)
-                        continue
-                    }
-
-                    for (datagram in datagrams) {
+            // Подписка на входящие отчеты CastStatus от удаленного узла
+            incomingMessagesJob = scope.launch {
+                try {
+                    transport.incomingControlMessages().collect { frameBytes ->
                         try {
-                            val encoded = CastDatagramCodec.encode(datagram)
-                            transport.sendDatagram(encoded)
-                            _sentDatagramCount.value += 1
+                            val env = ConnectMessageCodec.decode(frameBytes)
+                            val body = env.body
+                            if (body is LirixConnectMsg.CastStatus) {
+                                handleCastStatus(body)
+                            }
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
-                            Log.e("LirixCast", "datagram-send-failed", e)
+                            Log.e("LirixCast", "control-decode-failed", e)
                         }
-                        currentSeq = (datagram.seq + 1) % 65536
                     }
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.e("LirixCast", "sender-worker-error", e)
-            }
-        }
-
-        // Запуск захвата звука (callback выполняет только неблокирующий trySend)
-        var captureCancellation: CancellationException? = null
-        val captureStarted = try {
-            audioCaptureEngine.startCapture(targetProjection) { chunk -> channel.trySend(chunk) }
-        } catch (error: CancellationException) {
-            captureCancellation = error
-            false
-        }
-
-        if (captureStarted) {
-            _isCasting.value = true
-        } else {
-            Log.e("LirixCast", "capture-start-failed", null)
-            incomingMessagesJob?.cancel()
-            incomingMessagesJob = null
-            senderJob?.cancel()
-            senderJob = null
-            outgoingChunks?.close()
-            outgoingChunks = null
-
-            val tr = activeTransport
-            activeTransport = null
-            _activeDeviceName.value = null
-            mediaProjection = null
-
-            if (tr != null) {
-                stopMessageJob = scope.launch {
-                    try {
-                        val setCastOff = LirixConnectMsg.SetAudioCast(
-                            enabled = false,
-                            codec = CastCodec.PCM_S16LE,
-                            sampleRate = 48000,
-                            channels = 2,
-                            bitrateKbps = 1536
-                        )
-                        val env = Envelope(
-                            msgId = System.currentTimeMillis(),
-                            sentAtMonoMs = System.currentTimeMillis(),
-                            body = setCastOff
-                        )
-                        tr.sendControlMessage(ConnectMessageCodec.encode(env))
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        Log.e("LirixCast", "start-failure-cleanup-send-failed", e)
-                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.e("LirixCast", "control-stream-closed", e)
                 }
             }
-        }
 
-        captureCancellation?.let { throw it }
-        return captureStarted
+            // Создаем bounded Channel и единственный sender worker до запуска capture (устранение гонки)
+            val channel = Channel<AudioChunk>(capacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+            outgoingChunks = channel
+
+            senderJob = scope.launch {
+                var currentSeq = 0
+                try {
+                    for (chunk in channel) {
+                        val initialTs = chunk.timestampSample and 0xFFFFFFFFL
+                        val datagrams = try {
+                            packetizePcm16Stereo(chunk.pcmData, currentSeq, initialTs)
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            Log.e("LirixCast", "packetize-failed", e)
+                            continue
+                        }
+
+                        for (datagram in datagrams) {
+                            try {
+                                val encoded = CastDatagramCodec.encode(datagram)
+                                transport.sendDatagram(encoded)
+                                _sentDatagramCount.value += 1
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                Log.e("LirixCast", "datagram-send-failed", e)
+                                stopCastIfActive(transport)
+                                return@launch
+                            }
+                            currentSeq = (datagram.seq + 1) % 65536
+                        }
+                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.e("LirixCast", "sender-worker-error", e)
+                }
+            }
+
+            // Запуск захвата звука (callback выполняет только неблокирующий trySend)
+            var captureCancellation: CancellationException? = null
+            val captureStarted = try {
+                audioCaptureEngine.startCapture(targetProjection) { chunk -> channel.trySend(chunk) }
+            } catch (error: CancellationException) {
+                captureCancellation = error
+                false
+            }
+
+            if (captureStarted) {
+                _isCasting.value = true
+                connectionJob = scope.launch(start = CoroutineStart.LAZY) {
+                    transport.state.first { it != ConnectState.CONNECTED }
+                    stopCastIfActive(transport)
+                }
+                connectionJob?.start()
+            } else {
+                Log.e("LirixCast", "capture-start-failed", null)
+                incomingMessagesJob?.cancel()
+                incomingMessagesJob = null
+                senderJob?.cancel()
+                senderJob = null
+                outgoingChunks?.close()
+                outgoingChunks = null
+
+                val tr = activeTransport
+                activeTransport = null
+                _activeDeviceName.value = null
+                mediaProjection = null
+
+                if (tr != null) {
+                    stopMessageJob = scope.launch {
+                        try {
+                            val setCastOff = LirixConnectMsg.SetAudioCast(
+                                enabled = false,
+                                codec = CastCodec.PCM_S16LE,
+                                sampleRate = 48000,
+                                channels = 2,
+                                bitrateKbps = 1536
+                            )
+                            val env = Envelope(
+                                msgId = System.currentTimeMillis(),
+                                sentAtMonoMs = System.currentTimeMillis(),
+                                body = setCastOff
+                            )
+                            tr.sendControlMessage(ConnectMessageCodec.encode(env))
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            Log.e("LirixCast", "start-failure-cleanup-send-failed", e)
+                        }
+                    }
+                }
+            }
+
+            captureCancellation?.let { throw it }
+            captureStarted
+        }
+    }
+
+    @Synchronized
+    private fun stopCastIfActive(transport: ConnectTransport) {
+        if (activeTransport === transport) stopCast()
     }
 
     /**
@@ -235,9 +260,12 @@ class AndroidCastSourceManager(
     /**
      * Остановка трансляции системного аудио Cast.
      */
+    @Synchronized
     fun stopCast() {
         val wasCasting = _isCasting.value
         _isCasting.value = false
+        connectionJob?.cancel()
+        connectionJob = null
 
         // Обязательный cleanup каналов и корутин даже если isCasting было false
         outgoingChunks?.close()
@@ -262,7 +290,7 @@ class AndroidCastSourceManager(
         _activeDeviceName.value = null
         mediaProjection = null
 
-        if (transport != null && wasCasting) {
+        if (transport != null && wasCasting && transport.state.value == ConnectState.CONNECTED) {
             stopMessageJob = scope.launch {
                 try {
                     previousSender?.join()

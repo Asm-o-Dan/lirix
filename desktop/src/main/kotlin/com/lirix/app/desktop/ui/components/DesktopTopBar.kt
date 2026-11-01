@@ -168,7 +168,7 @@ fun DesktopTopBar(
             val themeLabel = com.lirix.app.ui.i18n.LirixStrings.message("Тема оформления: {0}", selectedTheme.title)
             TooltipArea(tooltip = {
                 Surface(color = colors.surfaceElevated, shape = RoundedCornerShape(6.dp), border = BorderStroke(1.dp, colors.borderSubtle)) {
-                    Text("$themeLabel\nВыбрать одну из шести тем", color = colors.textPrimary, fontSize = 11.sp, modifier = Modifier.padding(8.dp))
+                    Text(com.lirix.app.ui.i18n.LirixStrings.message("{0}\\nВыбрать одну из шести тем", themeLabel), color = colors.textPrimary, fontSize = 11.sp, modifier = Modifier.padding(8.dp))
                 }
             }, delayMillis = 300) {
                 IconButton(

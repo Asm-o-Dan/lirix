@@ -484,7 +484,7 @@ class LyricsAndTrackParserTest {
         val failingFallback = FallbackLyricsScraper(httpGet = { throw SecurityException("Permission denied (missing INTERNET)") })
         val offlineAdapter = OfflineLyricsAdapter()
 
-        val aggregated = AggregatedLyricsProvider(
+        val aggregated = AggregatedLyricsProvider(additionalLookup = { _, _ -> null },
             lrcLibProvider = failingLrcLib,
             fallbackScraper = failingFallback,
             offlineAdapter = offlineAdapter
@@ -518,7 +518,7 @@ class LyricsAndTrackParserTest {
             null
         })
 
-        val aggregated = AggregatedLyricsProvider(
+        val aggregated = AggregatedLyricsProvider(additionalLookup = { _, _ -> null },
             lrcLibProvider = lrcLib,
             fallbackScraper = FallbackLyricsScraper(httpGet = { networkCalls++; null })
         )
@@ -624,7 +624,7 @@ class LyricsAndTrackParserTest {
         val lrc = """
             [ar:The Beatles]
             [ti:Yesterday]
-            [00:01.00] 
+            [00:01.00]
             Invalid Line Without Timestamp
             [00:04.20]Valid Line
         """.trimIndent()

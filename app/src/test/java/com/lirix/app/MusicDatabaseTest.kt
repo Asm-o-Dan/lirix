@@ -171,7 +171,7 @@ class MusicDatabaseTest {
             album = "Hybrid Theory",
             sourcePackage = "com.spotify.music",
             playbackState = "PLAYING",
-            timestamp = timestamp
+            timestamp = timestamp, monotonicMs = timestamp
         )
 
         assertNotNull("TrackEntity must be returned", track)
@@ -208,7 +208,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = "com.spotify.music",
             playbackState = "PLAYING",
-            timestamp = t0
+            timestamp = t0, monotonicMs = t0
         )
         assertNotNull(track1)
         assertEquals(1, track1!!.playCount)
@@ -221,7 +221,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = "com.spotify.music",
             playbackState = "PLAYING",
-            timestamp = t1
+            timestamp = t1, monotonicMs = t1
         )
         assertNotNull(track2)
         // Play count should NOT increment (collapsed into same session)
@@ -243,7 +243,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = "com.spotify.music",
             playbackState = "PAUSED",
-            timestamp = t2
+            timestamp = t2, monotonicMs = t2
         )
         val pausedSession = musicDao.getLastSessionForPackage("com.spotify.music")
         assertNotNull(pausedSession)
@@ -267,7 +267,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = "com.spotify.music",
             playbackState = "PLAYING",
-            timestamp = 1000L
+            timestamp = 1000L, monotonicMs = 1000L
         )
 
         // 2. Lyrics discovered and saved to music_tracks and lyrics_cache
@@ -298,7 +298,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = "com.spotify.music",
             playbackState = "PLAYING",
-            timestamp = 50000L
+            timestamp = 50000L, monotonicMs = 50000L
         )
 
         assertNotNull(updatedTrack)
@@ -377,7 +377,7 @@ class MusicDatabaseTest {
                 album = "Hybrid Theory",
                 sourcePackage = pkg,
                 playbackState = state,
-                timestamp = t0 + (index * 100L)
+                timestamp = t0 + (index * 100L), monotonicMs = t0 + (index * 100L)
             )
         }
 
@@ -402,7 +402,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = pkg,
             playbackState = "PLAYING",
-            timestamp = t0
+            timestamp = t0, monotonicMs = t0
         )
         assertNotNull(trackStart)
         assertEquals(1, trackStart!!.playCount)
@@ -414,7 +414,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = pkg,
             playbackState = "PAUSED",
-            timestamp = t0 + 10_000L
+            timestamp = t0 + 10_000L, monotonicMs = t0 + 10_000L
         )
 
         // 3. Resume 40s later (gap of 40s on the SAME track)
@@ -424,7 +424,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = pkg,
             playbackState = "PLAYING",
-            timestamp = t0 + 50_000L
+            timestamp = t0 + 50_000L, monotonicMs = t0 + 50_000L
         )
         assertNotNull(trackResume)
         assertEquals("Pause and resume of the same track must not increment playCount", 1, trackResume!!.playCount)
@@ -447,7 +447,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = pkg,
             playbackState = "PLAYING",
-            timestamp = t0
+            timestamp = t0, monotonicMs = t0
         )
         assertEquals(1, trackA1!!.playCount)
 
@@ -458,7 +458,7 @@ class MusicDatabaseTest {
             album = "Hybrid Theory",
             sourcePackage = pkg,
             playbackState = "PLAYING",
-            timestamp = t0 + 20_000L
+            timestamp = t0 + 20_000L, monotonicMs = t0 + 20_000L
         )
         assertNotNull(trackB)
         assertEquals("Track switch to new track must increment playCount for Track B", 1, trackB!!.playCount)
@@ -470,7 +470,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = pkg,
             playbackState = "PLAYING",
-            timestamp = t0 + 90_000L
+            timestamp = t0 + 90_000L, monotonicMs = t0 + 90_000L
         )
         assertNotNull(trackA2)
         assertEquals("Replaying Track A after 60s cooldown must increment playCount to 2", 2, trackA2!!.playCount)
@@ -493,7 +493,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = pkg,
             playbackState = "PLAYING",
-            timestamp = t0
+            timestamp = t0, monotonicMs = t0
         )
         assertNotNull(track1)
         assertEquals(1, track1!!.playCount)
@@ -506,7 +506,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = pkg,
             playbackState = "PAUSED",
-            timestamp = tPause
+            timestamp = tPause, monotonicMs = tPause
         )
         val pausedSession = musicDao.getLastSessionForPackage(pkg)
         assertNotNull(pausedSession)
@@ -520,7 +520,7 @@ class MusicDatabaseTest {
             album = "Meteora",
             sourcePackage = pkg,
             playbackState = "PLAYING",
-            timestamp = tResume
+            timestamp = tResume, monotonicMs = tResume
         )
         assertNotNull(trackResume)
         assertEquals("Resuming playback after pause (>60s) must NOT increment playCount", 1, trackResume!!.playCount)

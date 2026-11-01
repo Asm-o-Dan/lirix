@@ -339,6 +339,70 @@ class AndroidCastSourceTest {
     // ── 4. Тесты системных интентов, предупреждения DRM и сервиса ──
 
     @Test
+    fun disconnectStopsCaptureAndQueuedDatagramsWithoutManualStop() = runTest {
+        val engine = AndroidAudioCaptureEngine(allowSyntheticInput = true)
+        val manager = AndroidCastSourceManager(engine, this)
+        val transport = FakeConnectTransport()
+        assertTrue(manager.startCast(transport, "PC"))
+        engine.feedRawAudio(ByteArray(1920))
+        runCurrent()
+        assertEquals(2, transport.sentDatagrams.size)
+
+        transport.disconnect("Receiver closed")
+        runCurrent()
+        assertFalse(manager.isCasting.value)
+        assertFalse(engine.isCapturing)
+        assertEquals(null, manager.activeDeviceName.value)
+        engine.feedRawAudio(ByteArray(1920))
+        runCurrent()
+        assertEquals(2, transport.sentDatagrams.size)
+    }
+
+    @Test
+    fun disconnectBeforeMonitorStartsStillStopsCapture() = runTest {
+        val engine = AndroidAudioCaptureEngine(allowSyntheticInput = true)
+        val manager = AndroidCastSourceManager(engine, this)
+        val transport = FakeConnectTransport()
+        assertTrue(manager.startCast(transport, "PC"))
+        transport.disconnect("Immediate EOF")
+        runCurrent()
+        assertFalse(engine.isCapturing)
+        assertFalse(manager.isCasting.value)
+    }
+
+    @Test
+    fun datagramFailureStopsCaptureInsteadOfLoggingEveryPacket() = runTest {
+        val engine = AndroidAudioCaptureEngine(allowSyntheticInput = true)
+        val manager = AndroidCastSourceManager(engine, this)
+        val delegate = FakeConnectTransport()
+        var attempts = 0
+        val transport = object : ConnectTransport by delegate {
+            override suspend fun sendDatagram(datagram: ByteArray) {
+                attempts++
+                throw java.io.IOException("Network lost")
+            }
+        }
+        assertTrue(manager.startCast(transport, "PC"))
+        engine.feedRawAudio(ByteArray(1920 * 3))
+        runCurrent()
+        assertEquals(1, attempts)
+        assertFalse(engine.isCapturing)
+        assertFalse(manager.isCasting.value)
+        manager.stopCastSuspend()
+    }
+
+    @Test
+    fun disconnectedTransportDoesNotStartCapture() = runTest {
+        val engine = AndroidAudioCaptureEngine(allowSyntheticInput = true)
+        val manager = AndroidCastSourceManager(engine, this)
+        val transport = FakeConnectTransport()
+        transport.disconnect("Offline")
+        assertFalse(manager.startCast(transport, "PC"))
+        assertFalse(engine.isCapturing)
+        assertTrue(transport.sentControlMessages.isEmpty())
+    }
+
+    @Test
     fun testDrmWarningMessageAndIntentCreation() {
         assertNotNull(AndroidCastSourceManager.DRM_WARNING_MESSAGE)
         assertTrue(AndroidCastSourceManager.DRM_WARNING_MESSAGE.contains("DRM"))

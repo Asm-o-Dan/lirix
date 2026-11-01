@@ -149,7 +149,7 @@ class NotificationListener : NotificationListenerService() {
                     artist = cleanArtist,
                     album = parsed.album,
                     sourcePackage = packageName,
-                    playbackState = "PLAYING",
+                    playbackState = "NOTIFICATION",
                     timestamp = now,
                     albumArtUri = savedPath
                 )
