@@ -39,6 +39,7 @@
 | `SPEC-MYCHORDS-01` | `lyrics-engine` | [.sdd/specs/lyrics-engine/mychords_parser_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/lyrics-engine/mychords_parser_spec.md) | Резервный парсер аккордов MyChords.net | v1.0 | **FROZEN** | **DONE** |
 | `SPEC-TEACH-03` | `lyrics-engine` | [.sdd/specs/lyrics-engine/teach_mode_inspector_fix.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/lyrics-engine/teach_mode_inspector_fix.md) | Touch Inspector и проброс трека в TeachMode | v1.0 | **FROZEN** | **DONE** |
 | `SPEC-TEACH-05` | `lyrics-engine` | [.sdd/specs/lyrics-engine/teach_inspector_v2_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/lyrics-engine/teach_inspector_v2_spec.md) | Touch Inspector v2 (scroll guard, debounce, strip) | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-TEACH-06` | `lyrics-engine` | [.sdd/specs/lyrics-engine/teach_mode_v2_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/lyrics-engine/teach_mode_v2_spec.md) | TeachMode 2.0 (Two-Tier Ingestion & Jsoup DOM Engine) | v2.0 | **APPROVED** | **IN_PROGRESS** |
 | `SPEC-CORE-SEC-01` | `media-core` | [.sdd/specs/media-core/core_security_and_stability_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-core/core_security_and_stability_spec.md) | Устранение уязвимостей FileProvider, Network, Singleton | v1.0 | **FROZEN** | **DONE** |
 | `SPEC-CORE-BL-01` | `media-core` | [.sdd/specs/media-core/blacklist_storage_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-core/blacklist_storage_spec.md) | Хранилище Blacklist, Room v11, авто-purge | v1.0 | **FROZEN** | **DONE** |
 | `SPEC-THEME-01` | `media-ui` | [.sdd/specs/media-ui/theme_palette_system_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/theme_palette_system_spec.md) | Система 4 тем и динамическая палитра LirixThemeTokens | v1.0 | **FROZEN** | **DONE** |
@@ -48,10 +49,50 @@
 | `SPEC-TAPSYNC-01` | `media-ui` | [.sdd/specs/media-ui/lrc_tap_sync_studio.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/lrc_tap_sync_studio.md) | Tap-to-Sync студия разметки караоке | v1.0 | **FROZEN** | **DONE** |
 | `SPEC-UI-BL-01` | `media-ui` | [.sdd/specs/media-ui/blacklist_settings_spec.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/blacklist_settings_spec.md) | UI конструктора правил BlacklistSettingsScreen | v1.0 | **FROZEN** | **DONE** |
 | `SPEC-DESIGN-RESEARCH-01` | `media-ui` | [.sdd/specs/media-ui/design_research_aimp_yandex.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/design_research_aimp_yandex.md) | Исследование и эталоны AIMP vs Яндекс Музыка | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-ANIM-POSTER-01` | `media-ui` | [.sdd/specs/media-ui/animated_poster_v1.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/animated_poster_v1.md) | Анимированные MP4 постеры: Vinyl Spin, Counter Roll, Pulse Bars | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-ROMAN-01` | `lyrics-engine` | [.sdd/specs/lyrics-engine/lyrics_romanization_v1.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/lyrics-engine/lyrics_romanization_v1.md) | Романизация японских и китайских текстов (Hepburn Romaji / Pinyin) | v1.0 | **FROZEN** | **DONE** |
+| `SPEC-I18N-01` | `media-ui` | [.sdd/specs/media-ui/i18n_localization_v1.md](file:///c:/Users/DaniilTuT/Documents/antigravity/quick-nobel/.sdd/specs/media-ui/i18n_localization_v1.md) | Мультиязычная локализация интерфейса (English / Russian) | v1.0 | **FROZEN** | **DONE** |
+
 
 ---
 
 ## 3. Активные рабочие стримы (В работе и готовы к взятию)
+
+### Стрим C: Animated Share Posters (Спецификация SPEC-ANIM-POSTER-01)
+*MP4 постеры с кинетической типографикой: вращающийся винил, одометр счётчиков, растущие столбики пульса.*
+
+| ID Задачи | Название и функция | Файл реализации | Исполнитель | Статус | DoR / Критерии готовности |
+|---|---|---|---|---|---|
+| TASK-ANIM-001 | ThemeAnimationPalette + AnimationSpec + springBounce | app/.../share/animation/ThemeAnimationPalette.kt | UI Engineer | **DONE** ✅ | Gate 7/8 PASS, unit-тесты зеленые |
+| TASK-ANIM-002 | Mp4FrameEncoder (MediaCodec H.264 + MediaMuxer) | app/.../share/animation/Mp4FrameEncoder.kt | Video Engineer | **DONE** ✅ | Gate 7/8 PASS, unit-тесты зеленые |
+| TASK-ANIM-003 | AnimatedPosterPipeline (orchestrator: frames → encode → file) | app/.../share/animation/AnimatedPosterPipeline.kt | Core Engineer | **DONE** ✅ | Dispatchers.Default, progress reporting, cancellation |
+| TASK-ANIM-004 | VinylSpinAnimator — вращение обложки + typewriter текста | app/.../share/animation/VinylSpinAnimator.kt | UI Engineer | **DONE** ✅ | Loopable 360°, typewriter text, audio glow (5/5 PASS) |
+| TASK-ANIM-005 | CounterRollAnimator — одометр минут/треков/артистов | app/.../share/animation/CounterRollAnimator.kt | UI Engineer | **DONE** ✅ | Multi-speed vertical digit roll, top-3 cascade |
+| TASK-ANIM-006 | PulseBarAnimator — столбики пульса суток с spring bounce | app/.../share/animation/PulseBarAnimator.kt | UI Engineer | **DONE** ✅ | Staggered 4-bar spring bounce, gradient fill |
+| TASK-ANIM-007 | ShareFormatDialog integration — toggle Статика/Анимация, preview | app/.../ui/components/ShareFormatDialog.kt | Android UI Coder | **DONE** ✅ | Live preview, progress bar, SAF/video share (42/42 PASS) |
+
+### Стрим D: Lyrics Romanization (Спецификация SPEC-ROMAN-01)
+*Романизация японских (Хирагана/Катакана/Кандзи → Hepburn Romaji) и китайских (Ханьцзы → Pinyin) текстов песен.*
+
+| ID Задачи | Название и функция | Файл реализации | Исполнитель | Статус | DoR / Критерии готовности |
+|---|---|---|---|---|---|
+| TASK-ROMAN-001 | Data models and Romanizer contracts | shared/.../lyrics/romanization/RomanizationModels.kt | Lyrics Engineer | **DONE** ✅ | RomanizationLanguage, RomanizationDisplayMode, RomanizedLyricLine |
+| TASK-ROMAN-002 | Japanese Kana → Hepburn Romaji engine | shared/.../lyrics/romanization/JapaneseRomajiEngine.kt | Lyrics Engineer | **DONE** ✅ | Hepburn pure Kotlin, sokuon, yoon, J-Pop kanji, 13/13 tests PASS |
+| TASK-ROMAN-003 | Chinese Hanzi → Pinyin engine | shared/.../lyrics/romanization/ChinesePinyinEngine.kt | Lyrics Engineer | **DONE** ✅ | CJK Hanzi, tone marks/toneless, segmentation, 8/8 tests PASS |
+| TASK-ROMAN-004 | RomanizationCoordinator with cache & auto-detect | shared/.../lyrics/romanization/RomanizationCoordinator.kt | Core Engineer | **DONE** ✅ | Auto-detect JA/ZH, LRU cache, LrcSyncEngine integration, 8/8 tests PASS |
+| TASK-ROMAN-005 | Romanized lyrics UI display (Ruby layer in Compose) | app/.../ui/components/RomanizedKaraokeLine.kt | Android UI Coder | **DONE** ✅ | Reading above / toggle mode in NowPlayingScreen (235/235 PASS) |
+
+### Стрим E: Multi-Language Localization (Спецификация SPEC-I18N-01)
+*Мультиязычная локализация интерфейса (English по умолчанию + Russian) с поддержкой Per-App Language Preferences.*
+
+| ID Задачи | Название и функция | Файл реализации | Исполнитель | Статус | DoR / Критерии готовности |
+|---|---|---|---|---|---|
+| TASK-I18N-001 | Locales config (locales_config.xml) & core dictionary | res/xml/locales_config.xml, values/strings.xml | i18n Engineer | **DONE** ✅ | Per-App Language Preferences, 100% RU/EN keys (246 keys) |
+| TASK-I18N-002 | Player, transport and tab navigation localization | app/.../NowPlayingScreen.kt, NavigationCapsule.kt | Android UI Coder | **DONE** ✅ | Tabs, player states, overflow menu items |
+| TASK-I18N-003 | Library, history and blacklist localization | app/.../LibraryScreen.kt, BlacklistSettingsScreen.kt | Android UI Coder | **DONE** ✅ | Filters, track actions, blacklist dialogs |
+| TASK-I18N-004 | Wrapped, share posters and dialogs localization | app/.../WrappedScreen.kt, ShareFormatDialog.kt | Android UI Coder | **DONE** ✅ | Wrapped periods, metrics, achievement badges |
+| TASK-I18N-005 | Desktop & Shared strings parity layer | shared/.../ui/i18n/LirixStrings.kt | Desktop Coder | **DONE** ✅ | Cross-platform string accessors in :shared (182/182 PASS) |
+| TASK-I18N-006 | LanguageSelectionDialog + LanguageManager (in-app language picker) | app/.../LanguageSelectionDialog.kt | i18n Engineer | **DONE** ✅ | Runtime locale switch, overflow menu item, tests PASS |
 
 ### Стрим A: Lirix Connect (Спецификация `SPEC-CONNECT-01`)
 *Архитектурный фундамент: P2P Iroh QUIC, Ed25519 Pinning, CBOR протокол, Handoff & Audio Cast.*
@@ -293,11 +334,23 @@
 ## Android Wrapped motion prototype — 2026-10-20
 - WRAPPED-MOTION: IMPLEMENTED / DEVICE ACCEPTANCE PENDING. User authorized direct Codex implementation with minimal process. Native real-data summary (minutes, favorite artist, top 3), themed 900 ms opacity reveal, replay button, explicit loading/empty states. Android APK assembled; 209 unit tests pass. System-scale 0, theme changes, period changes, long titles and scrolling require physical acceptance; ADB device absent. Full lint blocked by unchanged AndroidAudioCaptureService.kt:212 MissingPermission and LibraryScreen.kt:192 NewApi; no Wrapped errors. No desktop/storage/export changes.
 
+## Energy optimization and critical listening-time report — 2026-10-21
+- IMPLEMENTED / AUTOMATED PASS: Android Cast disconnect cleanup, UI clock isolation, screen-aware overlay, artwork deduplication and heartbeat cancellation; desktop meter demand, batched persistence and paused clocks. 46 selected Android +174 shared +11 selected desktop +27 native tests pass (258 total, no failures/skips). Final Android compilation PASS. Report: .sdd/reports/ENERGY_OPTIMIZATION_20261021.md. Device power/visual measurements pending; no release publication.
+- OPEN / CRITICAL P1: BUG-LISTENING-TIME-01 — incorrect listening-time accounting reported by user (00:03, TODAY shows 8 minutes). Intake: .sdd/intake/CRITICAL_LISTENING_TIME_ACCOUNTING.md. Absolute playback position is used as listened duration; midnight allocation and cumulative-duration cap also require correction. Recorded, not fixed; no history mutation authorized by this entry.
+
+## Listening-time accounting fix — 2026-10-21
+- IN_PROGRESS: BUG-LISTENING-TIME-01. Monotonic per-DAO recorder, ordered MediaSession observations, explicit playing intervals (Room13), shared calendar projection, midnight UI refresh and legacy-history policy implemented. Regression coverage includes seek, pause/buffering, duplicates, source switch, process restart, midnight/TZ/DST and v1 archives. Full final Gradle checks pending. ADB has no connected devices; device acceptance requested asynchronously.
+
+- BUG-LISTENING-TIME-01 IMPLEMENTED / AUTOMATED PASS: Android253 + shared200 + desktop120 passed (573),6desktop checks skipped; final Gradle BUILD SUCCESSFUL, debugAPK assembled. Previous OPEN/IN_PROGRESS accounting entries superseded. User waived physical acceptance for this run because phone is unavailable. Evidence: .sdd/reports/LISTENING_TIME_FIX_20261021.md.
+
 ## Karaoke studio — verification checkpoint 2026-10-21
 - User-selected scope: line studio + real local-audio waveform; keep quick Tap-to-Sync. Word timing excluded; Japanese/Chinese romanization proposal recorded separately.
 - Implementation prepared before current coordinator-only instruction. Current role: quality verification, independent review, documentation and isolated Git delivery; no new root product-code edits.
 - Final debug APK assembled; Android 260 and shared 200 tests pass. Studio/draft/PCM/duration/backup coverage passes; independent review correction verified. Test artifact and evidence: intake/KARAOKE_STUDIO_IMPLEMENTATION.md.
 - Final release lint PASS; independent review passed after duration correction. Phone absent from ADB; device acceptance pending and published release unchanged. See intake/KARAOKE_STUDIO_IMPLEMENTATION.md.
+
+## Source expansion — 2026-10-21
+- IN_PROGRESS: user requested additional chord/plain/LRC/translation sources. Existing-provider audit assigned to energy_thesis; web-source feasibility/spec to energy_review. Root coordinates live checks and final acceptance. Intake: .sdd/intake/SOURCE_EXPANSION_20261021.md. No source is called integrated before native search/load and regression checks pass.
 
 ## Android player reading surface and context menu — 2026-10-21
 - IMPLEMENTED / AUTOMATED PASS, physical acceptance pending: user supplied annotated 3830/3831 screenshots. Remove white explanatory copy, compact green attribution, move red editing/translation controls to contextual overflow/sheet, move Connect to symmetric lower transport.
@@ -326,7 +379,6 @@
 - Database14 compatibility prerequisite frozen in build/repairs-baseline/db14-clean; installation gated on rebuilt Room identity.
 - MP4 refreshed 26-file freeze under isolated tests. Locale/romanization and player integration pending.
 - Acceptance evidence: .sdd/reports/PLAYER_DEVICE_BASELINE_20261023.md. Invalid earlier Library trial excluded.
-
 ## Android GitHub updates — 2026-10-24
 - IMPLEMENTED / AUTOMATED PASS: GitHub update delivery; seven tests, debug APK and release lint pass. Daily foreground check, manual player menu, verified APK and system consent. Physical update acceptance pending: ADB empty. Contract: specs/android-ui/github_updates_v1.md; report: reports/ANDROID_UPDATES_20261024.md. No release or desktop updater changes.
 
@@ -385,3 +437,12 @@
 - IN_PROGRESS: translation-sources-multilingual-and-ru-en. Проверить фактические существующие реализации/dirty tree и действительные многоязычные источники, включая русский→английский; не утверждать работоспособность автоматического поиска без живой проверки.
 
 - Source implementation complete: LT-first + Rustoeng RU→EN; Android compile and 63 desktop checks PASS, 1 optional live skip; separate 2 real-source searches PASS without lyric logging. UI/phone runtime, source content licensing/release distribution remain separate; originalLineContent Android compatibility restored. No public release or ADB installation.
+
+## Интеграция рабочей копии — 2026-11-01
+
+- IMPLEMENTED / AUTOMATED PASS (intake/WORKTREE_INTEGRATION_20261030.md). Коммиты: 7f0d708 Qodana CI; b61e99d бэкап `lirix_library_exclusions` на API 28–30 + стабилизация тестов; c0dcc73 парсер названий; 6c32fb3 переходы вкладок и меню строки медиатеки; 1bad006 монотонный учёт времени (BUG-LISTENING-TIME-01) + энергия + источники KuGou/lyrics.ovh/Akkords.pro/Lyrsense; 62919bd и dee7321 утечки тестов, устойчивость подписки чёрного списка, ресурсы `commonTest` для Android-тестов `:shared`.
+- Проверка на чистом worktree (только закоммиченные файлы): `:app:testDebugUnitTest` 388/388; `:shared` android 263/263, desktop 267/267; `:desktop:test` 224 PASS, 20 опциональных live-проверок пропущены; `dotnet test native/LirixMediaBridge.Tests` 27/27; `:app:compileDebugAndroidTestKotlin` и `:app:assembleDebug` PASS.
+- Вне коммитов: TeachMode 2.0 (SPEC-TEACH-06, WIP — ведёт отдельная сессия), пробельный шум в `.sdd/tasks/*`, romanization ×3, strings ×2, личные файлы. Устаревший отчёт LIBRARY_SWIPE_IMPLEMENTATION_20261027 не принят: описывает патч, которого нет в коде.
+- NOT RUN: поведение на устройстве и расход батареи для учёта времени/энергии, живая проверка новых источников.
+- UI/UX-анализ на телефоне: reports/UI_UX_REVIEW_20261101.md. Студия: закрепление «Применить к песне» над полосой жестов — IMPLEMENTED, компиляция PASS, устройство NOT RUN. Редизайн студии и приёмка D06 переданы Codex: intake/CODEX_STUDIO_AND_ACCEPTANCE_20261101.md.
+- IN_PROGRESS в отдельных сессиях: быстрые UX-правки плеера/медиатеки; TeachMode 2.0; ручное избранное + фильтр мессенджеров (уровень 2, миграция Room 14→15).

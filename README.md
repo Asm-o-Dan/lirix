@@ -27,7 +27,7 @@ Streaming services frequently gate synchronized lyrics behind subscriptions, lac
 - **Dynamic 6-Palette Theme Engine** — Real-time switching between Spotify Mood, Yandex Music, Obsidian Pulse, Pastel Serenity, Graphite & Chalk, and Paper & Ink with automated WCAG contrast clamping.
 - **Floating Lyrics Overlay** — Compact floating bubble (`SYSTEM_ALERT_WINDOW`) displaying current lyrics line directly over games, navigation, or third-party apps.
 - **Interactive Teach Mode** — In-app visual web inspector. Select lyrics or chord blocks from any webpage to save custom DOM extraction rules for future tracks.
-- **Offline History & Music Wrapped** — Room v12 database tracking play counts, listening streaks, favorite songs, and shareable 9:16 Stories cards locally without remote accounts.
+- **Offline History & Music Wrapped** — Room v14 database tracking play counts, listening streaks, favorite songs, and shareable 9:16 Stories cards locally without remote accounts.
 - **Zero Ads, Zero Trackers, Zero Telemetry** — 100% offline-first. No third-party analytics SDKs.
 
 ---
@@ -110,6 +110,25 @@ Lirix is licensed under the [GNU General Public License v3.0](LICENSE).
 ## Song translations / Переводы песен
 
 Automatic translation discovery supports Russian, English, Spanish, Portuguese and Chinese through Amalgama and LyricsTranslate. Saved translations remain available offline.
+
+Additional public sources extend the existing LRCLIB, AmDm and MyChords fallbacks on Android and desktop:
+
+| Source | Content | Selection |
+|---|---|---|
+| [lyrics.ovh](https://lyrics.ovh/) | Plain original lyrics | Exact artist/title API request; no timing metadata. |
+| [KuGou](https://www.kugou.com/) | Synchronized LRC and plain lyrics | Artist/title and available track duration verified before download. |
+| [Akkords.pro](https://akkords.pro/) | Chord sheets and separate plain lyrics | Artist/title verified again on the song page; source URL and arranger attribution retained. |
+| [Lyrsense](https://lyrsense.com/) | Russian song translations | Search and page identities verified; translation author and source URL retained. |
+
+Translations remain separate from original lyrics. Missing, ambiguous or unavailable results fall through to other sources; saved user edits remain protected. Public-source availability can change. Room v14 adds local source attribution to the existing library cache.
+
+The optional Kotlin network smoke checks two known tracks and one missing track per new source. It prints only metadata and counts, and is skipped unless explicitly enabled. In PowerShell:
+
+```powershell
+$env:LIRIX_SOURCE_LIVE = '1'
+./gradlew :desktop:test --tests 'com.lirix.app.desktop.SourceExpansionLiveTest'
+Remove-Item Env:LIRIX_SOURCE_LIVE
+```
 
 Перед переустановкой APK с другой подписью сохраните важные данные. В [заметках к Android 1.5.1](.sdd/releases/v1.5.1.md) описано ограничение обновления с опубликованной 1.4.0.
 
