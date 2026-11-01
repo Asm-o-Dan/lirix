@@ -5,6 +5,12 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.togetherWith
 
 import androidx.compose.animation.core.tween
@@ -238,11 +244,25 @@ fun AppScaffold(
                 targetState = currentTab,
                 modifier = Modifier.fillMaxSize(),
                 transitionSpec = {
-                    val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
-                    (fadeIn(tween(if (reducedMotion) 0 else 320)) +
-                        slideInHorizontally(tween(if (reducedMotion) 0 else 360)) { width -> direction * width / 16 })
-                        .togetherWith(fadeOut(tween(if (reducedMotion) 0 else 180)))
-                        .using(null)
+                    if (reducedMotion) {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    } else {
+                        val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                        val duration = 240
+                        (slideInHorizontally(
+                            animationSpec = tween(duration, easing = FastOutSlowInEasing),
+                            initialOffsetX = { width -> direction * (width / 4) }
+                        ) + fadeIn(
+                            animationSpec = tween(duration, easing = LinearOutSlowInEasing)
+                        )).togetherWith(
+                            slideOutHorizontally(
+                                animationSpec = tween(duration, easing = FastOutSlowInEasing),
+                                targetOffsetX = { width -> -direction * (width / 4) }
+                            ) + fadeOut(
+                                animationSpec = tween(duration - 40, easing = FastOutLinearInEasing)
+                            )
+                        ).using(null)
+                    }
                 },
                 label = "TabSwitch"
             ) { target ->

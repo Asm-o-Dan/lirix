@@ -145,9 +145,9 @@ enum class LibrarySegmentMode(@StringRes val titleRes: Int) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
+    onFilterBoundsChanged: (Rect?) -> Unit = {},
     onTrackSelected: (TrackEntity) -> Unit = {},
-    onOpenBlacklistSettings: () -> Unit = {},
-    onFilterBoundsChanged: (Rect) -> Unit = {}
+    onOpenBlacklistSettings: () -> Unit = {}
 ) {
     val lirixColors = LirixThemeTokens.colors
     val context = LocalContext.current
@@ -339,7 +339,9 @@ fun LibraryScreen(
 
             // 2. Горизонтальные фильтры (высота плашки 36dp, зона клика 48dp)
             androidx.compose.foundation.lazy.LazyRow(
-                modifier = Modifier.fillMaxWidth().onGloballyPositioned { onFilterBoundsChanged(it.boundsInWindow()) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned { onFilterBoundsChanged(it.boundsInWindow()) },
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -652,21 +654,6 @@ private fun LibraryTrackItemRow(
             }
 
             Spacer(modifier = Modifier.width(8.dp))
-            Box {
-                IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.library_track_actions, track.title), tint = tokens.textSecondary)
-                }
-                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(if (track.isFavorite) R.string.action_remove_favorite else R.string.action_add_favorite)) },
-                        onClick = { menuExpanded = false; onToggleFavorite() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.library_remove)) },
-                        onClick = { menuExpanded = false; onHideTrack() }
-                    )
-                }
-            }
 
             // Правый блок метаданных: дата, счетчик ×18, бейджи
             Column(horizontalAlignment = Alignment.End) {
@@ -706,6 +693,23 @@ private fun LibraryTrackItemRow(
                             textColor = tokens.textSecondary
                         )
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+            Box {
+                IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.library_track_actions, track.title), tint = tokens.textSecondary)
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(if (track.isFavorite) R.string.action_remove_favorite else R.string.action_add_favorite)) },
+                        onClick = { menuExpanded = false; onToggleFavorite() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.library_remove)) },
+                        onClick = { menuExpanded = false; onHideTrack() }
+                    )
                 }
             }
         }
