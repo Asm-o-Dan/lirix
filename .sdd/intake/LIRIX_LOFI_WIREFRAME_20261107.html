@@ -1,0 +1,116 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Lirix — каркас экранов</title><style>
+*{box-sizing:border-box}body{margin:0;background:#eee;color:#222;font:14px Arial,sans-serif}header{padding:24px 32px;background:#fff;border-bottom:1px solid #999;display:flex;justify-content:space-between;gap:24px;align-items:center}h1{margin:0;font-size:22px}header p{margin:8px 0 0;color:#555}button{font:inherit;cursor:pointer;min-height:40px;padding:8px 16px;border:1px solid #666;background:#eee;color:#222}main{padding:32px;display:grid;grid-template-columns:repeat(auto-fit,390px);gap:40px 32px;justify-content:center}figure{margin:0;width:390px}figcaption{font-size:18px;font-weight:bold;margin-bottom:12px;height:104px}figcaption small{display:block;font-size:13px;font-weight:normal;color:#555;margin-top:8px}.phone{height:844px;width:390px;background:white;border:2px solid #666;display:flex;flex-direction:column;position:relative;overflow:hidden}.grid .phone:after{content:"";position:absolute;inset:0;pointer-events:none;background-image:repeating-linear-gradient(90deg,transparent 0 15px,#6662 15px 16px),repeating-linear-gradient(transparent 0 7px,#6661 7px 8px)}.system{height:24px;padding:4px 16px;font-size:10px;display:flex;justify-content:space-between}.top{height:56px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #999}.top b{font-size:18px}.content{padding:16px;flex:1;min-height:0;display:flex;flex-direction:column;gap:16px}.box{border:1px solid #888;padding:12px}.placeholder{background:#eee;border:1px solid #888;display:flex;align-items:center;justify-content:center;color:#555}.cover{width:72px;height:72px;flex-shrink:0;background:linear-gradient(to top right,transparent calc(50% - 1px),#999 50%,transparent calc(50% + 1px)),linear-gradient(to bottom right,transparent calc(50% - 1px),#999 50%,transparent calc(50% + 1px)),#eee}.cover span{background:#eee;padding:3px;font-size:11px}.row{display:flex;gap:12px;align-items:center}.row .grow{flex:1;min-width:0}h2,h3,p{margin:0}h2{font-size:18px}h3{font-size:15px}.muted{color:#666;font-size:12px;line-height:1.5}.field{border:1px solid #888;background:#fafafa;padding:14px 12px;min-height:48px}.tabs{display:flex;border:1px solid #888;min-height:44px}.tabs span{flex:1;text-align:center;padding:12px 4px;font-size:12px}.tabs .chosen{background:#d7d7d7;font-weight:bold}.lyrics{flex:1;display:flex;flex-direction:column;justify-content:center;gap:24px;padding:16px;font-size:18px;line-height:1.5}.lyrics .current{border-left:3px solid #555;padding-left:12px;font-weight:bold}.lyrics .faded{color:#888}.playback{border:1px solid #888;padding:12px;display:flex;justify-content:space-around;align-items:center;height:64px}.track{padding:12px 0;border-bottom:1px solid #aaa}.track .cover{width:48px;height:48px}.track p{margin-top:6px;font-size:12px;color:#555}.line{height:6px;background:#d5d5d5;margin:8px 0;width:85%}.line.short{width:55%}.button{min-height:48px;border:1px solid #777;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;background:#eee;font-weight:bold}.secondary{background:white;font-weight:normal}.nav{display:flex;height:64px;border-top:1px solid #888;align-items:center;justify-content:space-around;font-size:12px;flex-shrink:0}.nav .chosen{font-weight:bold;text-decoration:underline}.home{height:20px;text-align:center;flex-shrink:0}.home:after{content:"";display:inline-block;width:120px;height:4px;background:#888}.note{border-left:2px solid #888;padding-left:12px;font-size:12px;line-height:1.5}.page{background:#fafafa;border:1px solid #888;padding:16px;flex:1}.selection{border:2px dashed #666;background:#e5e5e5;padding:16px;font-size:16px;line-height:1.6}.growspace{flex:1}footer{padding:0 32px 32px;color:#555;font-size:13px}@media(max-width:440px){main{display:block;padding:16px 8px;overflow:auto}figure{margin:0 auto 32px}header{padding:16px;align-items:start;flex-direction:column}body{min-width:406px}}
+
+[hidden]{display:none!important}.overflow{border:0;background:transparent;font-size:24px;min-width:44px;min-height:48px;padding:4px}.text-menu{position:absolute;right:16px;top:76px;z-index:3;background:#fff;border:1px solid #666;padding:4px}.text-menu button{border:0;background:white;min-height:48px}.translation-panel{position:absolute;bottom:84px;left:16px;right:16px;padding:16px;background:#f4f4f4;border:1px solid #666;z-index:2}.translation-panel h3{font-size:16px}.translation-panel select{min-height:40px;font:inherit;background:white}.demo-song{display:block;font-size:12px;margin-bottom:12px}.demo-song select{font:inherit;min-height:32px;margin-left:8px}#translationLyrics{overflow:auto;min-height:0}
+
+/* Structural columns are shared by all content blocks. */
+.content{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));column-gap:8px;row-gap:16px}
+.content>*{grid-column:1 / -1;min-width:0}
+.row{gap:8px}
+figure:nth-of-type(1) .content{grid-template-rows:auto auto 1fr auto auto}
+figure:nth-of-type(2) .content{grid-template-rows:auto auto auto auto auto auto 1fr auto}
+figure:nth-of-type(3) .content{grid-template-rows:auto auto 1fr}
+figure:nth-of-type(4) .content{grid-template-rows:auto auto 1fr auto auto auto}
+.grid .phone:after{inset:24px 16px 20px;background-image:repeating-linear-gradient(to right,#5551 0,#5551 calc((100% - 24px) / 4),transparent calc((100% - 24px) / 4),transparent calc((100% - 24px) / 4 + 8px));border-left:1px dashed #888;border-right:1px dashed #888}
+
+.library-search{display:flex;align-items:center;position:relative;min-height:48px;border:1px solid #888;background:#fafafa;gap:8px;padding:0 8px}
+.library-search>input{font:inherit;min-width:0;flex:1;border:0;background:transparent;padding:12px 0;outline-offset:2px}
+.library-search>button{border:0;border-left:1px solid #bbb;background:transparent;padding:8px;min-height:44px;max-width:148px;font-size:12px;flex-shrink:0}
+.search-fields{position:absolute;top:calc(100% + 8px);right:0;z-index:4;width:264px;background:#fff;border:1px solid #777;padding:8px 12px}
+.search-fields label{display:flex;align-items:center;gap:12px;min-height:48px;cursor:pointer}
+.search-fields input{width:18px;height:18px;accent-color:#555}
+.field-tag{display:inline-block;padding:3px 10px;border:1px solid #999;border-radius:14px;font-size:12px;line-height:18px;background:#eee}
+.search-fields input:not(:checked)+.field-tag{background:white;color:#666}
+.all-fields{border:0;font-size:12px;background:transparent;padding:8px;min-height:40px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+button:focus-visible,input:focus-visible{outline:2px solid #333;outline-offset:2px}
+</style><body class="grid"><header><div><h1>Lirix · Каркас мобильного приложения</h1><p>390 × 844 · 4 колонки · поля 16 · межколонник 8 · вертикальный модуль 8</p></div><button onclick="document.body.classList.toggle('grid')">Показать / скрыть колонки</button></header><main>
+<figure><figcaption>Плеер<small>Главное содержимое — строки песни. Управление находится под текстом.</small></figcaption><div class="phone"><div class="system"><span>9:41</span><span>Сеть · Батарея</span></div><div class="top"><span>Назад</span><b>Сейчас играет</b><span>⋮</span></div><div class="content"><div class="row"><div class="cover placeholder"><span>Обложка</span></div><div class="grow"><h2>Название песни</h2><p class="muted">Исполнитель · Альбом</p></div><span>♡</span></div><div class="tabs"><span class="chosen">Караоке</span><span>Текст</span><span>Аккорды</span><span>Заметки</span></div><div class="lyrics"><p class="faded">Предыдущая строка</p><p class="current">Текущая строка песни</p><p class="faded">Следующая строка</p><p class="faded">Ещё одна строка</p></div><div><p class="muted">01:24 <span style="float:right">04:10</span></p><div class="line" style="width:100%"></div></div><div class="playback"><span>Устройства</span><span>Пред.</span><b>Пауза</b><span>След.</span><span>Поделиться</span></div></div><div class="nav"><span class="chosen">Плеер</span><span>Медиатека</span><span>Итоги</span></div><div class="home"></div></div></figure>
+<figure><figcaption>Медиатека и поиск<small>Области поиска выбираются внутри строки. Можно включить несколько.</small></figcaption><div class="phone"><div class="system"><span>9:41</span><span>Сеть · Батарея</span></div><div class="top"><b>Медиатека</b><span>Настройки</span></div><div class="content"><div class="library-search" id="librarySearch">
+<label class="sr-only" for="libraryQuery">Поиск по медиатеке</label>
+<input id="libraryQuery" type="search" placeholder="Поиск по медиатеке">
+<button id="searchFieldsButton" aria-expanded="false" aria-controls="searchFields">Всё ▾</button>
+<div class="search-fields" id="searchFields" role="group" aria-label="Искать в выбранных полях" hidden>
+<div class="row"><b class="grow">Искать в</b><button id="allSearchFields" class="all-fields">Выбрать всё</button></div>
+<label><input type="checkbox" value="title" checked><span class="field-tag">Название</span></label>
+<label><input type="checkbox" value="artist" checked><span class="field-tag">Исполнитель</span></label>
+<label><input type="checkbox" value="lyrics" checked><span class="field-tag">Текст</span></label>
+<label><input type="checkbox" value="chords" checked><span class="field-tag">Аккорды</span></label>
+</div></div><div class="row"><span class="box">Избранное ▾</span><span class="muted">Сначала точные совпадения</span></div><p class="muted" id="libraryResultCount" aria-live="polite">Найдено 3 песни</p><div class="track row"><div class="cover placeholder"></div><div class="grow"><h3>Название песни</h3><p>Исполнитель</p><p>«…совпавший фрагмент текста…»</p></div><span>⋮</span></div><div class="track row"><div class="cover placeholder"></div><div class="grow"><h3>Название второй песни</h3><p>Исполнитель</p><p>«…другая подходящая строка…»</p></div><span>⋮</span></div><div class="track row"><div class="cover placeholder"></div><div class="grow"><h3>Название третьей песни</h3><p>Исполнитель</p><p>«…найденный фрагмент…»</p></div><span>⋮</span></div><div class="growspace"></div><div class="box row"><span>Песня · Исполнитель</span><span style="margin-left:auto">Пауза</span></div></div><div class="nav"><span>Плеер</span><span class="chosen">Медиатека</span><span>Итоги</span></div><div class="home"></div></div></figure>
+<figure><figcaption>Перевод песни<small>Предложение один раз для песни. Настройки доступны через ⋮.</small>
+<label class="demo-song">Пример песни <select id="demoSong"><option value="song-a">Первая песня</option><option value="song-b">Вторая песня</option></select></label></figcaption>
+<div class="phone" id="translationPhone"><div class="system"><span>9:41</span><span>Сеть · Батарея</span></div>
+<div class="top"><span>Назад</span><b>Текст песни</b><button class="overflow" id="translationMenu" aria-label="Меню текста" aria-expanded="false" aria-controls="textMenu">⋮</button></div>
+<div class="text-menu" id="textMenu" hidden><button id="openTranslation">Перевод и язык</button></div>
+<div class="content"><h2 id="translationSong">Первая песня</h2><p class="muted">Исполнитель</p>
+<div class="lyrics" id="translationLyrics" style="justify-content:flex-start;padding-top:32px"><p>Первая строка оригинала</p><p>Следующая строка песни</p><p>Продолжение куплета</p><p>Ещё одна строка</p></div>
+</div>
+<section class="translation-panel" id="translationPanel" role="dialog" aria-modal="false" aria-labelledby="translationHeading" hidden>
+<div class="row"><h3 class="grow" id="translationHeading">Перевод песни</h3><button id="hideTranslation" aria-label="Скрыть настройки перевода">×</button></div>
+<label class="row" style="justify-content:space-between;margin:12px 0">Язык <select id="targetLanguage"><option>Русский</option><option>English</option></select></label>
+<p class="muted" id="translationState" aria-live="polite">Готовый перевод не найден</p>
+<div class="row" style="margin-top:12px"><button id="findTranslation" style="flex:1">Найти на сайте</button><button id="machineTranslation" style="flex:1">Перевести</button></div>
+</section>
+<div class="nav"><span class="chosen">Плеер</span><span>Медиатека</span><span>Итоги</span></div><div class="home"></div></div></figure>
+<figure><figcaption>Teach Mode — выбор перевода<small>Сначала сохранить перевод песни, затем обучить поиск по сайту.</small></figcaption><div class="phone"><div class="system"><span>9:41</span><span>Сеть · Батарея</span></div><div class="top"><span>Назад</span><b>Найти перевод</b><span>⋮</span></div><div class="content"><p class="muted">Название песни · Исполнитель → Русский</p><div class="field">Название + исполнитель + перевод</div><div class="page"><p class="muted">Страница выбранного сайта</p><div class="line"></div><div class="line short"></div><div class="selection" style="margin-top:24px"><b>Выбранный перевод</b><p>Первая строка перевода</p><p>Следующая строка</p><p>Продолжение куплета</p></div><div class="line" style="margin-top:24px"></div><div class="line short"></div></div><div class="row"><span class="box grow">Изменить выделение</span><span class="box">Предпросмотр</span></div><div class="button">Сохранить для песни</div><div class="box"><h3>Использовать этот сайт дальше?</h3><p class="muted" style="margin:8px 0">Lirix проверит поиск на другой песне.</p><div class="button secondary">Проверить источник</div></div></div><div class="home"></div></div></figure>
+</main><footer>Сетка: текст и списки занимают 4 колонки, парные действия — по 2. Отступы по вертикали кратны 8. Переключатели делят общий блок по смыслу.<br>Переходы: медиатека → выбранная песня → текст → поиск перевода → выбор фрагмента → сохранение. Проверка сайта доступна после ручного выбора перевода.</footer><script>
+const panel=document.getElementById('translationPanel');
+const menu=document.getElementById('textMenu');
+const overflow=document.getElementById('translationMenu');
+const choice=document.getElementById('demoSong');
+const memorySeen=new Set();
+function closeMenu(){menu.hidden=true;overflow.setAttribute('aria-expanded','false')}
+function showTranslation(){closeMenu();panel.hidden=false;document.getElementById('hideTranslation').focus()}
+function showSong(){
+ closeMenu(); const id=choice.value;document.getElementById('translationSong').textContent=choice.selectedOptions[0].textContent;
+ document.getElementById('translationState').textContent='Готовый перевод не найден';
+ const key='lirix-wireframe-translation-seen-v1-'+id;
+ let seen=memorySeen.has(id);try{seen=seen||localStorage.getItem(key)==='1';localStorage.setItem(key,'1')}catch(e){}
+ memorySeen.add(id);panel.hidden=seen;
+}
+overflow.onclick=()=>{menu.hidden=!menu.hidden;overflow.setAttribute('aria-expanded',String(!menu.hidden))};
+document.getElementById('openTranslation').onclick=showTranslation;
+document.getElementById('hideTranslation').onclick=()=>{panel.hidden=true;overflow.focus()};
+document.getElementById('findTranslation').onclick=()=>{panel.hidden=true;document.querySelector('figure:last-of-type').scrollIntoView({block:'start',behavior:'smooth'})};
+document.getElementById('machineTranslation').onclick=()=>{document.getElementById('translationState').textContent='Здесь появится машинный перевод — пример состояния';};
+choice.onchange=showSong;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!menu.hidden)closeMenu();else panel.hidden=true;overflow.focus()}});
+document.getElementById('translationPhone').addEventListener('click',e=>{if(!menu.contains(e.target)&&!overflow.contains(e.target))closeMenu()});
+showSong();
+
+const searchBox=document.getElementById('librarySearch');
+const fieldsButton=document.getElementById('searchFieldsButton');
+const fieldsPanel=document.getElementById('searchFields');
+const fieldInputs=Array.from(fieldsPanel.querySelectorAll('input'));
+const libraryQuery=document.getElementById('libraryQuery');
+const libraryTracks=Array.from(document.querySelectorAll('figure:nth-of-type(2) .track'));
+const sampleChords=['Am G F C','Am7 G F',''];
+const fieldNames={title:'Название',artist:'Исполнитель',lyrics:'Текст',chords:'Аккорды'};
+const libraryData=libraryTracks.map((node,i)=>({node,title:node.querySelector('h3').textContent,artist:'Исполнитель',lyrics:node.querySelectorAll('p')[1].textContent,chords:sampleChords[i]}));
+function selectedFields(){return fieldInputs.filter(input=>input.checked).map(input=>input.value)}
+function applySearchFields(){
+ const selected=selectedFields();
+ fieldsButton.textContent=selected.length===4?'Всё ▾':fieldNames[selected[0]]+(selected.length>1?' +'+(selected.length-1):'')+' ▾';
+ fieldsButton.setAttribute('aria-label','Искать в: '+selected.map(key=>fieldNames[key]).join(', '));
+ for(const input of fieldInputs)input.disabled=selected.length===1&&input.checked;
+ const query=libraryQuery.value.toLocaleLowerCase('ru').trim().replace(/\s+/g,' ');
+ let count=0;
+ for(const track of libraryData){
+  const match=!query||selected.some(key=>{
+   const value=track[key].toLocaleLowerCase('ru');
+   return key==='chords'?(' '+value+' ').includes(' '+query+' '):value.includes(query);
+  });
+  track.node.hidden=!match;if(match)count++;
+ }
+ document.getElementById('libraryResultCount').textContent=count?'Найдено: '+count:'Совпадений нет';
+}
+function hideSearchFields(){fieldsPanel.hidden=true;fieldsButton.setAttribute('aria-expanded','false')}
+fieldsButton.onclick=()=>{fieldsPanel.hidden=!fieldsPanel.hidden;fieldsButton.setAttribute('aria-expanded',String(!fieldsPanel.hidden))};
+for(const input of fieldInputs)input.onchange=applySearchFields;
+document.getElementById('allSearchFields').onclick=()=>{for(const input of fieldInputs)input.checked=true;applySearchFields()};
+libraryQuery.oninput=applySearchFields;
+document.addEventListener('click',e=>{if(!searchBox.contains(e.target))hideSearchFields()});
+fieldsPanel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();hideSearchFields();fieldsButton.focus()}});
+fieldsButton.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();hideSearchFields()}});
+applySearchFields();
+</script></body></html>

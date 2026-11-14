@@ -53,7 +53,6 @@ __pycache__/
 /scripts/cloudflared.exe
 /inspect_chords.py
 /.sdd/patch_now_playing.py
-/.agents/coordinator_id.txt
 /.sdd/skills_repo
 /scripts/ask_ai_gateway.mjs
 /scripts/poll_and_run_sol_opus.mjs
@@ -75,3 +74,19 @@ __pycache__/
 # Private Android release signing material
 /.signing/
 /app/lirix-release.jks
+
+# Personal and machine-local files (never part of the project)
+/.idea/
+/.agents/teamwork/
+/.codex-attachments/
+/artifacts/
+/scratch/
+/*.png
+/*.docx
+/~$*
+*.db-shm
+*.db-wal
+/ORIGINAL_REQUEST.md
+/plan-pervogo-udalennogo-zakaza.md
+# Screens captured from a personal phone
+/.marketing/*phone-screens*/

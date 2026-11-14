@@ -44,7 +44,7 @@ function request(method, params) {
   });
 }
 try {
-  await request('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'sdd-coordinator', version: '1.0.0' } });
+  await request('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'antigravity-bridge', version: '1.0.0' } });
   child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
   const name = process.argv[2] || 'agy_list_chats';
   const rawArgs = process.argv[3];

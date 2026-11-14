@@ -3,16 +3,16 @@
 <p align="center">
   <img src="./docs/icon.png" width="128" alt="Lirix Logo" /><br/>
   <b>Synced Karaoke & Guitar Chords for Any Music Player on Android.</b><br/>
-  Lightweight (~19 MB), privacy-first companion capturing media from Spotify, Yandex Music, VK Music, YouTube ReVanced, Telegram, AIMP, and local files.
+  Local-first companion capturing media from Spotify, Yandex Music, VK Music, YouTube ReVanced, Telegram, AIMP, and local files.
 </p>
 
 <p align="center">
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white">
-  <img alt="Version 1.5.1" src="https://img.shields.io/badge/Version-1.5.1-blue">
+  <img alt="Version 1.5.2" src="https://img.shields.io/badge/Version-1.5.2-blue">
   <img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-blue.svg">
-  <img alt="Privacy: no telemetry" src="https://img.shields.io/badge/privacy-no%20telemetry-A855F7">
-  <img alt="APK Size" src="https://img.shields.io/badge/APK%20Size-~19%20MB-success">
+  <img alt="Two translation variants" src="https://img.shields.io/badge/translation-private%20%7C%20compact-A855F7">
+
 </p>
 
 ---
@@ -27,8 +27,28 @@ Streaming services frequently gate synchronized lyrics behind subscriptions, lac
 - **Dynamic 6-Palette Theme Engine** — Real-time switching between Spotify Mood, Yandex Music, Obsidian Pulse, Pastel Serenity, Graphite & Chalk, and Paper & Ink with automated WCAG contrast clamping.
 - **Floating Lyrics Overlay** — Compact floating bubble (`SYSTEM_ALERT_WINDOW`) displaying current lyrics line directly over games, navigation, or third-party apps.
 - **Interactive Teach Mode** — In-app visual web inspector. Select lyrics or chord blocks from any webpage to save custom DOM extraction rules for future tracks.
-- **Offline History & Music Wrapped** — Room v14 database tracking play counts, listening streaks, favorite songs, and shareable 9:16 Stories cards locally without remote accounts.
-- **Zero Ads, Zero Trackers, Zero Telemetry** — 100% offline-first. No third-party analytics SDKs.
+- **Offline History & Music Wrapped** — Room v15 database tracking play counts, listening streaks, favorite songs, and shareable 9:16 Stories cards locally without remote accounts.
+- **No ads; local library** — Choose the private build for a translation engine without telemetry. The compact build includes Google ML Kit diagnostics; see the comparison below.
+
+---
+
+## Choose an Android build
+
+Both APKs share the application ID and signing configuration. Choose a variant on the [release page](https://github.com/Asm-o-Dan/lirix/releases/latest):
+
+| | Private (recommended) | Compact |
+|---|---|---|
+| Asset | `lirix-vVERSION-private.apk` | `lirix-vVERSION-compact.apk` |
+| Translation engine | OPUS-MT, pinned ONNX Runtime Android 1.23.2 | Google Translate through ML Kit |
+| Model storage, separate from APK | About 234 MB per EN→RU or RU→EN direction | About 30 MB per required language |
+| SDK diagnostics | No engine telemetry in this pinned Android runtime | ML Kit may send Google performance/usage diagnostics at app startup, even with the translation toggle off |
+| Lyrics processing | On device | On device; input/output text is not sent to Google for translation |
+
+Machine translation is optional and follows published-source search. Model downloads require an explicit action and Wi-Fi. Model hosts receive ordinary download requests; private mode does not mean those requests are anonymous. Machine output is approximate and does not replace a human translation. Private machine pairs initially cover EN↔RU; published-source language support is unchanged.
+
+Updates retain the current variant and reject opposite/unknown variant metadata. To switch variants, explicitly install the other correctly signed APK over the existing app; do not uninstall. The same package/signature preserves the data directory by design, but physical replacement acceptance is still pending. Older app updaters that expect a single APK will skip dual-APK releases; the first transition requires manual installation.
+
+Google Translate powers translation in the compact build: [ML Kit privacy](https://developers.google.com/ml-kit/terms#privacy), [translation usage guidelines](https://developers.google.com/ml-kit/language/translation/translation-terms), [full translation disclaimer](https://docs.cloud.google.com/translate/attribution#disclaimer). The private build uses [OPUS-MT](https://opus.nlpl.eu/Opus-MT/) and follows the [version-specific ORT privacy contract](https://raw.githubusercontent.com/microsoft/onnxruntime/v1.23.2/docs/Privacy.md). Upgrading that runtime requires a new privacy review.
 
 ---
 
@@ -75,7 +95,7 @@ git clone https://github.com/Asm-o-Dan/lirix.git
 cd lirix
 
 # Build release APK
-./gradlew :app:assembleRelease
+./gradlew :app:assemblePrivateRelease :app:assembleCompactRelease
 
 # Run test suite (160+ unit tests)
 ./gradlew :shared:desktopTest :app:testDebugUnitTest
@@ -97,7 +117,7 @@ Compiled APK path: `app/build/outputs/apk/release/app-release-unsigned.apk` (or 
 6. **Приватность и оффлайн**: без рекламы, без аккаунта Lirix и без сетевой телеметрии. Данные хранятся локально. Если пользователь включил системное резервное копирование Android, ОС может сохранить базу и настройки у выбранного провайдера копирования; доверие Connect и кэш исключены. Срок создания и возможность восстановления копии зависят от Android.
 
 ### Установка:
-1. Скачайте свежий APK из раздела [Releases](https://github.com/Asm-o-Dan/lirix/releases/tag/v1.5.1).
+1. Скачайте свежий APK из раздела [Releases](https://github.com/Asm-o-Dan/lirix/releases/latest).
 2. Разрешите доступ к уведомлениям: **Настройки → Приложения → Специальный доступ → Доступ к уведомлениям → Lirix**.
 3. Запустите музыку в любом плеере — откройте Lirix и текст подтянется автоматически.
 

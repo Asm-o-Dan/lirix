@@ -73,7 +73,7 @@
 ## Проверка перед сдачей
 
 ```
-./gradlew --continue :shared:allTests :app:testDebugUnitTest :desktop:test :app:compileDebugAndroidTestKotlin :app:assembleDebug
+./gradlew --continue :shared:allTests :app:testDebugUnitTest :desktop:test :app:compilePrivateUitestAndroidTestKotlin :app:assemblePrivateDebug
 ```
 
 Известные нестабильности: `AndroidCastSourceTest.immediateRestartWaitsForPreviousStopControlMessage` (таймингом, разбирается отдельно). Любое другое падение — разобрать, не ослаблять тесты.
