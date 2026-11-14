@@ -25,16 +25,11 @@ jobs:
           java-version: '21'
           cache: 'gradle'
 
-      - name: Set up Android SDK tools
-        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
-        with:
-          log-accepted-android-sdk-licenses: false
-
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Install private translation native toolchain
-        run: sdkmanager "ndk;26.1.10909125" "cmake;3.22.1"
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;26.1.10909125" "cmake;3.22.1"
 
       - name: Run Unit Tests
         run: ./gradlew :app:testPrivateDebugUnitTest :app:testCompactDebugUnitTest --no-daemon
