@@ -85,6 +85,53 @@
         return el.tagName.toLowerCase();
     }
 
+    function countTextLines(el) {
+        var t = (el && el.innerText) ? el.innerText.trim() : "";
+        if (!t) return 0;
+        return t.split("\n").filter(function(l) { return l.trim().length > 0; }).length;
+    }
+
+    function signatureOf(el) {
+        return el.tagName + "." + (typeof el.className === "string" ? el.className.trim() : "");
+    }
+
+    function hasRepeatedSiblings(el) {
+        var parent = el.parentElement;
+        if (!parent) return false;
+        var sig = signatureOf(el);
+        var same = 0;
+        for (var i = 0; i < parent.children.length; i++) {
+            var c = parent.children[i];
+            if (signatureOf(c) === sig && (c.innerText || "").trim().length > 0) same++;
+        }
+        return same >= 2;
+    }
+
+    function isStopContainer(el) {
+        return !el || el === document.body || el === document.documentElement ||
+            /^(MAIN|ARTICLE|BODY|HTML)$/i.test(el.tagName);
+    }
+
+    // A tap selects the lyrics block, not the single line under the finger (UI review S2).
+    // Climbs while the element is one line, or one of several repeated line/verse units.
+    // Returns the climbed path so "Narrow" can step back down.
+    function expandToTextBlock(el) {
+        var path = [el];
+        var current = el;
+        for (var step = 0; step < 8; step++) {
+            if (/^PRE$/i.test(current.tagName)) break;
+            var parent = current.parentElement;
+            if (isStopContainer(parent) || (parent.closest && parent.closest("nav, header, footer, form"))) break;
+            if (countTextLines(current) < 2 || hasRepeatedSiblings(current)) {
+                current = parent;
+                path.push(current);
+                continue;
+            }
+            break;
+        }
+        return path;
+    }
+
     function isInsideSelectedParent(target) {
         for (var i = 0; i < window.__selectedParents.length; i++) {
             var p = window.__selectedParents[i].el;
@@ -125,7 +172,7 @@
             return liveText
                 .replace(/\r\n/g, "\n")
                 .replace(/\n\s*\n\s*\n+/g, "\n\n")
-                .replace(/\b([A-H][#b]?(?:m|maj|min|dim|aug|sus|add|\d)*)([А-Яа-яA-Za-z])/g, "$1 $2");
+                .replace(/(^|[\s(|])([A-H][#b]?(?:m|maj|min|dim|aug|sus|add|\d)*)(?=[А-Яа-яЁё])/g, "$1$2 ");
         }
 
         // Strategy 2: Fallback clone processing with explicit <br> -> \n, block breaks, and chord spacing
@@ -177,7 +224,7 @@
         text = text
             .replace(/\r\n/g, "\n")
             .replace(/\n\s*\n\s*\n+/g, "\n\n")
-            .replace(/\b([A-H][#b]?(?:m|maj|min|dim|aug|sus|add|\d)*)([А-Яа-яA-Za-z])/g, "$1 $2");
+            .replace(/(^|[\s(|])([A-H][#b]?(?:m|maj|min|dim|aug|sus|add|\d)*)(?=[А-Яа-яЁё])/g, "$1$2 ");
         return text;
     }
 
@@ -238,6 +285,10 @@
                 window.__strippedChildren.length
             );
         }
+        if (window.TeachBridge && typeof window.TeachBridge.onNarrowAvailable === "function") {
+            var lastSel = window.__selectedParents[window.__selectedParents.length - 1];
+            window.TeachBridge.onNarrowAvailable(!!(lastSel && lastSel.history && lastSel.history.length > 0));
+        }
     }
 
     // Expand current selection to parent container ([▲ Родитель])
@@ -263,6 +314,7 @@
         parentEl.style.backgroundColor = "rgba(139, 92, 246, 0.1)";
         parentEl.style.boxShadow = "0 0 12px rgba(139, 92, 246, 0.35)";
 
+        lastParent.history = (lastParent.history || []).concat([lastParent.el]);
         lastParent.el = parentEl;
         lastParent.origOutline = origOutline;
         lastParent.origBorder = origBorder;
@@ -272,8 +324,73 @@
         notifySelectionChange();
     };
 
+    function restyleSelection(entry, newEl) {
+        entry.el.style.outline = entry.origOutline;
+        entry.el.style.border = entry.origBorder || "";
+        entry.el.style.boxShadow = entry.origShadow;
+        entry.el.style.backgroundColor = entry.origBg || "";
+        entry.origOutline = newEl.style.outline || "";
+        entry.origBorder = newEl.style.border || "";
+        entry.origShadow = newEl.style.boxShadow || "";
+        entry.origBg = newEl.style.backgroundColor || "";
+        newEl.style.outline = "2px solid #8B5CF6";
+        newEl.style.border = "2px solid #8B5CF6";
+        newEl.style.backgroundColor = "rgba(139, 92, 246, 0.1)";
+        newEl.style.boxShadow = "0 0 12px rgba(139, 92, 246, 0.35)";
+        entry.el = newEl;
+    }
+
+    // Step the last selection back down the path it was expanded along.
+    window.narrowTeachSelection = function() {
+        if (window.__selectedParents.length === 0) return;
+        var last = window.__selectedParents[window.__selectedParents.length - 1];
+        if (!last.history || last.history.length === 0) return;
+        var child = last.history.pop();
+        if (!child || !last.el.contains(child)) return;
+        // Exclusions outside the narrowed block no longer apply.
+        for (var k = window.__strippedChildren.length - 1; k >= 0; k--) {
+            if (!child.contains(window.__strippedChildren[k].el)) {
+                var c = window.__strippedChildren.splice(k, 1)[0];
+                c.el.style.outline = c.origOutline;
+                c.el.style.border = c.origBorder || "";
+                c.el.style.opacity = c.origOpacity;
+                c.el.style.textDecoration = c.origTextDec;
+                c.el.style.backgroundImage = c.origBgImg || "";
+                c.el.style.backgroundColor = c.origBg || "";
+            }
+        }
+        restyleSelection(last, child);
+        notifySelectionChange();
+    };
+
+    // Selector for result links, generalised to the list rather than one item.
+    function synthesizeLinkSelector(a) {
+        var cls = (typeof a.className === "string" ? a.className.trim().split(/\s+/) : []).filter(function(c) {
+            return c.length > 2 && !/^(active|selected|hover|focus|_)/i.test(c) && !/\d{3,}/.test(c);
+        });
+        if (cls.length > 0) return "a." + cls[0];
+        var node = a.parentElement;
+        for (var depth = 0; node && depth < 5 && node !== document.body; depth++) {
+            if (node.id && !/\d{4,}/.test(node.id)) return "#" + node.id + " a";
+            var pcls = (typeof node.className === "string" ? node.className.trim().split(/\s+/) : []).filter(function(c) {
+                return c.length > 2 && !/^(row|col-|container|clearfix|_)/i.test(c) && !/\d{3,}/.test(c);
+            });
+            if (pcls.length > 0) return node.tagName.toLowerCase() + "." + pcls[0] + " a";
+            node = node.parentElement;
+        }
+        return "";
+    }
+
     function handleElementInteraction(target) {
         if (!target || target === document.body || target === document.documentElement) return;
+
+        // Ignore interactive, form controls, media, or navigation chrome
+        if (/^(INPUT|TEXTAREA|SELECT|BUTTON|SCRIPT|STYLE|NOSCRIPT|SVG|PATH|IMG|VIDEO|AUDIO|NAV|HEADER|FOOTER)$/i.test(target.tagName)) {
+            return;
+        }
+        if (target.closest && target.closest("form, nav, header, footer, button, [role='search'], [role='navigation']")) {
+            return;
+        }
 
         var containingParent = isInsideSelectedParent(target);
 
@@ -358,7 +475,15 @@
                     }
                 }
             } else {
-                // Select new parent container (solid purple 2px #8B5CF6)
+                // Select the surrounding text block (solid purple 2px #8B5CF6)
+                var climbed = expandToTextBlock(target);
+                target = climbed[climbed.length - 1];
+                for (var q = 0; q < window.__selectedParents.length; q++) {
+                    if (window.__selectedParents[q].el === target) {
+                        notifySelectionChange();
+                        return;
+                    }
+                }
                 var pOrigOutline = target.style.outline || "";
                 var pOrigBorder = target.style.border || "";
                 var pOrigShadow = target.style.boxShadow || "";
@@ -373,7 +498,8 @@
                     origOutline: pOrigOutline,
                     origBorder: pOrigBorder,
                     origShadow: pOrigShadow,
-                    origBg: pOrigBg
+                    origBg: pOrigBg,
+                    history: climbed.slice(0, climbed.length - 1)
                 });
             }
         }
@@ -431,7 +557,12 @@
     // Block native click events in inspector mode to prevent link navigation and duplicate calls
     document.addEventListener("click", function(e) {
         if (!window.__teachModeEnabled) {
-            return; // Surfing mode: allow normal link clicks
+            // Surfing mode: allow the navigation, report which result link was followed (R2).
+            var link = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+            if (link && window.TeachBridge && typeof window.TeachBridge.onLinkFollowed === "function") {
+                window.TeachBridge.onLinkFollowed(synthesizeLinkSelector(link), link.href || "");
+            }
+            return;
         }
         e.preventDefault();
         e.stopPropagation();

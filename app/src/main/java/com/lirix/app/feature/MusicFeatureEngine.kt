@@ -34,7 +34,8 @@ import java.security.MessageDigest
  * 1. Deterministic Track Identification via SHA-256 trackKey.
  * 2. Playback Session Aggregation: collapses rapid pauses (<= 30s) into continuous sessions.
  * 3. Idempotent Play Count Accounting: ensures push/metadata fluctuations don't falsely bump play counts.
- * 4. Automatic Favorite Detection: sets isFavorite = true when playCount >= 5 or totalDurationMs >= 15 min.
+ * 4. Automatic Favorite Detection: sets isFavorite = true when playCount >= 5 or totalDurationMs >= 15 min,
+ *    unless the user has made an explicit favorite choice (TrackEntity.favoriteUserSetAt).
  * 5. Offline Lyrics & Personal Song Notes via OfflineLyricsAdapter.
  */
 class MusicFeatureEngine(
@@ -249,6 +250,51 @@ class MusicFeatureEngine(
     }
 
     /**
+     * Looks up lyrics for the track the player's queue announces as next, while the current one
+     * plays. The result stays in memory ([NextTrackWarmCache]): a song that has not played gets
+     * no library row. Returns true when a lookup was made.
+     */
+    suspend fun prefetchUpcoming(
+        title: String,
+        artist: String,
+        sourcePackage: String,
+        networkAllowed: Boolean,
+        cache: com.lirix.app.feature.lyrics.NextTrackWarmCache = com.lirix.app.feature.lyrics.NextTrackWarmCache.shared,
+        acquire: suspend (TrackEntity) -> com.lirix.app.storage.AutomaticLookupCandidate
+    ): Boolean {
+        if (!networkAllowed || title.isBlank() || artist.isBlank()) return false
+        // The same rules as for a playing track: no guesses for "09 / Unknown Artist" (AGENTS 7.4),
+        // and nothing about blacklisted audio (voice messages, podcasts) leaves the device.
+        if (!com.lirix.app.feature.lyrics.AutomaticLookupEligibility.isEligible(title, artist)) return false
+        if (BlacklistMatcher.isBlacklisted(title, artist, sourcePackage, getEffectiveActiveRules())) return false
+        if (cache.contains(title, artist)) return false
+        val known = musicDao.getTracksByTitleAndArtist(title.trim(), artist.trim())
+        // Already has words (found earlier or entered by the user): nothing to load.
+        if (known.any { !it.plainLyrics.isNullOrBlank() || !it.syncedLyrics.isNullOrBlank() }) return false
+        val probe = TrackEntity(trackKey = computeTrackKey(title, artist, ""), title = title.trim(), artist = artist.trim(), sourcePackage = sourcePackage)
+        cache.put(title, artist, acquire(probe))
+        return true
+    }
+
+    fun prefetchUpcomingAsync(context: Context, scope: CoroutineScope, title: String, artist: String, sourcePackage: String): Job? {
+        if (NetworkConditionManager.getNetworkPolicy(context) == LyricsNetworkPolicy.OFFLINE_ONLY) return null
+        val appContext = context.applicationContext
+        return scope.launch(Dispatchers.IO) {
+            try {
+                // Let the playing track's own lookup go first, and skip tracks the user flips through.
+                kotlinx.coroutines.delay(UPCOMING_PREFETCH_DELAY_MS)
+                val db = com.lirix.app.storage.AppDatabase.getInstance(appContext)
+                prefetchUpcoming(title, artist, sourcePackage,
+                    com.lirix.app.feature.lyrics.LookupNetworkMonitor.usable(appContext)) { probe ->
+                    AggregatedLyricsProvider(lyricsDao = db.lyricsDao())
+                        .acquireAutomatic(probe, com.lirix.app.feature.lyrics.LookupTarget.LYRICS, emptySet())
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { Timber.tag(TAG).w(e, "Upcoming track prefetch failed") }
+        }
+    }
+
+    /**
      * Commits elapsed PLAYING time since the previous monotonic checkpoint.
      * The legacy position argument is ignored, including after seek/restart.
      */
@@ -285,6 +331,9 @@ class MusicFeatureEngine(
     companion object {
         private const val TAG = "MusicFeatureEngine"
 
+        /** Wait before preloading the upcoming track: the playing one is served first. */
+        const val UPCOMING_PREFETCH_DELAY_MS = 4_000L
+
         const val SESSION_GAP_THRESHOLD_MS = 30_000L      // 30 seconds debounce window between pauses
         const val MAX_SINGLE_TRACK_GAP_MS = 30 * 60 * 1000L // 30 minutes protection cap
         const val PLAY_INCREMENT_COOLDOWN_MS = 60_000L    // 60 seconds cooldown for playCount increment
@@ -303,7 +352,8 @@ class MusicFeatureEngine(
             val trackKey = computeTrackKey(title, artist, album)
             val updatedPlayCount = (existingTrack?.playCount ?: 0) + 1
             val updatedTotalDuration = (existingTrack?.totalDurationMs ?: 0L) + sessionDurationMs
-            val isFavorite = (existingTrack?.isFavorite == true) ||
+            val isFavorite = if (existingTrack?.favoriteUserSetAt != null) existingTrack.isFavorite
+                else (existingTrack?.isFavorite == true) ||
                     (updatedPlayCount >= FAVORITE_MIN_PLAY_COUNT) ||
                     (updatedTotalDuration >= FAVORITE_MIN_DURATION_MS)
 
@@ -321,7 +371,8 @@ class MusicFeatureEngine(
                 isFavorite = isFavorite,
                 albumArtUri = existingTrack?.albumArtUri,
                 plainLyrics = existingTrack?.plainLyrics,
-                syncedLyrics = existingTrack?.syncedLyrics
+                syncedLyrics = existingTrack?.syncedLyrics,
+                favoriteUserSetAt = existingTrack?.favoriteUserSetAt
             )
         }
 

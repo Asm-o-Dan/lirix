@@ -36,6 +36,9 @@ class LirixApp : Application() {
         mediaCollector = MediaSessionCollector.getInstance(this)
         mediaCollector.startListening()
 
+        // Site rules for script-built pages get a hidden, budgeted page renderer.
+        com.lirix.app.ui.RuleWebViewRenderer.installForBackgroundRules(this)
+
         // Create lyrics notification channel
         com.lirix.app.feature.MusicLyricsNotificationManager.initChannel(this)
     }

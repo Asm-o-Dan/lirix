@@ -47,7 +47,7 @@
     <string name="karaoke_mode_translation">Перевод</string>
 
     <!-- Player Actions & Transport -->
-    <string name="player_in_source">В %1$s ▾</string>
+    <string name="player_in_source">В %1$s</string>
     <string name="source_yandex">Яндекс Музыке</string>
     <string name="source_vk">VK Музыке</string>
     <string name="source_generic">плеере</string>
@@ -90,7 +90,7 @@
     <string name="menu_save_notes">Сохранить заметки</string>
     <string name="menu_calibrate_timing">Калибровка задержки</string>
     <string name="menu_teach_mode">Найти текст или аккорды (Teach)</string>
-    <string name="menu_track_info">О треке и источниках</string>
+    <string name="menu_track_info">Инфо о треке</string>
     <string name="menu_floating_overlay">Плавающий оверлей</string>
     <string name="menu_floating_overlay_enabled">Плавающий оверлей: включён</string>
     <string name="menu_theme">Тема оформления</string>
@@ -114,7 +114,7 @@
 
     <!-- Timing Calibration Dialog -->
     <string name="calibration_title">Калибровка тайминга караоке</string>
-    <string name="calibration_desc">Плюс — текст раньше, минус — позже. Настройка сохраняется для этой песни.</string>
+    <string name="calibration_desc">Минус — текст раньше, плюс — позже. Настройка сохраняется для этой песни.</string>
     <string name="calibration_offset_label">Сдвиг в миллисекундах (−3000…3000)</string>
     <string name="calibration_offset_error">Введите целое число миллисекунд</string>
     <string name="calibration_apply">Применить значение</string>
@@ -191,6 +191,10 @@
     <string name="blacklist_suggestions_title">Подсказки из вашей медиатеки:</string>
     <string name="blacklist_preview_tracks">Треки, которые будут скрыты (%1$d):</string>
     <string name="blacklist_button_save">Сохранить правило</string>
+    <string name="blacklist_builtin_purge_title">Удалить совпадающие записи из истории: %1$d?</string>
+    <string name="blacklist_builtin_purge_message">Правило включено и будет скрывать новые сообщения. Записи, которые уже есть в истории, останутся, если их не удалить.</string>
+    <string name="blacklist_builtin_purge_confirm">Удалить</string>
+    <string name="blacklist_builtin_purge_keep">Оставить</string>
 
     <!-- Wrapped Screen -->
     <string name="wrapped_screen_title">Итоги прослушиваний</string>
@@ -400,7 +404,6 @@
     <string name="studio_reaction_ms">Реакция: %1$d мс</string>
     <string name="favorite_save_failed_error">Не удалось обновить избранное. Попробуйте ещё раз.</string>
     <string name="studio_no_marker">Без метки</string>
-
     <string name="viewer_unknown_track">Не удалось определить название трека</string>
     <string name="viewer_not_found">Текст не найден</string>
     <string name="viewer_load_error">Ошибка загрузки: %1$s</string>
@@ -417,4 +420,43 @@
     <string name="player_searching_chords_subtitle">Ищем доступный разбор аккордов.</string>
     <string name="player_chords_saved_text">Доступен текст песни</string>
     <string name="player_chords_saved_text_offline">Доступен текст песни; подключитесь к сети для поиска аккордов</string>
+    <string name="player_track_info_a11y">Информация о треке: %1$s — %2$s</string>
+    <string name="player_seek_position">Позиция в треке: %1$s из %2$s</string>
+    <string name="timing_lyrics_earlier">Текст раньше на %1$d мс</string>
+    <string name="timing_lyrics_later">Текст позже на %1$d мс</string>
+    <string name="timing_delay_value">%1$s мс</string>
+    <string name="studio_mode_quick">Быстро</string>
+    <string name="studio_mode_precise">Точно</string>
+    <string name="studio_more">Дополнительно</string>
+    <string name="studio_less">Свернуть</string>
+    <string name="studio_marked_progress">Размечено %1$d из %2$d</string>
+    <string name="studio_reaction_decrease">Уменьшить задержку реакции</string>
+    <string name="studio_reaction_increase">Увеличить задержку реакции</string>
+    <string name="studio_skip_credits">Пропустить строки авторства (%1$d)</string>
+    <string name="studio_skip_credits_title">Пропустить строки авторства?</string>
+    <string name="studio_skip_credits_explanation">Строки будут убраны из черновика. Сохранённый текст изменится только после применения. Отменить действие можно в разделе «Дополнительно».</string>
+    <string name="studio_skip_credits_confirm">Пропустить строки</string>
+    <string name="studio_seek_back">Назад на 5 секунд</string>
+    <string name="studio_seek_forward">Вперёд на 5 секунд</string>
+    <string name="studio_stamp_short">Поставить метку</string>
+    <string name="studio_undo_short">Отменить правку</string>
+    <string name="studio_apply_short">Применить</string>
+    <string name="library_search_field_title">Название</string>
+    <string name="library_search_field_artist">Исполнитель</string>
+    <string name="library_search_field_text">Текст</string>
+    <string name="library_search_field_chords">Аккорды</string>
+    <string name="library_search_fields_all">Все поля</string>
+    <string name="library_search_fields_count">Поля (%1$d)</string>
+    <string name="teach_change_selection">Изменить выделение</string>
+    <string name="teach_preview_selection">Предпросмотр</string>
+    <string name="teach_save_selection">Сохранить для песни</string>
+    <string name="menu_text_settings">Настроить текст</string>
+    <string name="menu_wrong_lyrics">Не тот текст — искать дальше</string>
+    <string name="menu_wrong_chords">Не те аккорды — искать дальше</string>
+    <string name="wrong_lyrics_replaced">Найден текст из другого источника</string>
+    <string name="wrong_chords_replaced">Найдены аккорды из другого источника</string>
+    <string name="wrong_lyrics_none">Других источников текста нет. Его можно найти самому: меню → «Найти текст или аккорды»</string>
+    <string name="wrong_chords_none">Других источников аккордов нет. Их можно найти самому: меню → «Найти текст или аккорды»</string>
+    <string name="wrong_content_unavailable">Сменить источник не удалось</string>
+    <string name="wrong_content_undo_failed">Вернуть не удалось: вы уже сохранили своё содержимое</string>
 </resources>

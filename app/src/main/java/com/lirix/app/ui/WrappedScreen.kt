@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -375,7 +376,7 @@ private fun WrappedMotionSummary(
         ) {
             Text(stringResource(R.string.wrapped_time_in_music), style = LirixMobileTypography.labelLarge, color = colors.textSecondary)
             Text(
-                text = "${stats.totalListeningTimeMs / 60000L}",
+                text = formatGroupedNumber(stats.totalListeningTimeMs / 60000L, LocalConfiguration.current.locales[0]),
                 style = LirixMobileTypography.titleLarge.copy(
                     fontFamily = LiterataFontFamily, fontSize = 56.sp, lineHeight = 68.sp
                 ),
@@ -389,7 +390,7 @@ private fun WrappedMotionSummary(
         ) {
             Text(stringResource(R.string.wrapped_top_artist), style = LirixMobileTypography.labelLarge, color = colors.textSecondary)
             Text(
-                text = stats.topArtists.firstOrNull()?.artist ?: stringResource(R.string.wrapped_artist_unknown),
+                text = stats.topArtists.firstOrNull()?.artist?.let { displayArtist(it, stringResource(R.string.unknown_artist)) } ?: stringResource(R.string.wrapped_artist_unknown),
                 style = LirixMobileTypography.titleLarge.copy(fontFamily = LiterataFontFamily),
                 color = colors.textPrimary
             )
@@ -412,7 +413,7 @@ private fun WrappedMotionSummary(
                     )
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(track.title, style = LirixMobileTypography.titleMedium, color = colors.textPrimary)
-                        Text(track.artist, style = LirixMobileTypography.bodyMedium, color = colors.textSecondary)
+                        Text(displayArtist(track.artist, stringResource(R.string.unknown_artist)), style = LirixMobileTypography.bodyMedium, color = colors.textSecondary)
                     }
                 }
             }

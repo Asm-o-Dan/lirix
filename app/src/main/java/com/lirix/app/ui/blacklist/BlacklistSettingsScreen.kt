@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Shield
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.view.accessibility.AccessibilityManager
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -51,6 +52,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -122,6 +124,25 @@ fun BlacklistSettingsScreen(
                 viewModel.clearSnackbar()
             }
         }
+    }
+
+    // Built-in rules only filter new listening; deleting existing history needs explicit consent.
+    uiState.pendingBuiltInPurge?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissBuiltInPurge() },
+            title = { Text(stringResource(R.string.blacklist_builtin_purge_title, pending.matchingTracks)) },
+            text = { Text(stringResource(R.string.blacklist_builtin_purge_message)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmBuiltInPurge() }) {
+                    Text(stringResource(R.string.blacklist_builtin_purge_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissBuiltInPurge() }) {
+                    Text(stringResource(R.string.blacklist_builtin_purge_keep))
+                }
+            }
+        )
     }
 
     Scaffold(

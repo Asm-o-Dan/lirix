@@ -25,7 +25,9 @@ class FavoritePersistenceTest {
             assertFalse(db.musicDao().toggleFavorite(stale))
             assertTrue(db.musicDao().toggleFavorite(stale.copy(playCount = 1, userNotes = "stale")))
             val actual = requireNotNull(db.musicDao().getTrackByKey(stale.trackKey))
-            assertEquals(stale.copy(isFavorite = true), actual)
+            // Every toggle is an explicit user choice and is remembered (SPEC-MEDIA-FAV-01 D1).
+            assertNotNull(actual.favoriteUserSetAt)
+            assertEquals(stale.copy(isFavorite = true, favoriteUserSetAt = actual.favoriteUserSetAt), actual)
             db.close()
             db = Room.databaseBuilder(context, AppDatabase::class.java, name).allowMainThreadQueries().build()
             assertTrue(requireNotNull(db.musicDao().getTrackByKey(stale.trackKey)).isFavorite)

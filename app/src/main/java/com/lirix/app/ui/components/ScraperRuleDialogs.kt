@@ -57,14 +57,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.lirix.app.feature.lyrics.CustomRuleLyricsProvider
 import com.lirix.app.feature.lyrics.ScraperRuleBundle
 import com.lirix.app.feature.lyrics.ScraperRuleBundleCodec
 import com.lirix.app.storage.AppDatabase
 import com.lirix.app.storage.CustomLyricsRuleEntity
+import com.lirix.app.storage.TrackEntity
+import com.lirix.app.ui.TeachRuleFactory
 import com.lirix.app.ui.theme.AppColors
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 /**
  * Dialog for exporting and sharing a custom lyrics scraper rule.
@@ -317,7 +322,9 @@ fun ExportRuleDialog(
 @Composable
 fun ImportRuleDialog(
     onDismiss: () -> Unit,
-    onRuleImported: (CustomLyricsRuleEntity) -> Unit = {}
+    onRuleImported: (CustomLyricsRuleEntity) -> Unit = {},
+    /** Track used to check the imported rule before it is turned on; without it the rule stays a draft. */
+    validationTrack: TrackEntity? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -327,6 +334,7 @@ fun ImportRuleDialog(
 
     var jsonInput by remember { mutableStateOf("") }
     var existingRulesForDomainCount by remember { mutableStateOf(0) }
+    var isImporting by remember { mutableStateOf(false) }
 
     val parseResult = remember(jsonInput) {
         if (jsonInput.isBlank()) null
@@ -593,21 +601,51 @@ fun ImportRuleDialog(
 
                     Button(
                         onClick = {
-                            val entityResult = ScraperRuleBundleCodec.deserializeAndValidate(jsonInput)
-                            val entity = entityResult.getOrNull()
-                            if (entity != null) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                scope.launch(Dispatchers.IO) {
-                                    db.lyricsDao().saveRule(entity)
+                            val draft = ScraperRuleBundleCodec.deserializeAndValidate(jsonInput).getOrNull()
+                            if (draft == null) {
+                                Toast.makeText(context, "Ошибка валидации правила", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            isImporting = true
+                            scope.launch {
+                                // An imported rule is turned on only after it finds the current song (R9/R10).
+                                val checked = validationTrack?.let { track ->
+                                    try {
+                                        TeachRuleFactory.canActivate(CustomRuleLyricsProvider(draft).resolve(track, allowDraft = true))
+                                    } catch (e: CancellationException) {
+                                        throw e
+                                    } catch (e: Exception) {
+                                        Timber.w(e, "Imported rule check failed")
+                                        false
+                                    }
+                                } ?: false
+                                val entity = if (checked) ScraperRuleBundleCodec.activated(draft) else draft
+                                val saved = try {
+                                    withContext(Dispatchers.IO) { db.lyricsDao().saveRule(entity) }
+                                    true
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    Timber.e(e, "Imported rule was not saved")
+                                    false
+                                }
+                                isImporting = false
+                                if (!saved) {
+                                    Toast.makeText(context, "Не удалось сохранить правило. Попробуйте ещё раз.", Toast.LENGTH_LONG).show()
+                                    return@launch
                                 }
                                 onRuleImported(entity)
-                                Toast.makeText(context, "Правило для ${entity.domain} сохранено!", Toast.LENGTH_SHORT).show()
+                                val message = when {
+                                    checked -> "Правило для ${entity.domain} проверено и включено"
+                                    validationTrack == null -> "Правило для ${entity.domain} сохранено как черновик: нет песни для проверки"
+                                    else -> "Правило для ${entity.domain} сохранено как черновик: проверка на текущей песне не прошла"
+                                }
+                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                                 onDismiss()
-                            } else {
-                                Toast.makeText(context, "Ошибка валидации правила", Toast.LENGTH_SHORT).show()
                             }
                         },
-                        enabled = validBundle != null,
+                        enabled = validBundle != null && !isImporting,
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = AppColors.CyberCyan,

@@ -85,7 +85,9 @@ internal class MonotonicSessionRecorder private constructor() {
                 lastPlayedAt = wall, albumArtUri = artwork ?: oldTrack?.albumArtUri,
                 plainLyrics = oldTrack?.plainLyrics ?: cached?.plainLyrics,
                 syncedLyrics = oldTrack?.syncedLyrics ?: cached?.syncedLyricsLrc,
-                isFavorite = oldTrack?.isFavorite == true || (oldTrack?.playCount ?: 0) + (if (increment) 1 else 0) >= 5
+                // An explicit user choice always wins over the automatic play-count rule (AGENTS 7.1).
+                isFavorite = if (oldTrack?.favoriteUserSetAt != null) oldTrack.isFavorite
+                    else oldTrack?.isFavorite == true || (oldTrack?.playCount ?: 0) + (if (increment) 1 else 0) >= 5
             )
             // An ongoing notification/metadata update is not proof that audio was actually playing.
             if (!confirmed) { dao.insertOrUpdateTrack(track); return@withContext track }

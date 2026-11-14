@@ -40,12 +40,13 @@ class Schema14CompatibilityTest {
             helper.close()
             repeat(2) {
                 val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                    .addMigrations(AppDatabase.MIGRATION_12_14).build()
+                    .addMigrations(AppDatabase.MIGRATION_12_14, AppDatabase.MIGRATION_14_15).build()
                 try {
                     val db = room.openHelper.writableDatabase
-                    assertEquals(14, db.version)
+                    assertEquals(15, db.version)
                     db.query("SELECT identity_hash FROM room_master_table WHERE id=42").use { c ->
-                        assertTrue(c.moveToFirst()); assertEquals("af51698a84bb8d10ace2e9856ddf8742", c.getString(0))
+                        assertTrue(c.moveToFirst()); // v15 identity (SPEC-MEDIA-FAV-01); v14 was af51698a84bb8d10ace2e9856ddf8742.
+                        assertEquals("17214f99238de8fab93f952143fea622", c.getString(0))
                     }
                     db.query("SELECT userNotes,isFavorite,playCount FROM music_tracks WHERE trackKey='key'").use { c ->
                         assertTrue(c.moveToFirst()); assertEquals("User note",c.getString(0));assertEquals(1,c.getInt(1));assertEquals(7,c.getInt(2))

@@ -54,6 +54,9 @@ class MediaSessionCollector private constructor(private val context: Context) {
         val mono: Long = android.os.SystemClock.elapsedRealtime(),
         val progressOnly: Boolean = false
     )
+    @Volatile private var accountingEngine: com.lirix.app.feature.MusicFeatureEngine? = null
+    @Volatile private var upcomingIdentity: String? = null
+    @Volatile private var upcomingJob: kotlinx.coroutines.Job? = null
     private val listeningObservations = kotlinx.coroutines.channels.Channel<ListeningObservation>(kotlinx.coroutines.channels.Channel.UNLIMITED)
     private val accountingJob = scope.launch {
         var engine: com.lirix.app.feature.MusicFeatureEngine? = null
@@ -64,7 +67,7 @@ class MediaSessionCollector private constructor(private val context: Context) {
             try {
                 val currentEngine = engine ?: AppDatabase.getInstance(context).let { db ->
                     com.lirix.app.feature.MusicFeatureEngine(db.musicDao(), db.lyricsDao(), blacklistDao = db.blacklistDao())
-                        .also { engine = it; it.startBlacklistSync(scope, db) }
+                        .also { engine = it; accountingEngine = it; it.startBlacklistSync(scope, db) }
                 }
                 val snapshot = observation.snapshot
                 if (snapshot == null) {
@@ -203,6 +206,10 @@ class MediaSessionCollector private constructor(private val context: Context) {
 
                 override fun onMetadataChanged(metadata: MediaMetadata?) {
                     handleMetadataChange(controller, metadata)
+                }
+
+                override fun onQueueChanged(queue: MutableList<android.media.session.MediaSession.QueueItem>?) {
+                    scheduleUpcomingPrefetch(controller)
                 }
             }
 
@@ -354,6 +361,34 @@ class MediaSessionCollector private constructor(private val context: Context) {
         enqueuePlayback(_livePlaybackFlow.value?.takeIf { it.packageName == controller.packageName }, observedState)
         syncHeartbeat(isPlaying, controller.packageName)
         emitMediaEvent(controller.packageName, metadata, observedState)
+        if (isPlaying) scheduleUpcomingPrefetch(controller)
+    }
+
+    /**
+     * Preloads lyrics for the next track when the player publishes its queue. Players without a
+     * queue simply get no preload; playback is never touched to find out what comes next.
+     */
+    private fun scheduleUpcomingPrefetch(controller: MediaController) {
+        val engine = accountingEngine ?: return
+        val live = _livePlaybackFlow.value?.takeIf { it.packageName == controller.packageName && it.isPlaying } ?: return
+        val next = try {
+            val queue = controller.queue?.map { item ->
+                com.lirix.app.feature.lyrics.QueueEntry(
+                    item.queueId,
+                    item.description?.title?.toString()?.trim().orEmpty(),
+                    item.description?.subtitle?.toString()?.trim().orEmpty()
+                )
+            }
+            com.lirix.app.feature.lyrics.PlayerQueue.next(queue, controller.playbackState?.activeQueueItemId, live.title, live.artist)
+        } catch (e: Exception) {
+            // Some players throw from queue accessors after their session is released.
+            null
+        } ?: return
+        val identity = "${controller.packageName}|${next.title}|${next.artist}"
+        if (identity == upcomingIdentity) return
+        upcomingIdentity = identity
+        upcomingJob?.cancel()
+        upcomingJob = engine.prefetchUpcomingAsync(context, scope, next.title, next.artist, controller.packageName)
     }
 
     private fun emitMediaEvent(packageName: String, metadata: MediaMetadata?, stateName: String) {

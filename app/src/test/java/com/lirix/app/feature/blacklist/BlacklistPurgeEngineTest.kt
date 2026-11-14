@@ -95,4 +95,82 @@ class BlacklistPurgeEngineTest {
 
         db.close()
     }
+
+    @Test
+    fun undo_restores_tracks_with_their_listening_history_and_leaves_other_data_alone() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        val purgeEngine = BlacklistPurgeEngine(db)
+        val dao = db.musicDao()
+
+        dao.insertOrUpdateTrack(TrackEntity(trackKey = "t1", title = "Spam Track", artist = "Spammer", sourcePackage = "com.spam", isFavorite = true))
+        dao.insertOrUpdateTrack(TrackEntity(trackKey = "t2", title = "Good Track", artist = "Good Artist", sourcePackage = "com.good"))
+        dao.insertSession(ListeningSessionEntity(trackKey = "t1", sourcePackage = "com.spam", startTimeMs = 10, endTimeMs = 25, durationMs = 15))
+        dao.insertSession(ListeningSessionEntity(trackKey = "t2", sourcePackage = "com.good", startTimeMs = 30, endTimeMs = 40, durationMs = 10))
+        dao.insertSession(ListeningSessionEntity(trackKey = "t1", sourcePackage = "com.spam", startTimeMs = 50, endTimeMs = 90, durationMs = 40))
+        val tracksBefore = dao.getAllTracks().sortedBy { it.trackKey }
+        val sessionsBefore = dao.getAllSessions()
+
+        val rule = BlacklistRuleEntity(id = "r", ruleType = BlacklistRuleType.ARTIST, pattern = "Spammer", matchMode = BlacklistMatchMode.EXACT)
+        val (report, backup) = purgeEngine.purgeMatchingTracksWithBackup(rule)
+        assertEquals(1, report.deletedTracksCount)
+        assertEquals(2, report.deletedSessionsCount)
+        assertEquals(listOf("t2"), dao.getAllSessions().map { it.trackKey })
+
+        // Playback goes on between the purge and the undo.
+        dao.insertSession(ListeningSessionEntity(trackKey = "t2", sourcePackage = "com.good", startTimeMs = 100, endTimeMs = 130, durationMs = 30))
+
+        purgeEngine.restore(backup)
+
+        assertEquals(tracksBefore, dao.getAllTracks().sortedBy { it.trackKey })
+        val sessionsAfter = dao.getAllSessions()
+        assertEquals("Every removed session is back, unchanged", sessionsBefore, sessionsAfter.filter { it.startTimeMs < 100 })
+        assertEquals("The session recorded meanwhile is kept", 1, sessionsAfter.count { it.startTimeMs == 100L })
+        assertEquals(4, sessionsAfter.size)
+
+        // A second undo of the same backup changes nothing.
+        purgeEngine.restore(backup)
+        assertEquals(4, dao.getAllSessions().size)
+        db.close()
+    }
+
+    @Test
+    fun undo_does_not_overwrite_a_track_recorded_again_after_the_purge() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        val purgeEngine = BlacklistPurgeEngine(db)
+        val dao = db.musicDao()
+        dao.insertOrUpdateTrack(TrackEntity(trackKey = "t1", title = "Spam Track", artist = "Spammer", sourcePackage = "com.spam"))
+
+        val rule = BlacklistRuleEntity(id = "r", ruleType = BlacklistRuleType.ARTIST, pattern = "Spammer", matchMode = BlacklistMatchMode.EXACT)
+        val (_, backup) = purgeEngine.purgeMatchingTracksWithBackup(rule)
+        dao.insertOrUpdateTrack(TrackEntity(trackKey = "t1", title = "Spam Track", artist = "Spammer", sourcePackage = "com.spam", plainLyrics = "typed by the user after the purge"))
+
+        purgeEngine.restore(backup)
+
+        assertEquals("typed by the user after the purge", dao.getAllTracks().single().plainLyrics)
+        db.close()
+    }
+
+    @Test
+    fun purge_without_matches_reports_nothing_and_keeps_everything() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        val purgeEngine = BlacklistPurgeEngine(db)
+        db.musicDao().insertOrUpdateTrack(TrackEntity(trackKey = "t1", title = "Good Track", artist = "Good Artist", sourcePackage = "com.good"))
+
+        val rule = BlacklistRuleEntity(id = "r", ruleType = BlacklistRuleType.ARTIST, pattern = "Spammer", matchMode = BlacklistMatchMode.EXACT)
+        val (report, backup) = purgeEngine.purgeMatchingTracksWithBackup(rule)
+
+        assertEquals(PurgeReport(0, 0), report)
+        assertEquals(PurgeBackup(emptyList(), emptyList()), backup)
+        assertEquals(1, db.musicDao().getAllTracks().size)
+        db.close()
+    }
 }

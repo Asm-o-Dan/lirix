@@ -71,8 +71,10 @@ fun LandscapePlayerPanel(
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                 overflow()
             }
+            val trackInfoName = stringResource(R.string.player_track_info_a11y, title, artist)
             Row(Modifier.fillMaxWidth().weight(1f).heightIn(min = 48.dp).testTag("landscape-metadata")
-                .clickable(role = Role.Button, onClickLabel = stringResource(R.string.menu_track_info)) { if (onTrackInfo != null) onTrackInfo() else showMetadata = true },
+                .clickable(role = Role.Button, onClickLabel = stringResource(R.string.menu_track_info)) { if (onTrackInfo != null) onTrackInfo() else showMetadata = true }
+                .semantics { contentDescription = trackInfoName },
                 verticalAlignment = Alignment.CenterVertically) {
                 AlbumArtImage(albumArtUri, size = if (compact) 32.dp else 48.dp,
                     shape = RoundedCornerShape(6.dp), contentDescription = null)
@@ -161,17 +163,7 @@ fun LandscapePlayerSeekBar(positionMs: Long, durationMs: Long, onSeek: (Long) ->
         // Material Slider's internal visual/semantics layout is 44 dp; its normal touch
         // handling remains intact, including the minimum interactive area at both edges.
         Box(Modifier.weight(1f).height(48.dp).testTag("landscape-seek")
-            .semantics(mergeDescendants = true) {
-                contentDescription = "${formatMs(position)} / ${formatMs(durationMs)}"
-                progressBarRangeInfo = ProgressBarRangeInfo(position.toFloat(), 0f..durationMs.coerceAtLeast(1L).toFloat())
-                if (durationMs <= 0) disabled()
-                setProgress { requested ->
-                    if (durationMs > 0) {
-                        onSeek(requested.coerceIn(0f, durationMs.toFloat()).toLong())
-                        true
-                    } else false
-                }
-            }, contentAlignment = Alignment.Center) {
+            .playbackSeekSemantics(position, durationMs, onSeek), contentAlignment = Alignment.Center) {
             Slider(value = position.toFloat(), onValueChange = { onSeek(it.toLong()) },
                 enabled = durationMs > 0, valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
                 modifier = Modifier.fillMaxSize().clearAndSetSemantics {},
@@ -180,5 +172,27 @@ fun LandscapePlayerSeekBar(positionMs: Long, durationMs: Long, onSeek: (Long) ->
         }
         Text(durationText, modifier = Modifier.width(durationWidth).testTag("landscape-duration"),
             style = timeStyle, color = colors.textSecondary)
+    }
+}
+
+/**
+ * Accessible seek control for a playback slider: name with position, range and SetProgress,
+ * so TalkBack can read and adjust it. The wrapped Slider clears its own semantics.
+ */
+@Composable
+fun Modifier.playbackSeekSemantics(positionMs: Long, durationMs: Long, onSeek: (Long) -> Unit): Modifier {
+    val position = positionMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
+    val description = stringResource(R.string.player_seek_position, formatMs(position),
+        if (durationMs > 0) formatMs(durationMs) else "--:--")
+    return semantics(mergeDescendants = true) {
+        contentDescription = description
+        progressBarRangeInfo = ProgressBarRangeInfo(position.toFloat(), 0f..durationMs.coerceAtLeast(1L).toFloat())
+        if (durationMs <= 0) disabled()
+        setProgress { requested ->
+            if (durationMs > 0) {
+                onSeek(requested.coerceIn(0f, durationMs.toFloat()).toLong())
+                true
+            } else false
+        }
     }
 }

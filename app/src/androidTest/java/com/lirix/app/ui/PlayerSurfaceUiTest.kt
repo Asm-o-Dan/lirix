@@ -98,14 +98,34 @@ class PlayerSurfaceUiTest {
         fun missing(resource: Int) = ui.onNodeWithText(ui.activity.getString(resource)).assertDoesNotExist()
         open()
         has(R.string.menu_translations); has(R.string.menu_edit_lyrics); has(R.string.menu_sync_studio)
-        missing(R.string.menu_calibrate_timing)
+        has(R.string.menu_text_settings)
         ui.runOnIdle { mode.value = NowPlayingMode.KARAOKE }
         missing(R.string.settings_title)
-        open(); has(R.string.menu_calibrate_timing); has(R.string.menu_sync_studio); missing(R.string.menu_translations)
+        open(); has(R.string.menu_text_settings); has(R.string.menu_sync_studio); missing(R.string.menu_translations)
         ui.runOnIdle { mode.value = NowPlayingMode.CHORDS }
         missing(R.string.settings_title)
-        open(); has(R.string.menu_track_info); missing(R.string.menu_translations); missing(R.string.menu_calibrate_timing); missing(R.string.menu_edit_lyrics)
+        open(); has(R.string.menu_track_info); missing(R.string.menu_translations); missing(R.string.menu_text_settings); missing(R.string.menu_edit_lyrics)
         ui.runOnIdle { mode.value = NowPlayingMode.NOTES }
         open(); missing(R.string.menu_save_notes); has(R.string.menu_track_info); missing(R.string.menu_sync_studio); missing(R.string.menu_edit_lyrics)
+    }
+
+    @Test fun menuDoesNotRepeatEditAndStudioButtonsVisibleInTheTextArea() {
+        val inlineEdit = mutableStateOf(true)
+        val inlineStudio = mutableStateOf(true)
+        ui.setContent { LirixTheme {
+            PlayerContextOverflow(NowPlayingMode.KARAOKE, "plain-only-song", false, false,
+                onToggleOverlay = {}, onEditLyrics = {}, onSync = {}, onTranslations = {}, onSaveNotes = {},
+                onCalibrate = {}, onTeach = null, onTrackInfo = {}, onSettings = {},
+                inlineEditVisible = inlineEdit.value, inlineStudioVisible = inlineStudio.value)
+        } }
+        fun open() = ui.onNodeWithContentDescription(ui.activity.getString(R.string.menu_overflow)).performClick()
+        fun has(resource: Int) = ui.onNodeWithText(ui.activity.getString(resource)).assertExists()
+        fun missing(resource: Int) = ui.onNodeWithText(ui.activity.getString(resource)).assertDoesNotExist()
+        open()
+        missing(R.string.menu_edit_lyrics); missing(R.string.menu_sync_studio)
+        has(R.string.menu_text_settings); has(R.string.menu_track_info)
+        // The open menu follows the text area: once the inline buttons are gone, the items return.
+        ui.runOnIdle { inlineEdit.value = false; inlineStudio.value = false }
+        has(R.string.menu_edit_lyrics); has(R.string.menu_sync_studio)
     }
 }

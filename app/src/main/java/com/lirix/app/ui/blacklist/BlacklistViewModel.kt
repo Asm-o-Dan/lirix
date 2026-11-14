@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.lirix.app.feature.blacklist.BlacklistPurgeEngine
+import com.lirix.app.feature.blacklist.PurgeBackup
 import com.lirix.app.storage.AppDatabase
+import com.lirix.app.storage.Schema15
 import com.lirix.app.storage.TrackEntity
 import com.lirix.app.storage.blacklist.BlacklistMatchMode
 import com.lirix.app.storage.blacklist.BlacklistRuleEntity
@@ -25,6 +27,9 @@ enum class BlacklistTab {
     PACKAGES
 }
 
+/** A built-in rule was enabled while matching history exists; deletion waits for explicit consent. */
+data class PendingBuiltInPurge(val rule: BlacklistRuleEntity, val matchingTracks: Int)
+
 data class BlacklistUiState(
     val rules: List<BlacklistRuleEntity> = emptyList(),
     val activeFilterTab: BlacklistTab = BlacklistTab.ALL,
@@ -40,7 +45,8 @@ data class BlacklistUiState(
     val dbSuggestions: List<String> = emptyList(),
     // Notifications
     val snackbarMessage: String? = null,
-    val showUndoForPurge: Boolean = false
+    val showUndoForPurge: Boolean = false,
+    val pendingBuiltInPurge: PendingBuiltInPurge? = null
 ) {
     val filteredRules: List<BlacklistRuleEntity>
         get() = when (activeFilterTab) {
@@ -186,7 +192,11 @@ class BlacklistViewModel(private val db: AppDatabase) : ViewModel() {
         viewModelScope.launch {
             val updated = rule.copy(isEnabled = !rule.isEnabled)
             db.blacklistDao().updateRule(updated)
-            if (updated.isEnabled) {
+            if (updated.isEnabled && Schema15.isBuiltIn(updated)) {
+                // Built-in rules never delete history without consent: filtering starts now, purge is offered.
+                val count = purgeEngine.previewPurgeCount(updated)
+                if (count > 0) _uiState.update { it.copy(pendingBuiltInPurge = PendingBuiltInPurge(updated, count)) }
+            } else if (updated.isEnabled) {
                 // If rule is re-enabled, purge matching tracks immediately
                 val report = purgeEngine.purgeMatchingTracks(updated)
                 if (report.deletedTracksCount > 0) {
@@ -198,6 +208,26 @@ class BlacklistViewModel(private val db: AppDatabase) : ViewModel() {
         }
     }
 
+    fun confirmBuiltInPurge() {
+        val pending = _uiState.value.pendingBuiltInPurge ?: return
+        _uiState.update { it.copy(pendingBuiltInPurge = null) }
+        viewModelScope.launch {
+            val (report, purgedBackup) = purgeEngine.purgeMatchingTracksWithBackup(pending.rule)
+            lastPurge = purgedBackup
+            lastCreatedRuleId = null // Undo restores tracks and their sessions; the built-in rule stays enabled.
+            _uiState.update {
+                it.copy(
+                    snackbarMessage = "Удалено ${report.deletedTracksCount} треков.",
+                    showUndoForPurge = report.deletedTracksCount > 0
+                )
+            }
+        }
+    }
+
+    fun dismissBuiltInPurge() {
+        _uiState.update { it.copy(pendingBuiltInPurge = null) }
+    }
+
     fun deleteRule(ruleId: String) {
         viewModelScope.launch {
             db.blacklistDao().deleteRule(ruleId)
@@ -205,7 +235,7 @@ class BlacklistViewModel(private val db: AppDatabase) : ViewModel() {
         }
     }
 
-    private var lastPurgedTracks: List<TrackEntity>? = null
+    private var lastPurge: PurgeBackup? = null
     private var lastCreatedRuleId: String? = null
 
     fun saveDraftAndPurge() {
@@ -223,7 +253,7 @@ class BlacklistViewModel(private val db: AppDatabase) : ViewModel() {
             )
             db.blacklistDao().insertRule(newRule)
             val (report, purgedBackup) = purgeEngine.purgeMatchingTracksWithBackup(newRule)
-            lastPurgedTracks = purgedBackup
+            lastPurge = purgedBackup
             lastCreatedRuleId = newRule.id
             _uiState.update {
                 it.copy(
@@ -241,15 +271,15 @@ class BlacklistViewModel(private val db: AppDatabase) : ViewModel() {
 
     fun undoLastPurge() {
         viewModelScope.launch {
-            val tracks = lastPurgedTracks
+            val backup = lastPurge
             val ruleId = lastCreatedRuleId
-            if (!tracks.isNullOrEmpty()) {
-                purgeEngine.restoreTracks(tracks)
+            if (backup != null && backup.tracks.isNotEmpty()) {
+                purgeEngine.restore(backup)
             }
             if (ruleId != null) {
                 db.blacklistDao().deleteRule(ruleId)
             }
-            lastPurgedTracks = null
+            lastPurge = null
             lastCreatedRuleId = null
             _uiState.update {
                 it.copy(

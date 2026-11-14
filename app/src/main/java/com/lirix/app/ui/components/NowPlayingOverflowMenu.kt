@@ -37,7 +37,13 @@ fun PlayerContextOverflow(
     onTeach: (() -> Unit)?,
     onTrackInfo: (() -> Unit)?,
     onRomanization: (() -> Unit)? = null,
-    onSettings: (() -> Unit)? = null
+    onSettings: (() -> Unit)? = null,
+    /** Non-null only while the shown words / chords come from an automatic source. */
+    onWrongLyrics: (() -> Unit)? = null,
+    onWrongChords: (() -> Unit)? = null,
+    /** The text area already shows its own edit / studio button; the menu does not repeat it. */
+    inlineEditVisible: Boolean = false,
+    inlineStudioVisible: Boolean = false
 ) {
     var expanded by remember(mode, trackKey, landscape) { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -45,13 +51,15 @@ fun PlayerContextOverflow(
     val lyrics = trackKey != null && (mode == NowPlayingMode.LYRICS || mode == NowPlayingMode.KARAOKE)
     PlayerOverflowAnchor(onOpen = { expanded = true }) {
         NowPlayingOverflowMenu(expanded, { expanded = false }, isOverlayActive, onToggleOverlay,
-            onEditLyricsClick = onEditLyrics.takeIf { lyrics },
-            onSyncClick = onSync.takeIf { lyrics },
+            onEditLyricsClick = onEditLyrics.takeIf { lyrics && !inlineEditVisible },
+            onSyncClick = onSync.takeIf { lyrics && !inlineStudioVisible },
             onTranslationClick = onTranslations.takeIf { trackKey != null && mode == NowPlayingMode.LYRICS },
             onTrackInfoClick = onTrackInfo.takeIf { trackKey != null },
-            onCalibrateClick = onCalibrate.takeIf { trackKey != null && mode == NowPlayingMode.KARAOKE },
+            onCalibrateClick = onCalibrate.takeIf { lyrics },
             onTeachModeClick = onTeach.takeIf { trackKey != null && mode != NowPlayingMode.NOTES },
             onRomanizationClick = onRomanization.takeIf { lyrics },
+            onWrongLyricsClick = onWrongLyrics.takeIf { lyrics },
+            onWrongChordsClick = onWrongChords.takeIf { trackKey != null && mode == NowPlayingMode.CHORDS },
             onSettingsClick = settings)
     }
 }
@@ -82,7 +90,9 @@ fun NowPlayingOverflowMenu(
     onTeachModeClick: (() -> Unit)? = null,
     onRomanizationClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onWrongLyricsClick: (() -> Unit)? = null,
+    onWrongChordsClick: (() -> Unit)? = null
 ) {
     val tokens = LirixThemeTokens.colors
     DropdownMenu(
@@ -104,7 +114,9 @@ fun NowPlayingOverflowMenu(
         onEditLyricsClick?.let { Action(stringResource(R.string.menu_edit_lyrics), Icons.Default.Edit, it) }
         onSyncClick?.let { Action(stringResource(R.string.menu_sync_studio), Icons.Default.GraphicEq, it) }
         onTranslationClick?.let { Action(stringResource(R.string.menu_translations), Icons.Default.Translate, it) }
-        onCalibrateClick?.let { Action(stringResource(R.string.menu_calibrate_timing), Icons.Default.Tune, it) }
+        onCalibrateClick?.let { Action(stringResource(R.string.menu_text_settings), Icons.Default.Tune, it) }
+        onWrongLyricsClick?.let { Action(stringResource(R.string.menu_wrong_lyrics), Icons.Default.Autorenew, it) }
+        onWrongChordsClick?.let { Action(stringResource(R.string.menu_wrong_chords), Icons.Default.Autorenew, it) }
         onTeachModeClick?.let { Action(stringResource(R.string.menu_teach_mode), Icons.Default.School, it) }
         onRomanizationClick?.let { Action(stringResource(R.string.menu_romanization_reading), Icons.Default.Subtitles, it) }
         onTrackInfoClick?.let { Action(stringResource(R.string.menu_track_info), Icons.Default.Info, it) }
@@ -119,16 +131,22 @@ fun TimingCalibrationDialog(
     currentOffsetMs: Long,
     onOffsetChange: (Long) -> Unit,
     onResetOffset: () -> Unit,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    textScale: Float? = null,
+    onTextScaleChange: (Float) -> Unit = {},
+    showTiming: Boolean = true
 ) {
     val tokens = LirixThemeTokens.colors
-    var numericOffset by remember { mutableStateOf(currentOffsetMs.toString()) }
-    LaunchedEffect(currentOffsetMs) { numericOffset = currentOffsetMs.toString() }
+    // Shown and typed as lyrics delay: minus = text earlier. Storage keeps the raw offset.
+    val currentDelayMs = lyricsDelayMs(currentOffsetMs)
+    val onDelayChange: (Long) -> Unit = { delay -> onOffsetChange(offsetForLyricsDelay(delay)) }
+    var numericOffset by remember { mutableStateOf(currentDelayMs.toString()) }
+    LaunchedEffect(currentDelayMs) { numericOffset = currentDelayMs.toString() }
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = {
             Text(
-                text = stringResource(R.string.calibration_title),
+                text = stringResource(if (textScale == null) R.string.calibration_title else R.string.menu_text_settings),
                 style = MaterialTheme.typography.titleMedium,
                 color = tokens.textPrimary,
                 fontWeight = FontWeight.Bold
@@ -139,102 +157,108 @@ fun TimingCalibrationDialog(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "${if (currentOffsetMs >= 0) "+$currentOffsetMs" else currentOffsetMs} ms",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = if (currentOffsetMs == 0L) tokens.accentSecondary else AppColors.AmberGold,
-                    fontWeight = FontWeight.ExtraBold
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = stringResource(R.string.calibration_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = tokens.textSecondary
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+                if (textScale != null) {
+                    TextSizeControls(textScale, onTextScaleChange)
+                    Spacer(Modifier.height(16.dp))
+                }
+                if (showTiming) {
+                    Text(
+                        text = stringResource(R.string.timing_delay_value, formatLyricsDelay(currentDelayMs)),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = if (currentOffsetMs == 0L) tokens.accentSecondary else AppColors.AmberGold,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.calibration_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = tokens.textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                TimingCorrectionControls(currentOffsetMs, onOffsetChange, {})
-                OutlinedTextField(
-                    value = numericOffset,
-                    onValueChange = { numericOffset = it },
-                    label = { Text(stringResource(R.string.calibration_offset_label)) },
-                    isError = numericOffset.toLongOrNull() == null,
-                    supportingText = {
-                        if (numericOffset.toLongOrNull() == null) Text(stringResource(R.string.calibration_offset_error))
-                    },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                TextButton(
-                    onClick = {
-                        numericOffset.toLongOrNull()?.let {
-                            val bounded = boundedSyncOffset(it)
-                            numericOffset = bounded.toString()
-                            onOffsetChange(bounded)
+                    TimingCorrectionControls(currentOffsetMs, onOffsetChange, {})
+                    OutlinedTextField(
+                        value = numericOffset,
+                        onValueChange = { numericOffset = it },
+                        label = { Text(stringResource(R.string.calibration_offset_label)) },
+                        isError = numericOffset.toLongOrNull() == null,
+                        supportingText = {
+                            if (numericOffset.toLongOrNull() == null) Text(stringResource(R.string.calibration_offset_error))
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    TextButton(
+                        onClick = {
+                            numericOffset.toLongOrNull()?.let {
+                                val bounded = boundedSyncOffset(it)
+                                numericOffset = bounded.toString()
+                                onDelayChange(bounded)
+                            }
+                        },
+                        enabled = numericOffset.toLongOrNull() != null
+                    ) { Text(stringResource(R.string.calibration_apply)) }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { onDelayChange(currentDelayMs - 50) },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("-50ms", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         }
-                    },
-                    enabled = numericOffset.toLongOrNull() != null
-                ) { Text(stringResource(R.string.calibration_apply)) }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { onOffsetChange(currentOffsetMs - 50) },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("-50ms", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        OutlinedButton(
+                            onClick = { onDelayChange(currentDelayMs - 10) },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("-10ms", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
                     }
-                    OutlinedButton(
-                        onClick = { onOffsetChange(currentOffsetMs - 10) },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
-                        shape = RoundedCornerShape(12.dp)
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("-10ms", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        OutlinedButton(
+                            onClick = { onDelayChange(currentDelayMs + 10) },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("+10ms", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        OutlinedButton(
+                            onClick = { onDelayChange(currentDelayMs + 50) },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("+50ms", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { onOffsetChange(currentOffsetMs + 10) },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
-                        shape = RoundedCornerShape(12.dp)
+                    TextButton(
+                        onClick = onResetOffset,
+                        colors = ButtonDefaults.textButtonColors(contentColor = AppColors.ExpenseRed)
                     ) {
-                        Text("+10ms", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(stringResource(R.string.calibration_reset))
                     }
-                    OutlinedButton(
-                        onClick = { onOffsetChange(currentOffsetMs + 50) },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = tokens.textPrimary),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("+50ms", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                TextButton(
-                    onClick = onResetOffset,
-                    colors = ButtonDefaults.textButtonColors(contentColor = AppColors.ExpenseRed)
-                ) {
-                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(R.string.calibration_reset))
                 }
             }
         },

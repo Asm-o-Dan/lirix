@@ -107,7 +107,7 @@ fun TrackActionBottomSheet(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = track.artist,
+                        text = com.lirix.app.ui.displayArtist(track.artist, stringResource(R.string.unknown_artist)),
                         style = MaterialTheme.typography.bodySmall,
                         color = tokens.textSecondary,
                         maxLines = 1,

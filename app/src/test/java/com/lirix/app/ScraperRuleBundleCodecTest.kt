@@ -306,4 +306,36 @@ class ScraperRuleBundleCodecTest {
         assertTrue("Sensitive Cookie header must be rejected", result.isFailure)
         assertTrue(result.exceptionOrNull() is SecurityException)
     }
+
+    // --- Imported bundles are untrusted (backlog teach-rule-bundle-import-validation) ---
+
+    @Test
+    fun imported_rule_is_a_draft_that_makes_no_requests_until_activated() = kotlinx.coroutines.runBlocking {
+        val imported = ScraperRuleBundleCodec.deserializeAndValidate(ScraperRuleBundleCodec.serialize(createSampleRule())).getOrThrow()
+        val track = com.lirix.app.storage.TrackEntity(trackKey = "k", title = "Rain", artist = "Echo Lane", sourcePackage = "p")
+        val requests = mutableListOf<String>()
+        val transport: suspend (String) -> String? = { url -> requests += url; null }
+
+        val outcome = com.lirix.app.feature.lyrics.CustomRuleLyricsProvider(imported, transport).resolve(track)
+        assertEquals(com.lirix.app.feature.lyrics.RuleOutcome.Draft, outcome)
+        assertFalse(com.lirix.app.feature.lyrics.CustomRuleLyricsProvider(imported, transport).getLyrics(track).hasLyrics)
+        assertTrue("A draft must not contact the site: $requests", requests.isEmpty())
+
+        val active = ScraperRuleBundleCodec.activated(imported)
+        assertEquals(imported.id, active.id)
+        com.lirix.app.feature.lyrics.CustomRuleLyricsProvider(active, transport).resolve(track)
+        assertEquals("An activated rule runs its search", 1, requests.size)
+        assertTrue(requests.single().startsWith("https://amalgama-lab.com/search?q="))
+    }
+
+    @Test
+    fun imported_rule_never_reuses_the_id_from_the_file() {
+        val original = createSampleRule()
+        val json = ScraperRuleBundleCodec.serialize(original)
+        val first = ScraperRuleBundleCodec.deserializeAndValidate(json).getOrThrow()
+        val second = ScraperRuleBundleCodec.deserializeAndValidate(json).getOrThrow()
+        assertFalse("Would overwrite the rule the user already has", first.id == original.id)
+        assertFalse(first.id == second.id)
+        assertTrue(first.id.startsWith("rule_amalgama_lab_com_"))
+    }
 }

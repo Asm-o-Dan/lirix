@@ -31,6 +31,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -63,6 +65,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
+import androidx.compose.material3.Checkbox
+import com.lirix.app.ui.components.LibrarySearchFields
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -85,6 +91,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -160,9 +167,14 @@ fun LibraryScreen(
     val accentPrimary = lirixColors.accentPrimary
 
     val recentTracks by db.musicDao().observeRecentTracks().collectAsStateWithLifecycle(initialValue = emptyList())
+    val cachedLyrics by db.lyricsDao().observeAllLyrics().collectAsStateWithLifecycle(initialValue = emptyList())
+    val lyricsByKey = remember(cachedLyrics) { cachedLyrics.associateBy { it.trackKey } }
+    var searchFieldMask by rememberSaveable { mutableStateOf(15) }
+    val searchFields = remember(searchFieldMask) { LibrarySearchField.entries.filter { searchFieldMask and (1 shl it.ordinal) != 0 }.toSet() }
     val exclusions = remember(context) { LibraryExclusions.get(context) }
     val removedTrackKeys by exclusions.removed.collectAsStateWithLifecycle()
     var showRemovedTracks by rememberSaveable { mutableStateOf(false) }
+    var showLibraryTools by remember { mutableStateOf(false) }
 
     var selectedFilter by rememberSaveable { mutableStateOf(LibraryFilterChip.ALL) }
     var selectedSegment by rememberSaveable { mutableStateOf(LibrarySegmentMode.TRACKS) }
@@ -177,31 +189,30 @@ fun LibraryScreen(
         else recentTracks.filter { it.trackKey !in removedTrackKeys }
     }
 
-    val filteredTracks = remember(visibleTracks, selectedFilter, searchQuery) {
-        var list = when (selectedFilter) {
-            LibraryFilterChip.ALL -> visibleTracks
-            LibraryFilterChip.FAVORITES -> visibleTracks.filter { it.isFavorite }
-            LibraryFilterChip.KARAOKE -> visibleTracks.filter { !it.syncedLyrics.isNullOrBlank() }
-            LibraryFilterChip.CHORDS -> visibleTracks.filter { !it.syncedLyrics.isNullOrBlank() || !it.plainLyrics.isNullOrBlank() }
-            LibraryFilterChip.OFFLINE -> visibleTracks
+    val unknownArtistLabel = stringResource(R.string.unknown_artist)
+    val searchResults by produceState<List<Pair<TrackEntity, LibrarySearchMatch?>>>(
+        initialValue = emptyList(), visibleTracks, selectedFilter, searchQuery, unknownArtistLabel, lyricsByKey, searchFields
+    ) {
+        value = withContext(Dispatchers.Default) {
+            visibleTracks.asSequence().filter { track ->
+                when (selectedFilter) {
+                    LibraryFilterChip.FAVORITES -> track.isFavorite
+                    LibraryFilterChip.KARAOKE -> !(lyricsByKey[track.trackKey]?.syncedLyricsLrc ?: track.syncedLyrics).isNullOrBlank()
+                    LibraryFilterChip.CHORDS -> !lyricsByKey[track.trackKey]?.chordsAmDm.isNullOrBlank()
+                    else -> true
+                }
+            }.mapNotNull { track ->
+                val match = librarySearchMatch(track, lyricsByKey[track.trackKey], searchQuery, searchFields, unknownArtistLabel)
+                if (searchQuery.isBlank() || match != null) track to match else null
+            }.toList().sortedBy { it.second?.rank ?: 0 }
         }
-
-        if (searchQuery.isNotBlank()) {
-            val q = searchQuery.trim().lowercase()
-            list = list.filter {
-                it.title.lowercase().contains(q) ||
-                    it.artist.lowercase().contains(q) ||
-                    it.album.lowercase().contains(q) ||
-                    it.plainLyrics?.lowercase()?.contains(q) == true ||
-                    it.syncedLyrics?.lowercase()?.contains(q) == true
-            }
-        }
-        list
     }
+    val filteredTracks = remember(searchResults) { searchResults.map { it.first } }
+    val matchByKey = remember(searchResults) { searchResults.associate { it.first.trackKey to it.second } }
 
-    // Unique artists count
-    val uniqueArtists = remember(visibleTracks, context) {
-        visibleTracks.map { it.artist.ifBlank { context.getString(R.string.unknown_artist) } }.distinct()
+    // Artists of the same filtered selection, so "Tracks (N) / Artists (M)" describe one list.
+    val artistRows = remember(filteredTracks, unknownArtistLabel) {
+        libraryArtistRows(filteredTracks, unknownArtistLabel)
     }
 
     // Adaptive Snackbar timeout (6-8s) via AccessibilityManager
@@ -280,18 +291,15 @@ fun LibraryScreen(
                         )
                     },
                     leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = accentPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(48.dp)) {
                                 Icon(Icons.Default.Close, contentDescription = stringResource(R.string.library_clear_search), tint = lirixColors.textSecondary)
                             }
+                        } else Icon(Icons.Default.Search, contentDescription = null, tint = accentPrimary, modifier = Modifier.size(20.dp))
+                    },
+                    trailingIcon = {
+                        LibrarySearchFields(searchFields) { fields ->
+                            searchFieldMask = fields.fold(0) { mask, field -> mask or (1 shl field.ordinal) }
                         }
                     },
                     singleLine = true,
@@ -306,111 +314,56 @@ fun LibraryScreen(
                     )
                 )
 
-                TooltipBox(
-                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                    tooltip = { PlainTooltip { Text(stringResource(R.string.library_removed_title)) } },
-                    state = rememberTooltipState()
-                ) {
-                    IconButton(onClick = { showRemovedTracks = true }, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Default.Restore, contentDescription = stringResource(R.string.library_removed_title), tint = lirixColors.textSecondary)
+                Box {
+                    IconButton(onClick = { showLibraryTools = true }, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.menu_overflow), tint = lirixColors.textSecondary)
                     }
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                TooltipBox(
-                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                    tooltip = { PlainTooltip { Text(stringResource(R.string.library_blacklist_button)) } },
-                    state = rememberTooltipState()
-                ) {
-                    IconButton(
-                        onClick = onOpenBlacklistSettings,
-                        modifier = Modifier.size(48.dp)
-                            .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
-                            .background(lirixColors.surfacePrimary)
-                            .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
-                    ) {
-                        Icon(Icons.Default.Block, contentDescription = stringResource(R.string.library_blacklist_button),
-                            tint = lirixColors.textSecondary, modifier = Modifier.size(20.dp))
+                    DropdownMenu(expanded = showLibraryTools, onDismissRequest = { showLibraryTools = false }) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.library_removed_title)) },
+                            onClick = { showLibraryTools = false; showRemovedTracks = true })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.library_blacklist_button)) },
+                            onClick = { showLibraryTools = false; onOpenBlacklistSettings() })
                     }
                 }
 
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 2. Горизонтальные фильтры (высота плашки 36dp, зона клика 48dp)
-            androidx.compose.foundation.lazy.LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onGloballyPositioned { onFilterBoundsChanged(it.boundsInWindow()) },
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                items(LibraryFilterChip.entries) { chip ->
-                    val isSelected = selectedFilter == chip
-                    Box(
-                        modifier = Modifier
-                            .heightIn(min = 48.dp)
-                            .clip(RoundedCornerShape(lirixColors.pillCornerRadius))
-                            .background(if (isSelected) accentPrimary else lirixColors.surfaceCard)
-                            .border(
-                                1.dp,
-                                if (isSelected) accentPrimary else lirixColors.borderSubtle,
-                                RoundedCornerShape(lirixColors.pillCornerRadius)
-                            )
-                            .clickable {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                selectedFilter = chip
-                            }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(chip.titleRes),
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            ),
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else lirixColors.textPrimary
-                        )
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 3. Сегмент списка: [ Треки (N) ] [ Артисты (M) ]
+            // Presentation and content filter are independent; both apply to the count.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp)
                     .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(lirixColors.cardCornerRadius))
-                    .background(lirixColors.surfacePrimary)
-                    .border(1.dp, lirixColors.borderSubtle, RoundedCornerShape(lirixColors.cardCornerRadius))
-                    .padding(3.dp),
+                    .onGloballyPositioned { onFilterBoundsChanged(it.boundsInWindow()) },
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                LibrarySegmentMode.entries.forEach { mode ->
-                    val isSelected = selectedSegment == mode
-                    val count = if (mode == LibrarySegmentMode.TRACKS) filteredTracks.size else uniqueArtists.size
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(lirixColors.cardCornerRadius - 2.dp))
-                            .background(if (isSelected) lirixColors.surfaceCard else Color.Transparent)
-                            .clickable { selectedSegment = mode },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "${stringResource(mode.titleRes)} ($count)",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            ),
-                            color = if (isSelected) lirixColors.textPrimary else lirixColors.textSecondary
-                        )
-                    }
-                }
+                LibraryChoiceMenu(
+                    labels = LibrarySegmentMode.entries.map { stringResource(it.titleRes) },
+                    selectedIndex = selectedSegment.ordinal,
+                    onSelect = { selectedSegment = LibrarySegmentMode.entries[it] },
+                    modifier = Modifier.weight(1f)
+                )
+                Text("·", color = lirixColors.textMuted)
+                LibraryChoiceMenu(
+                    labels = LibraryFilterChip.entries.map { stringResource(it.titleRes) },
+                    selectedIndex = selectedFilter.ordinal,
+                    onSelect = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        selectedFilter = LibraryFilterChip.entries[it]
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+                Text("·", color = lirixColors.textMuted)
+                val count = if (selectedSegment == LibrarySegmentMode.TRACKS) filteredTracks.size else artistRows.size
+                val countDescription = "${stringResource(selectedSegment.titleRes)}: $count"
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = lirixColors.textSecondary,
+                    modifier = Modifier.semantics { contentDescription = countDescription }
+                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -445,6 +398,7 @@ fun LibraryScreen(
                                 items(filteredTracks, key = { it.trackKey }) { track ->
                                     LibraryTrackItemRow(
                                         track = track,
+                                        searchExcerpt = matchByKey[track.trackKey]?.takeIf { searchQuery.isNotBlank() && it.rank >= 4 }?.excerpt,
                                         accentPrimary = accentPrimary,
                                         onClick = { onTrackSelected(track) },
                                         onLongClick = { activeBottomSheetTrack = track },
@@ -468,8 +422,8 @@ fun LibraryScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(uniqueArtists, key = { it }) { artistName ->
-                                val artistTracks = visibleTracks.filter { it.artist == artistName }
+                            items(artistRows, key = { it.name }) { artistRow ->
+                                val artistName = artistRow.name
                                 Surface(
                                     color = lirixColors.surfaceCard,
                                     shape = RoundedCornerShape(lirixColors.cardCornerRadius),
@@ -495,7 +449,7 @@ fun LibraryScreen(
                                             color = lirixColors.textPrimary
                                         )
                                         Text(
-                                            text = stringResource(R.string.library_artist_track_count, artistTracks.size),
+                                            text = stringResource(R.string.library_artist_track_count, artistRow.trackCount),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = lirixColors.textSecondary
                                         )
@@ -528,7 +482,7 @@ fun LibraryScreen(
                             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(track?.title ?: context.getString(R.string.library_removed_missing), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                    if (track != null) Text(track.artist, style = MaterialTheme.typography.bodySmall)
+                                    if (track != null) Text(displayArtist(track.artist, unknownArtistLabel), style = MaterialTheme.typography.bodySmall)
                                 }
                                 TextButton(onClick = { restoreTrack(key) }) { Text(stringResource(R.string.library_restore)) }
                             }
@@ -570,6 +524,7 @@ fun LibraryScreen(
 @Composable
 private fun LibraryTrackItemRow(
     track: TrackEntity,
+    searchExcerpt: String? = null,
     accentPrimary: Color,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -644,13 +599,17 @@ private fun LibraryTrackItemRow(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${track.artist}${if (track.album.isNotBlank()) " • ${track.album}" else ""}",
+                    text = "${displayArtist(track.artist, stringResource(R.string.unknown_artist))}${if (track.album.isNotBlank()) " • ${track.album}" else ""}",
                     fontFamily = GolosTextFontFamily,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                     color = tokens.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (!searchExcerpt.isNullOrBlank()) {
+                    Text(searchExcerpt, style = MaterialTheme.typography.bodySmall, color = tokens.textSecondary,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
             }
 
             Spacer(modifier = Modifier.width(8.dp))
@@ -734,5 +693,45 @@ private fun BorderBadge(
             color = textColor,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
         )
+    }
+}
+
+/** A menu stays anchored to its own control; labels can wrap with system font scaling. */
+@Composable
+private fun LibraryChoiceMenu(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier) {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                .semantics { stateDescription = labels[selectedIndex] },
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+        ) {
+            Text(
+                labels[selectedIndex],
+                modifier = Modifier.weight(1f, fill = false),
+                style = MaterialTheme.typography.labelLarge,
+                color = LirixThemeTokens.colors.textPrimary
+            )
+            Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp),
+                tint = LirixThemeTokens.colors.textSecondary)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            labels.forEachIndexed { index, label ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = { expanded = false; onSelect(index) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    trailingIcon = {
+                        if (index == selectedIndex) Icon(Icons.Default.Check, contentDescription = null)
+                    }
+                )
+            }
+        }
     }
 }

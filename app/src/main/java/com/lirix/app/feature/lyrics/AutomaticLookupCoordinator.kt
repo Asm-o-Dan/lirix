@@ -67,6 +67,8 @@ class AutomaticLookupCoordinator(
         val result = try { withTimeoutOrNull(deadlineMs) {
             currentCoroutineContext().ensureActive()
             val track = store.track(key) ?: return@withTimeoutOrNull AutomaticLookupCandidate()
+            // "09 / Unknown Artist" cannot identify a song; never treat a guess as a match (AGENTS 7.4).
+            if (!AutomaticLookupEligibility.isEligible(track.title, track.artist)) return@withTimeoutOrNull AutomaticLookupCandidate()
             val cache = store.cache(key)
             val provider = cache?.provider.orEmpty()
             if (provider.equals("USER", true) || provider.startsWith("USER:", true) || automaticLookupSatisfied(target, track, cache))
@@ -129,7 +131,11 @@ class AutomaticLookupCoordinator(
                 override suspend fun cache(key: String) = db.lyricsDao().getLyrics(key)
                 override suspend fun rejected(key: String) = db.lyricsDao().getRejectedSourceIds(key).toSet()
                 override suspend fun merge(key: String, candidate: AutomaticLookupCandidate) = db.lyricsDao().fillMissingAutomaticLookup(key, candidate)
-            }, { track, target, rejected -> AggregatedLyricsProvider(lyricsDao = db.lyricsDao()).acquireAutomatic(track, target, rejected) })
+            }, { track, target, rejected ->
+                // A lookup already made while the previous track was playing is used first.
+                (if (target == LookupTarget.LYRICS) NextTrackWarmCache.shared.take(track.title, track.artist, rejected) else null)
+                    ?: AggregatedLyricsProvider(lyricsDao = db.lyricsDao()).acquireAutomatic(track, target, rejected)
+            })
         }
     }
 }

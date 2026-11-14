@@ -47,7 +47,7 @@
     <string name="karaoke_mode_translation">Translation</string>
 
     <!-- Player Actions & Transport -->
-    <string name="player_in_source">In %1$s ▾</string>
+    <string name="player_in_source">In %1$s</string>
     <string name="source_yandex">Yandex Music</string>
     <string name="source_vk">VK Music</string>
     <string name="source_generic">player</string>
@@ -90,7 +90,7 @@
     <string name="menu_save_notes">Save notes</string>
     <string name="menu_calibrate_timing">Timing calibration</string>
     <string name="menu_teach_mode">Find lyrics or chords (Teach)</string>
-    <string name="menu_track_info">About track &amp; sources</string>
+    <string name="menu_track_info">About track</string>
     <string name="menu_floating_overlay">Floating overlay</string>
     <string name="menu_floating_overlay_enabled">Floating overlay: enabled</string>
     <string name="menu_theme">Theme</string>
@@ -114,7 +114,7 @@
 
     <!-- Timing Calibration Dialog -->
     <string name="calibration_title">Karaoke timing calibration</string>
-    <string name="calibration_desc">Plus — text earlier, minus — later. Setting is saved for this song.</string>
+    <string name="calibration_desc">Minus — lyrics earlier, plus — later. Setting is saved for this song.</string>
     <string name="calibration_offset_label">Offset in milliseconds (−3000…3000)</string>
     <string name="calibration_offset_error">Enter an integer number of milliseconds</string>
     <string name="calibration_apply">Apply value</string>
@@ -191,6 +191,10 @@
     <string name="blacklist_suggestions_title">Suggestions from your library:</string>
     <string name="blacklist_preview_tracks">Tracks that will be hidden (%1$d):</string>
     <string name="blacklist_button_save">Save rule</string>
+    <string name="blacklist_builtin_purge_title">Delete matching history entries: %1$d?</string>
+    <string name="blacklist_builtin_purge_message">The rule is on and will hide new messages. Entries already in your history stay unless you delete them.</string>
+    <string name="blacklist_builtin_purge_confirm">Delete</string>
+    <string name="blacklist_builtin_purge_keep">Keep</string>
 
     <!-- Wrapped Screen -->
     <string name="wrapped_screen_title">Listening Wrapped</string>
@@ -400,7 +404,6 @@
     <string name="studio_reaction_ms">Reaction: %1$d ms</string>
     <string name="favorite_save_failed_error">Could not update favorites. Try again.</string>
     <string name="studio_no_marker">No marker</string>
-
     <string name="viewer_unknown_track">Could not identify the track</string>
     <string name="viewer_not_found">Lyrics not found</string>
     <string name="viewer_load_error">Could not load lyrics: %1$s</string>
@@ -417,4 +420,43 @@
     <string name="player_searching_chords_subtitle">Looking for an available chord arrangement.</string>
     <string name="player_chords_saved_text">Song lyrics are available</string>
     <string name="player_chords_saved_text_offline">Song lyrics are available; connect to search for chords</string>
+    <string name="player_track_info_a11y">Track information: %1$s — %2$s</string>
+    <string name="player_seek_position">Track position: %1$s of %2$s</string>
+    <string name="timing_lyrics_earlier">Lyrics earlier by %1$d ms</string>
+    <string name="timing_lyrics_later">Lyrics later by %1$d ms</string>
+    <string name="timing_delay_value">%1$s ms</string>
+    <string name="studio_mode_quick">Quick</string>
+    <string name="studio_mode_precise">Precise</string>
+    <string name="studio_more">More</string>
+    <string name="studio_less">Less</string>
+    <string name="studio_marked_progress">Marked %1$d of %2$d</string>
+    <string name="studio_reaction_decrease">Decrease reaction delay</string>
+    <string name="studio_reaction_increase">Increase reaction delay</string>
+    <string name="studio_skip_credits">Skip credit lines (%1$d)</string>
+    <string name="studio_skip_credits_title">Skip credit lines?</string>
+    <string name="studio_skip_credits_explanation">These lines will be removed from the draft. The saved lyrics will change only when you apply the draft. You can undo this in More.</string>
+    <string name="studio_skip_credits_confirm">Skip lines</string>
+    <string name="studio_seek_back">Back 5 seconds</string>
+    <string name="studio_seek_forward">Forward 5 seconds</string>
+    <string name="studio_stamp_short">Set timestamp</string>
+    <string name="studio_undo_short">Undo</string>
+    <string name="studio_apply_short">Apply</string>
+    <string name="library_search_field_title">Title</string>
+    <string name="library_search_field_artist">Artist</string>
+    <string name="library_search_field_text">Lyrics</string>
+    <string name="library_search_field_chords">Chords</string>
+    <string name="library_search_fields_all">All fields</string>
+    <string name="library_search_fields_count">Fields (%1$d)</string>
+    <string name="teach_change_selection">Edit selection</string>
+    <string name="teach_preview_selection">Preview selection</string>
+    <string name="teach_save_selection">Save for this song</string>
+    <string name="menu_text_settings">Text settings</string>
+    <string name="menu_wrong_lyrics">Wrong lyrics — search further</string>
+    <string name="menu_wrong_chords">Wrong chords — search further</string>
+    <string name="wrong_lyrics_replaced">Lyrics found in another source</string>
+    <string name="wrong_chords_replaced">Chords found in another source</string>
+    <string name="wrong_lyrics_none">No other lyrics sources. You can find them yourself: menu → “Find lyrics or chords”</string>
+    <string name="wrong_chords_none">No other chord sources. You can find them yourself: menu → “Find lyrics or chords”</string>
+    <string name="wrong_content_unavailable">Could not switch the source</string>
+    <string name="wrong_content_undo_failed">Could not restore: you have already saved your own content</string>
 </resources>

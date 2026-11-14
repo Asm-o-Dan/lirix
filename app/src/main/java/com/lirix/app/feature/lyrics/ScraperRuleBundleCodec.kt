@@ -321,14 +321,25 @@ object ScraperRuleBundleCodec {
         }
     }
 
+    /** Marks an imported draft as active. Call only after the rule passed an interactive check. */
+    fun activated(rule: CustomLyricsRuleEntity): CustomLyricsRuleEntity {
+        val json = JSONObject(rule.ruleJson).apply { put("status", "ACTIVE") }
+        return rule.copy(ruleJson = json.toString(), updatedAt = System.currentTimeMillis())
+    }
+
     /**
      * Deserializes and validates a JSON string directly into a Room CustomLyricsRuleEntity.
+     *
+     * A bundle is untrusted input. The result is always a DRAFT that the automatic cascade never
+     * executes (no background requests to the bundle's site), under a fresh id so an imported
+     * file can never replace a rule the user already has. [activated] turns it on after a check.
      */
     fun deserializeAndValidate(jsonStr: String): Result<CustomLyricsRuleEntity> {
         return deserializeBundle(jsonStr).map { bundle ->
             val innerRuleJson = JSONObject().apply {
                 put("domain", bundle.domain)
                 put("name", bundle.name)
+                put("status", "DRAFT")
                 if (!bundle.searchUrlTemplate.isNullOrBlank() || !bundle.searchResultSelector.isNullOrBlank()) {
                     put("search", JSONObject().apply {
                         bundle.searchUrlTemplate?.let { put("urlTemplate", it) }
@@ -344,8 +355,7 @@ object ScraperRuleBundleCodec {
             }.toString()
 
             val safeSlug = bundle.domain.replace(Regex("""[^a-zA-Z0-9]"""), "_")
-            val ruleId = bundle.id?.takeIf { it.startsWith("rule_") && it.matches(Regex("""^[a-zA-Z0-9_\-]+$""")) }
-                ?: "rule_${safeSlug}_${System.currentTimeMillis() % 100000}"
+            val ruleId = "rule_${safeSlug}_${java.util.UUID.randomUUID().toString().take(8)}"
 
             CustomLyricsRuleEntity(
                 id = ruleId,

@@ -967,7 +967,9 @@ class AggregatedLyricsProvider(
         currentCoroutineContext().ensureActive()
         val cleanTrack = track.copy(userNotes = "", plainLyrics = null, syncedLyrics = null)
         val rejected = rejectedSourceIds + LyricsSourceIds.USER_NOTE
-        if (target == LookupTarget.CHORDS) return AutomaticLookupCandidate(chords = fetchAutomaticChordTabs(cleanTrack, rejected))
+        // "Wrong chords" rejects a source for chords only; its words stay acceptable.
+        val chordRejected = com.lirix.app.storage.ContentRejection.forChords(rejected)
+        if (target == LookupTarget.CHORDS) return AutomaticLookupCandidate(chords = fetchAutomaticChordTabs(cleanTrack, chordRejected))
         suspend fun attempt(provider: LyricsProvider?, knownId: String? = null): LyricsResult? {
             currentCoroutineContext().ensureActive()
             if (knownId != null && knownId in rejected) return null
@@ -986,9 +988,10 @@ class AggregatedLyricsProvider(
             fun field(text: String, origin: LyricsSourceAttribution?) = AutomaticLookupField(text,
                 origin?.sourceId ?: result.sourceId, origin?.sourceUrl, origin?.author)
             val ownChords = result.chords?.takeIf { it.isNotBlank() }?.let { field(it, attribution.chords) }
+                ?.takeIf { it.sourceId !in chordRejected }
             return AutomaticLookupCandidate(plain?.takeIf { it.isNotBlank() }?.let { field(it, attribution.lyrics) },
                 result.syncedLyrics?.takeIf { it.isNotBlank() }?.let { field(it, attribution.lyrics) },
-                ownChords ?: fetchAutomaticChordTabs(cleanTrack, rejected))
+                ownChords ?: fetchAutomaticChordTabs(cleanTrack, chordRejected))
         }
         for (rule in lyricsDao?.getActiveRules().orEmpty()) {
             val id = "rule:${rule.id}"
@@ -1007,8 +1010,8 @@ class AggregatedLyricsProvider(
                 primary?.plainLyrics?.let { AutomaticLookupField(it, primary.sourceId) }
                     ?: extra.plainLyrics?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) },
                 extra.syncedLyricsLrc?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) },
-                extra.chordsText?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) }
-                    ?: fetchAutomaticChordTabs(cleanTrack, rejected))
+                extra.chordsText?.takeIf { extra.sourceId !in chordRejected }?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) }
+                    ?: fetchAutomaticChordTabs(cleanTrack, chordRejected))
         }
         if (primary != null) return candidate(primary)
         attempt(fallbackScraper)?.let { return candidate(it) }
@@ -1023,7 +1026,7 @@ class AggregatedLyricsProvider(
             if (extra != null && extra.sourceId !in rejected) return AutomaticLookupCandidate(
                 extra.plainLyrics?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) },
                 extra.syncedLyricsLrc?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) },
-                extra.chordsText?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) })
+                extra.chordsText?.takeIf { extra.sourceId !in chordRejected }?.let { AutomaticLookupField(it, extra.sourceId, extra.sourceUrl, extra.author) })
         }
         return AutomaticLookupCandidate()
     }

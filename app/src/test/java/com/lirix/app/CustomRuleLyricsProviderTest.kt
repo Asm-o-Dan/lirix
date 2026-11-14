@@ -210,7 +210,7 @@ class CustomRuleLyricsProviderTest {
             }
         }
 
-        val aggregator = AggregatedLyricsProvider(
+        val aggregator = AggregatedLyricsProvider(additionalLookup = { _, _ -> null },
             lrcLibProvider = mockLrcLib,
             fallbackScraper = null,
             lyricsDao = mockLyricsDao,
@@ -252,7 +252,7 @@ class CustomRuleLyricsProviderTest {
             sourcePackage = "com.spotify.music"
         )
 
-        val aggregator = AggregatedLyricsProvider(
+        val aggregator = AggregatedLyricsProvider(additionalLookup = { _, _ -> null },
             lrcLibProvider = mockLrcLib,
             fallbackScraper = null,
             lyricsDao = mockLyricsDao

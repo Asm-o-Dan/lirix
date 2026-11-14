@@ -128,6 +128,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import com.lirix.app.ui.components.playbackSeekSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.role
@@ -553,9 +555,63 @@ fun NowPlayingScreen(
     LaunchedEffect(selectedMode, currentTrack?.trackKey, isLandscape) {
         showTranslationSettings = false
     }
+    // Same lyrics the teleprompter presents; decides which actions the text area already shows.
+    val presentedCache = lyricsCache?.takeIf { it.trackKey == currentTrack?.trackKey }
+    val presentedLyricsCache = presentedCache?.takeUnless { it.provider == "note:user" }
+    val presentedPlain = presentedLyricsCache?.plainLyrics?.takeIf { it.isNotBlank() }
+        ?: automaticLookupAcceptedTrackField(currentTrack?.plainLyrics, currentTrack, presentedCache)
+    val presentedSynced = presentedLyricsCache?.syncedLyricsLrc?.takeIf { it.isNotBlank() }
+        ?: automaticLookupAcceptedTrackField(currentTrack?.syncedLyrics, currentTrack, presentedCache)
+    val presentedHasTimedLines = remember(presentedSynced) { presentedSynced != null && parseLrcLinesStrict(presentedSynced).isNotEmpty() }
+    val inlineLyricsActions = karaokeInlineLyricsActions(selectedMode, isLoadingLyrics, presentedSynced, presentedPlain, presentedHasTimedLines)
+    val unknownArtistLabel = stringResource(R.string.unknown_artist)
+    // "Wrong lyrics / wrong chords": the track is captured at the tap, so a track change during
+    // the search cannot redirect the result (AGENTS 7.2).
+    var isRejectingContent by remember { mutableStateOf(false) }
+    val rejectContent: (Boolean) -> Unit = { chords ->
+        val track = currentTrack
+        if (track != null && !isRejectingContent) {
+            isRejectingContent = true
+            scope.launch {
+                val rejector = ContentRejector.forDb(db) { LookupNetworkMonitor.usable(context) }
+                val outcome = try {
+                    rejector.reject(track.trackKey, chords)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    isRejectingContent = false
+                    throw e
+                } catch (e: Exception) {
+                    timber.log.Timber.w(e, "Content rejection failed")
+                    null
+                }
+                isRejectingContent = false
+                val (rejected, message) = when (outcome) {
+                    is RejectionOutcome.Replaced -> outcome.rejected to
+                        (if (chords) R.string.wrong_chords_replaced else R.string.wrong_lyrics_replaced)
+                    is RejectionOutcome.NoMoreSources -> outcome.rejected to
+                        (if (chords) R.string.wrong_chords_none else R.string.wrong_lyrics_none)
+                    else -> null to R.string.wrong_content_unavailable
+                }
+                val result = snackbarHostState.showSnackbar(
+                    message = context.getString(message),
+                    actionLabel = rejected?.let { context.getString(R.string.action_undo) },
+                    duration = if (rejected != null) SnackbarDuration.Long else SnackbarDuration.Short
+                )
+                if (rejected != null && result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                    val restored = try { rejector.undo(rejected) } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                        catch (e: Exception) { timber.log.Timber.w(e, "Rejection undo failed"); false }
+                    if (!restored) snackbarHostState.showSnackbar(context.getString(R.string.wrong_content_undo_failed))
+                }
+            }
+        }
+    }
+    val shownCache = lyricsCache?.takeIf { it.trackKey == currentTrack?.trackKey }
     val overflow: @Composable () -> Unit = {
         PlayerContextOverflow(
+                onWrongLyrics = { rejectContent(false) }.takeIf { !isRejectingContent && com.lirix.app.storage.ContentRejection.lyricsSource(shownCache) != null },
+                onWrongChords = { rejectContent(true) }.takeIf { !isRejectingContent && com.lirix.app.storage.ContentRejection.chordsSource(shownCache) != null },
                 mode = selectedMode, trackKey = currentTrack?.trackKey, landscape = isLandscape,
+                inlineEditVisible = inlineLyricsActions.edit,
+                inlineStudioVisible = inlineLyricsActions.studio,
                 onTrackInfo = currentTrack?.let { track -> { infoTrack = track } },
                 isOverlayActive = isOverlayRunning,
                 onEditLyrics = { showEditLyricsDialog = true },
@@ -656,7 +712,7 @@ fun NowPlayingScreen(
                 com.lirix.app.ui.components.LandscapePlayerPanel(
                     modifier = Modifier.width(280.dp),
                     onTrackInfo = { infoTrack = currentTrack },
-                    title = currentTrack.title, artist = currentTrack.artist, albumArtUri = currentTrack.albumArtUri,
+                    title = currentTrack.title, artist = displayArtist(currentTrack.artist, unknownArtistLabel), albumArtUri = currentTrack.albumArtUri,
                     sourceLabel = sourceLabel, isPlaying = isPlaying, isRemotePlaying = isRemotePlaying,
                     selectedMode = selectedMode, onSelectMode = { selectedMode = it }, onBack = onBack,
                     onConnect = { showConnectBottomSheet = true },
@@ -766,7 +822,7 @@ fun NowPlayingScreen(
                     }
 
                     val headerText = if (isCompactPortrait || isFocusMode) {
-                        "${currentTrack.title} — ${currentTrack.artist} ▾"
+                        "${currentTrack.title} — ${displayArtist(currentTrack.artist, unknownArtistLabel)}"
                     } else {
                         stringResource(R.string.player_in_source, sourceLabel)
                     }
@@ -806,7 +862,11 @@ fun NowPlayingScreen(
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        Column(modifier = Modifier.weight(1f).clickable(role = Role.Button, onClickLabel = context.getString(R.string.menu_track_info)) { infoTrack = currentTrack }) {
+                        val shownArtist = displayArtist(currentTrack.artist, unknownArtistLabel)
+                        val trackInfoName = stringResource(R.string.player_track_info_a11y, currentTrack.title, shownArtist)
+                        Column(modifier = Modifier.weight(1f)
+                            .clickable(role = Role.Button, onClickLabel = stringResource(R.string.menu_track_info)) { infoTrack = currentTrack }
+                            .semantics { contentDescription = trackInfoName }) {
                             Text(
                                 text = currentTrack.title,
                                 style = MaterialTheme.typography.titleMedium.copy(
@@ -819,7 +879,7 @@ fun NowPlayingScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "${currentTrack.artist}${if (currentTrack.album.isNotBlank()) ", «${currentTrack.album}»" else ""}",
+                                text = "$shownArtist${if (currentTrack.album.isNotBlank()) ", «${currentTrack.album}»" else ""}",
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                                 color = lirixColors.textSecondary,
                                 maxLines = 1,
@@ -835,23 +895,10 @@ fun NowPlayingScreen(
                             val hasChords = remember(statusCache?.chordsAmDm, statusPlain) {
                                 !statusCache?.chordsAmDm.isNullOrBlank() || !AmDmChordParser.detectAndFormatInlineChords(statusPlain.orEmpty()).isNullOrBlank()
                             }
-                            val statusRes = when (selectedMode) {
-                                NowPlayingMode.NOTES -> null
-                                NowPlayingMode.CHORDS -> when {
-                                    hasChords -> R.string.player_chords_available
-                                    lookupPhase == LookupPhase.Loading -> R.string.player_searching_chords_status
-                                    lookupPhase == LookupPhase.WaitingForNetwork -> R.string.lookup_waiting_network
-                                    else -> R.string.player_chords_lookup_incomplete
-                                }
-                                else -> when {
-                                    lookupPhase == LookupPhase.WaitingForNetwork && (!statusPlain.isNullOrBlank() || hasTimedLines) -> R.string.player_saved_content
-                                    selectedMode == NowPlayingMode.KARAOKE && hasTimedLines -> R.string.lyrics_status_synced
-                                    !statusPlain.isNullOrBlank() || hasTimedLines -> R.string.lyrics_status_static
-                                    lookupPhase == LookupPhase.Loading -> R.string.lyrics_status_searching
-                                    lookupPhase == LookupPhase.WaitingForNetwork -> R.string.lookup_waiting_network
-                                    else -> R.string.lookup_incomplete
-                                }
-                            }
+                            val statusRes = playerHeaderStatus(
+                                selectedMode, hasTimedLines, !statusPlain.isNullOrBlank(), hasChords,
+                                inlineLyricsActions.unsyncedBadge
+                            )
                             if (statusRes != null) Text(
                                 text = stringResource(statusRes),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
@@ -973,24 +1020,34 @@ fun NowPlayingScreen(
                             Spacer(modifier = Modifier.width(8.dp))
 
                             if (totalTrackDuration > 0L) {
-                                Slider(
-                                    value = karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration).toFloat(),
-                                    onValueChange = { newPos ->
-                                        val target = newPos.toLong()
-                                        localPlaybackPositionMs = target
-                                        localPositionAnchorMs = android.os.SystemClock.elapsedRealtime()
-                                        MediaSessionCollector.seekTo(target)
-                                    },
-                                    valueRange = 0f..totalTrackDuration.toFloat(),
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = lirixColors.accentPrimary,
-                                        activeTrackColor = lirixColors.accentPrimary,
-                                        inactiveTrackColor = lirixColors.borderSubtle
-                                    ),
+                                val seekPositionMs = karaokeMediaSeekPosition(playbackPositionMs, syncOffsetMs, totalTrackDuration)
+                                val seekTo: (Long) -> Unit = { target ->
+                                    localPlaybackPositionMs = target
+                                    localPositionAnchorMs = android.os.SystemClock.elapsedRealtime()
+                                    MediaSessionCollector.seekTo(target)
+                                }
+                                // One accessible seek control (TalkBack can adjust it), as in the landscape deck.
+                                Box(
                                     modifier = Modifier
                                         .weight(1f)
                                         .heightIn(min = 48.dp)
-                                )
+                                        .playbackSeekSemantics(seekPositionMs, totalTrackDuration, seekTo),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Slider(
+                                        value = seekPositionMs.toFloat(),
+                                        onValueChange = { newPos -> seekTo(newPos.toLong()) },
+                                        valueRange = 0f..totalTrackDuration.toFloat(),
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = lirixColors.accentPrimary,
+                                            activeTrackColor = lirixColors.accentPrimary,
+                                            inactiveTrackColor = lirixColors.borderSubtle
+                                        ),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clearAndSetSemantics {}
+                                    )
+                                }
                             } else {
                                 Box(
                                     modifier = Modifier
@@ -1015,25 +1072,31 @@ fun NowPlayingScreen(
                     }
                 }
 
-                // 5. Контекстная строка сдвига и размера текста (48dp): только для караоке с синхронизацией
-                AnimatedVisibility(visible = isKaraokeWithLyrics && !isFocusMode && !isHideControlsForNotes) {
+                // 5. Контекстная строка сдвига и размера текста: под трекбаром, над вкладками
+                AnimatedVisibility(
+                    visible = (selectedMode == NowPlayingMode.KARAOKE || selectedMode == NowPlayingMode.LYRICS) &&
+                        !isFocusMode && !isHideControlsForNotes && currentTrack != null
+                ) {
                     FlowRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 48.dp)
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                            .heightIn(min = 44.dp)
+                            .padding(horizontal = 16.dp, vertical = 2.dp),
+                        horizontalArrangement = if (hasSyncedLyrics) Arrangement.SpaceBetween else Arrangement.Center,
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        TimingCorrectionControls(
-                            offsetMs = syncOffsetMs,
-                            onChange = { syncOffsetMs = syncOffsetStore.setOffsetAndGet(currentTrack.trackKey, it) },
-                            onDetails = { showCalibrationDialog = true }
+                        TextSizeControls(
+                            scale = textScaleFactor,
+                            onChange = { textScaleFactor = it }
                         )
 
-                        com.lirix.app.ui.components.TextSizeControls(
-                            scale = textScaleFactor, onChange = { textScaleFactor = it }
-                        )
+                        if (hasSyncedLyrics) {
+                            TimingCorrectionControls(
+                                offsetMs = syncOffsetMs,
+                                onChange = { syncOffsetMs = syncOffsetStore.setOffsetAndGet(currentTrack.trackKey, it) },
+                                onDetails = { showCalibrationDialog = true }
+                            )
+                        }
                     }
                 }
 
@@ -1108,7 +1171,10 @@ fun NowPlayingScreen(
                 onResetOffset = {
                     syncOffsetMs = syncOffsetStore.setOffsetAndGet(track.trackKey, 0L)
                 },
-                onDismissRequest = { showCalibrationDialog = false }
+                onDismissRequest = { showCalibrationDialog = false },
+                textScale = textScaleFactor,
+                onTextScaleChange = { textScaleFactor = it },
+                showTiming = hasSyncedLyrics
             )
         }
 
@@ -1420,11 +1486,14 @@ internal fun RenderTeleprompterContent(
                 val context = LocalContext.current
                 val database = remember(context) { AppDatabase.getInstance(context) }
                 val provider = remember { com.lirix.app.translations.SongTranslationProviders() }
+                val machineFallback = remember(context) { com.lirix.app.translations.TranslationRuntime.create(context) }
                 Column(Modifier.fillMaxSize()) {
                     com.lirix.app.translations.TranslationPanel(currentTrack.trackKey, "${currentTrack.artist} — ${currentTrack.title}",
                         effectivePlain ?: effectiveSynced?.let { LrcSyncEngine.parseLrcLinesStrict(it).joinToString("\n") { line -> line.text } }.orEmpty(),
                         database.songTranslationDao(), provider::load, Modifier.weight(1f), automaticTranslations, currentTrack.title, currentTrack.artist,
                         compact = true, settingsExpanded = showTranslationSettings, onDismissSettings = onDismissTranslationSettings,
+                        machineFallback = machineFallback,
+                        machineAttribution = { com.lirix.app.translations.TranslationRuntime.Attribution() },
                         originalLineContent = if (romanizationMode == RomanizationDisplayMode.ORIGINAL_ONLY) null else { raw ->
                             RomanizedKaraokeLine(raw, romanizationMode, reading = readingResults[raw],
                                 fontFamily = LiterataFontFamily, fontSize = (18 * fontScale).sp)

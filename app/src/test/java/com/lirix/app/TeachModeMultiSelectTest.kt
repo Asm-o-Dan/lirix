@@ -90,6 +90,12 @@ class TeachModeMultiSelectTest {
             name = "Composite Source",
             ruleJson = """
                 {
+                    "schemaVersion": 2,
+                    "status": "ACTIVE",
+                    "search": {
+                        "urlTemplate": "https://composite-lyrics.ru/search?q={query}",
+                        "resultListSelector": "a.result"
+                    },
                     "content": {
                         "selector": "div.verse, div.chorus",
                         "stripSelectors": ["span.note"]
@@ -121,14 +127,28 @@ class TeachModeMultiSelectTest {
             sourcePackage = "com.spotify.music"
         )
 
-        val provider = CustomRuleLyricsProvider(ruleEntity, httpGet = { pageHtml })
+        val songUrl = "https://composite-lyrics.ru/band/composite-song"
+        val requests = mutableListOf<String>()
+        val provider = CustomRuleLyricsProvider(ruleEntity, httpGet = { url ->
+            requests += url
+            when {
+                url.startsWith("https://composite-lyrics.ru/search?q=") ->
+                    "<html><body><a class='result' href='$songUrl'>Band — Composite Song</a></body></html>"
+                url == songUrl -> pageHtml
+                else -> error("Unexpected fixture request: $url")
+            }
+        })
 
         val result = provider.getLyrics(track)
 
+        assertEquals(2, requests.size)
+        assertEquals(songUrl, requests[1])
         assertTrue("Provider should successfully extract lyrics", result.hasLyrics)
         assertNotNull(result.plainLyrics)
         val text = result.plainLyrics!!
 
+        assertEquals(listOf("Первый куплет песни звучит здесь.", "Слова первого куплета.",
+            "Это громкий припев песни!", "Поём его вместе."), text.lines().map { it.trim() }.filter { it.isNotBlank() })
         assertTrue("Must contain verse content", text.contains("Первый куплет песни звучит здесь."))
         assertTrue("Must contain chorus content", text.contains("Это громкий припев песни!"))
         assertTrue("Must strip unwanted span.note", !text.contains("Интро 4 такта"))
