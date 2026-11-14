@@ -10,6 +10,7 @@ import com.lirix.app.storage.blacklist.BlacklistRuleEntity
 
 /**
  * Room Multiplatform Database for Music & Lyrics Hub.
+ * Version 15: Remembers explicit user favorite choices and seeds built-in messenger blacklist rules.
  * Version 14: Adds optional lyrics/chord attribution; version 13 listening intervals remain intact.
  * Spec: TASK-KMP-06 / SPEC-BLK-01 / ADR-020
  */
@@ -24,7 +25,7 @@ import com.lirix.app.storage.blacklist.BlacklistRuleEntity
         BlacklistRuleEntity::class,
         com.lirix.app.translations.SongTranslationEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

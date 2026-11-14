@@ -6,6 +6,14 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
+val AppDatabase.Companion.MIGRATION_14_15: Migration
+    get() = object : Migration(14, 15) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(Schema15.ADD_FAVORITE_USER_SET_AT)
+            Schema15.seedMessengerRulesSql(System.currentTimeMillis()).forEach(db::execSQL)
+        }
+    }
+
 val AppDatabase.Companion.MIGRATION_13_14: Migration
     get() = object : Migration(13, 14) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -277,12 +285,14 @@ fun getAppDatabaseBuilder(context: Context): RoomDatabase.Builder<AppDatabase> {
             AppDatabase.MIGRATION_11_12,
             AppDatabase.MIGRATION_12_13,
             AppDatabase.MIGRATION_13_14,
-            AppDatabase.MIGRATION_12_14
+            AppDatabase.MIGRATION_12_14,
+            AppDatabase.MIGRATION_14_15
         )
         .addCallback(object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
                 AppDatabase.seed26Achievements(db)
+                Schema15.seedMessengerRulesSql(System.currentTimeMillis()).forEach(db::execSQL)
             }
         })
 }

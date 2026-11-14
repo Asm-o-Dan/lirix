@@ -36,7 +36,9 @@ object DesktopRuleBundles {
             val uri = java.net.URI(template.replace("{query}", "test").replace("{artist}", "test").replace("{title}", "test"))
             require(uri.scheme in setOf("http", "https") && uri.host?.removePrefix("www.") == domain.removePrefix("www.") && uri.userInfo == null) { "Поиск должен оставаться на домене правила" }
         }
-        return CustomLyricsRuleEntity(root["id"]?.jsonPrimitive?.contentOrNull ?: java.util.UUID.randomUUID().toString(), domain,
-            root["name"]!!.jsonPrimitive.content, root.toString(), author = root["meta"]?.jsonObject?.get("author")?.jsonPrimitive?.contentOrNull ?: "local")
+        // Untrusted file: a fresh id never replaces an existing rule, and the rule stays off until
+        // the user turns it on in the source list.
+        return CustomLyricsRuleEntity(java.util.UUID.randomUUID().toString(), domain,
+            root["name"]!!.jsonPrimitive.content, root.toString(), isEnabled = false, author = root["meta"]?.jsonObject?.get("author")?.jsonPrimitive?.contentOrNull ?: "local")
     }
 }

@@ -32,6 +32,20 @@ val MIGRATION_12_14 = object : Migration(12, 14) {
     }
 }
 
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(Schema15.ADD_FAVORITE_USER_SET_AT)
+        Schema15.seedMessengerRulesSql(System.currentTimeMillis()).forEach(connection::execSQL)
+    }
+}
+
+/** Fresh databases get the same built-in rules that the 14→15 migration adds. */
+val SEED_BUILTIN_RULES_CALLBACK = object : RoomDatabase.Callback() {
+    override fun onCreate(connection: SQLiteConnection) {
+        Schema15.seedMessengerRulesSql(System.currentTimeMillis()).forEach(connection::execSQL)
+    }
+}
+
 fun getDesktopDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
     val appData = System.getenv("APPDATA") ?: System.getProperty("user.home")
     val lirixDir = File(appData, "Lirix")
@@ -43,7 +57,8 @@ fun getDesktopDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
         name = dbFile.absolutePath
     )
         .setDriver(BundledSQLiteDriver())
-        .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_12_14)
+        .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_12_14, MIGRATION_14_15)
+        .addCallback(SEED_BUILTIN_RULES_CALLBACK)
 }
 
 fun createDesktopDatabase(): AppDatabase {

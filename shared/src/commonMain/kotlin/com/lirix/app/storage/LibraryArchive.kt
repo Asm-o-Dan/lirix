@@ -48,6 +48,19 @@ object LibraryArchives {
     private const val NOTES_SEPARATOR = "\n\n── С другого устройства ──\n"
     fun mergeNotes(local: String, incoming: String): String = (local.split(NOTES_SEPARATOR) + incoming.split(NOTES_SEPARATOR))
         .filter { it.isNotBlank() }.distinct().joinToString(NOTES_SEPARATOR)
+    /** The newest explicit user choice wins; without one, the automatic union is kept (SPEC-MEDIA-FAV-01 D3). */
+    internal fun mergeFavorite(local: TrackEntity?, incoming: TrackEntity): Pair<Boolean, Long?> {
+        if (local == null) return incoming.isFavorite to incoming.favoriteUserSetAt
+        val localAt = local.favoriteUserSetAt
+        val incomingAt = incoming.favoriteUserSetAt
+        return when {
+            localAt != null && incomingAt != null ->
+                if (incomingAt > localAt) incoming.isFavorite to incomingAt else local.isFavorite to localAt
+            localAt != null -> local.isFavorite to localAt
+            incomingAt != null -> incoming.isFavorite to incomingAt
+            else -> (local.isFavorite || incoming.isFavorite) to null
+        }
+    }
     private fun identity(session: ListeningSessionEntity) = Triple(session.trackKey, session.sourcePackage, session.startTimeMs)
 
     fun plan(local: LibrarySnapshot, incoming: LibrarySnapshot, preferIncomingLyrics: Boolean = false): LibraryMergePlan {
@@ -76,8 +89,9 @@ object LibraryArchives {
         var newTracks = 0; var updated = 0
         for (track in incoming.tracks) {
             val old = tracks[track.trackKey]
+            val favorite = mergeFavorite(old, track)
             val merged = if (old == null) { newTracks++; track } else old.copy(
-                isFavorite = old.isFavorite || track.isFavorite, userNotes = mergeNotes(old.userNotes, track.userNotes),
+                isFavorite = favorite.first, favoriteUserSetAt = favorite.second, userNotes = mergeNotes(old.userNotes, track.userNotes),
                 playCount = maxOf(old.playCount, track.playCount), totalDurationMs = maxOf(old.totalDurationMs, track.totalDurationMs),
                 firstPlayedAt = minOf(old.firstPlayedAt, track.firstPlayedAt), lastPlayedAt = maxOf(old.lastPlayedAt, track.lastPlayedAt),
                 plainLyrics = if (preferIncomingLyrics) track.plainLyrics ?: old.plainLyrics else old.plainLyrics ?: track.plainLyrics,

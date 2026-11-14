@@ -12,6 +12,7 @@ import com.lirix.app.feature.lyrics.AmDmChordParser
 import com.lirix.app.feature.lyrics.LrcSyncEngine
 import com.lirix.app.feature.lyrics.MyChordsParser
 import com.lirix.app.feature.music.MusicTrackParser
+import com.lirix.app.feature.lyrics.AutomaticLookupEligibility
 import com.lirix.app.platform.logDebug
 import com.lirix.app.platform.logError
 import com.lirix.app.platform.logInfo
@@ -134,6 +135,12 @@ class DesktopLyricsService(
                         if (isCurrent()) _lyricsState.value = it
                         return@launch
                     }
+                }
+                // "09 / Unknown Artist" cannot identify a song: no automatic guess (AGENTS 7.4, same rule as Android).
+                if (!AutomaticLookupEligibility.isEligible(cleanTitle, cleanArtist)) {
+                    _lyricsState.value = DesktopLyricsState(trackKey = trackKey, displayTitle = cleanTitle,
+                        displayArtist = cleanArtist, errorMessage = "Недостаточно данных для автоматического поиска текста")
+                    return@launch
                 }
 
                 // Save first; a cancelled/stale write must never populate a later cache hit.

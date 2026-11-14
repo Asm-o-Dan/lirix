@@ -23,6 +23,7 @@ typealias MusicListeningSessionEntity = ListeningSessionEntity
     ]
 )
 @Serializable
+@OptIn(ExperimentalSerializationApi::class)
 data class TrackEntity(
     @PrimaryKey
     val trackKey: String,
@@ -35,10 +36,14 @@ data class TrackEntity(
     val firstPlayedAt: Long = System.currentTimeMillis(),
     val lastPlayedAt: Long = System.currentTimeMillis(),
     val userNotes: String = "",       // Local offline user notes to the song
-    val isFavorite: Boolean = false,  // playCount >= 5 or totalDurationMs >= 15 minutes
+    val isFavorite: Boolean = false,  // Effective value; automatic rule applies only while favoriteUserSetAt is null
     val syncedLyrics: String? = null, // Текст с таймкодами караоке [01:23.45]
     val plainLyrics: String? = null,  // Чистый текст песни
-    val albumArtUri: String? = null   // Новый столбец Room v7
+    val albumArtUri: String? = null,  // Новый столбец Room v7
+    // Room v15: time of the last explicit user favorite choice; null means automatic rules may add it.
+    @ColumnInfo(defaultValue = "NULL")
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val favoriteUserSetAt: Long? = null
 )
 
 /**

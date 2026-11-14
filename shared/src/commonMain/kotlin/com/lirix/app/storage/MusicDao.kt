@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface MusicDao {
 
-    @Query("UPDATE music_tracks SET totalDurationMs = totalDurationMs + :deltaMs, lastPlayedAt = MAX(lastPlayedAt, :timestamp), isFavorite = CASE WHEN totalDurationMs + :deltaMs >= 900000 THEN 1 ELSE isFavorite END WHERE trackKey = :trackKey")
+    @Query("UPDATE music_tracks SET totalDurationMs = totalDurationMs + :deltaMs, lastPlayedAt = MAX(lastPlayedAt, :timestamp), isFavorite = CASE WHEN favoriteUserSetAt IS NULL AND totalDurationMs + :deltaMs >= 900000 THEN 1 ELSE isFavorite END WHERE trackKey = :trackKey")
     suspend fun addListeningCredit(trackKey: String, deltaMs: Long, timestamp: Long)
 
     @Transaction
@@ -32,6 +32,10 @@ interface MusicDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateTrack(track: TrackEntity)
+
+    /** Tracks with this title and artist under any album or player (the key also includes the album). */
+    @Query("SELECT * FROM music_tracks WHERE title = :title COLLATE NOCASE AND artist = :artist COLLATE NOCASE LIMIT 8")
+    suspend fun getTracksByTitleAndArtist(title: String, artist: String): List<TrackEntity>
 
     @Query("SELECT * FROM music_tracks WHERE trackKey = :trackKey LIMIT 1")
     suspend fun getTrackByKey(trackKey: String): TrackEntity?
@@ -57,18 +61,26 @@ interface MusicDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertTrackIfMissing(track: TrackEntity)
 
-    @Query("UPDATE music_tracks SET isFavorite = CASE WHEN isFavorite = 1 THEN 0 ELSE 1 END WHERE trackKey = :trackKey")
-    suspend fun invertFavorite(trackKey: String)
+    @Query("UPDATE music_tracks SET isFavorite = CASE WHEN isFavorite = 1 THEN 0 ELSE 1 END, favoriteUserSetAt = :userSetAt WHERE trackKey = :trackKey")
+    suspend fun invertFavoriteByUser(trackKey: String, userSetAt: Long)
 
+    /** Explicit user toggle of an existing track (library row and action sheet). */
+    suspend fun invertFavorite(trackKey: String) = invertFavoriteByUser(trackKey, System.currentTimeMillis())
+
+    /** Explicit user toggle. The choice is remembered so automatic rules never override it. */
     @Transaction
     suspend fun toggleFavorite(track: TrackEntity): Boolean {
-        insertTrackIfMissing(track.copy(isFavorite = false))
-        invertFavorite(track.trackKey)
+        insertTrackIfMissing(track.copy(isFavorite = false, favoriteUserSetAt = null))
+        invertFavoriteByUser(track.trackKey, System.currentTimeMillis())
         return getTrackByKey(track.trackKey)?.isFavorite == true
     }
 
-    @Query("UPDATE music_tracks SET isFavorite = :favorite WHERE trackKey = :trackKey")
-    suspend fun setFavorite(trackKey: String, favorite: Boolean)
+    @Query("UPDATE music_tracks SET isFavorite = :favorite, favoriteUserSetAt = :userSetAt WHERE trackKey = :trackKey")
+    suspend fun setFavoriteByUser(trackKey: String, favorite: Boolean, userSetAt: Long)
+
+    /** Explicit user choice. The choice is remembered so automatic rules never override it. */
+    suspend fun setFavorite(trackKey: String, favorite: Boolean) =
+        setFavoriteByUser(trackKey, favorite, System.currentTimeMillis())
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSession(session: ListeningSessionEntity): Long
@@ -99,6 +111,13 @@ interface MusicDao {
 
     @Query("DELETE FROM music_listening_sessions WHERE trackKey IN (:trackKeys)")
     suspend fun deleteSessionsByTrackKeys(trackKeys: List<String>): Int
+
+    @Query("SELECT * FROM music_listening_sessions WHERE trackKey IN (:trackKeys)")
+    suspend fun getSessionsByTrackKeys(trackKeys: List<String>): List<ListeningSessionEntity>
+
+    /** Restores removed sessions with their original ids; an id taken meanwhile is left untouched. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun restoreSessions(sessions: List<ListeningSessionEntity>): List<Long>
 
     @Query("DELETE FROM music_tracks")
     suspend fun clearAllTracks()

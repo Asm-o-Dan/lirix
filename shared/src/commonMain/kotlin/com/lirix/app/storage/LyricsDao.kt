@@ -17,6 +17,9 @@ interface LyricsDao {
     @Query("SELECT * FROM lyrics_cache")
     suspend fun getAllLyrics(): List<LyricsCacheEntity>
 
+    @Query("SELECT * FROM lyrics_cache")
+    fun observeAllLyrics(): Flow<List<LyricsCacheEntity>>
+
     @Query("SELECT * FROM lyrics_rejections")
     suspend fun getAllRejections(): List<LyricsRejectionEntity>
 
@@ -65,7 +68,7 @@ interface LyricsDao {
             ?: automaticLookupAcceptedTrackField(track.syncedLyrics, track, old)
         val plain = candidate.plain?.takeIf { oldPlain == null && it.authorized(rejected) }
         val synced = candidate.synced?.takeIf { oldSynced == null && it.authorized(rejected) }
-        val chords = candidate.chords?.takeIf { old?.chordsAmDm.isNullOrBlank() && it.authorized(rejected) }
+        val chords = candidate.chords?.takeIf { old?.chordsAmDm.isNullOrBlank() && it.authorized(ContentRejection.forChords(rejected)) }
         if (plain == null && synced == null && chords == null) return old
         // A newly filled sync field cannot reattribute an already retained plain lyric.
         val lyricOrigin = (plain ?: synced).takeIf { noteFallback || oldPlain == null && oldSynced == null }
@@ -90,6 +93,65 @@ interface LyricsDao {
 
     @Query("DELETE FROM lyrics_cache WHERE trackKey = :trackKey")
     suspend fun deleteCachedLyrics(trackKey: String): Int
+
+    /**
+     * "Wrong lyrics": the rejection is stored first, then only the automatically found words are
+     * removed (chords and notes stay). Returns null when there is nothing automatic to reject;
+     * the user's own text is never touched (AGENTS 7.1).
+     */
+    @Transaction
+    suspend fun rejectAutomaticLyrics(trackKey: String, now: Long): RejectedContent? {
+        val cache = getLyrics(trackKey)
+        val source = ContentRejection.lyricsSource(cache) ?: return null
+        val track = getAutomaticLookupTrack(trackKey)
+        insertRejection(LyricsRejectionEntity(trackKey, source, now))
+        val attribution = LyricsAttribution.decode(cache!!.sourceAttributionJson)
+        saveLyrics(cache.copy(plainLyrics = null, syncedLyricsLrc = null, provider = "none", updatedAt = now,
+            sourceAttributionJson = attribution.copy(lyrics = null).encode()))
+        updateAutomaticTrackLyrics(trackKey, null, null)
+        return RejectedContent(trackKey, false, source, source, cache, track?.plainLyrics, track?.syncedLyrics)
+    }
+
+    /** "Wrong chords": the same for chords only; the words and their source are not affected. */
+    @Transaction
+    suspend fun rejectAutomaticChords(trackKey: String, now: Long): RejectedContent? {
+        val cache = getLyrics(trackKey)
+        val source = ContentRejection.chordsSource(cache) ?: return null
+        val stored = ContentRejection.CHORDS_PREFIX + source
+        insertRejection(LyricsRejectionEntity(trackKey, stored, now))
+        val attribution = LyricsAttribution.decode(cache!!.sourceAttributionJson)
+        saveLyrics(cache.copy(chordsAmDm = null, updatedAt = now, sourceAttributionJson = attribution.copy(chords = null).encode()))
+        return RejectedContent(trackKey, true, source, stored, cache, null, null)
+    }
+
+    /**
+     * Undo of a rejection: the source is allowed again and the removed content returns, unless
+     * the user has entered their own content in the meantime. Returns whether it was restored.
+     */
+    @Transaction
+    suspend fun undoContentRejection(rejected: RejectedContent): Boolean {
+        deleteRejection(rejected.trackKey, rejected.storedSourceId)
+        val current = getLyrics(rejected.trackKey)
+        val previous = rejected.previousCache
+        val currentAttribution = LyricsAttribution.decode(current?.sourceAttributionJson)
+        val previousAttribution = LyricsAttribution.decode(previous.sourceAttributionJson)
+        if (rejected.chords) {
+            if (isManualLyricsProvider(currentAttribution.chords?.sourceId)) return false
+            val base = current ?: previous.copy(plainLyrics = null, syncedLyricsLrc = null)
+            saveLyrics(base.copy(chordsAmDm = previous.chordsAmDm,
+                sourceAttributionJson = currentAttribution.copy(chords = previousAttribution.chords).encode()))
+            return true
+        }
+        if (isManualLyricsProvider(current?.provider)) return false
+        // Chords and notes may have changed since the rejection: keep the current ones.
+        saveLyrics(previous.copy(
+            chordsAmDm = if (current != null) current.chordsAmDm else previous.chordsAmDm,
+            userNotes = current?.userNotes ?: previous.userNotes,
+            sourceAttributionJson = previousAttribution.copy(
+                chords = if (current != null) currentAttribution.chords else previousAttribution.chords).encode()))
+        updateAutomaticTrackLyrics(rejected.trackKey, rejected.previousTrackPlain, rejected.previousTrackSynced)
+        return true
+    }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRejection(rejection: LyricsRejectionEntity)

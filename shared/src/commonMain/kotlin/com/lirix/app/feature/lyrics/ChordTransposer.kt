@@ -58,6 +58,20 @@ object ChordTransposer {
         return ParsedChord(raw.substring(0, start), root, suffix, bass, raw.substring(end))
     }
 
+    /** Canonical spelling for exact search; chord quality and slash bass remain significant. */
+    fun searchToken(raw: String): String? {
+        val chord = parseChordToken(raw) ?: return null
+        fun note(value: String) = value.first().uppercaseChar() + value.drop(1).replace('♯', '#').replace('♭', 'b')
+        return note(chord.root) + chord.suffix + (chord.bass?.let { "/" + note(it) } ?: "")
+    }
+
+    fun searchTokens(text: String): List<String> = text.lineSequence().flatMap { line ->
+        if (isChordLine(line)) {
+            val content = line.substring(header.find(line)?.range?.last?.plus(1) ?: 0)
+            tokens.findAll(content).mapNotNull { searchToken(it.value) }
+        } else inlineChord.findAll(line).mapNotNull { searchToken(it.value) }
+    }.toList()
+
     fun transposeChord(chord: String, semitones: Int): String {
         if (semitones.mod(12) == 0) return chord
         val parsed = parseChordToken(chord) ?: return chord
