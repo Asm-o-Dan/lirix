@@ -86,6 +86,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -323,6 +326,14 @@ fun LibraryScreen(
                             onClick = { showLibraryTools = false; showRemovedTracks = true })
                         DropdownMenuItem(text = { Text(stringResource(R.string.library_blacklist_button)) },
                             onClick = { showLibraryTools = false; onOpenBlacklistSettings() })
+                        HorizontalDivider()
+                        // Same destination as the player's "⋮" menu, so Settings is reachable from both main tabs.
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.settings_title)) },
+                            leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                            onClick = { showLibraryTools = false; com.lirix.app.ui.settings.SettingsActivity.open(context) },
+                            modifier = Modifier.testTag("library-menu-settings")
+                        )
                     }
                 }
 
