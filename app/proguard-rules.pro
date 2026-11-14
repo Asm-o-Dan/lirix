@@ -14,3 +14,6 @@
     public static int v(...);
     public static int d(...);
 }
+# Private translation JNI names and ONNX Runtime native entry points.
+-keep class com.lirix.app.translations.SentencePieceProcessor { *; }
+-keep class ai.onnxruntime.** { *; }

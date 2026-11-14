@@ -32,6 +32,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Lirix"
         android:localeConfig="@xml/locales_config">
+        <meta-data android:name="com.lirix.translation.variant" android:value="${translationVariant}" />
 
         <activity
             android:name=".MainActivity"

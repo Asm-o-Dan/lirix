@@ -29,18 +29,24 @@ class GitHubUpdatesTest {
         fun info(name: String, code: Int, signer: String) = android.content.pm.PackageInfo().apply {
             packageName = name; versionCode = code
             signatures = arrayOf(android.content.pm.Signature(signer.toByteArray()))
+            applicationInfo = android.content.pm.ApplicationInfo().apply {
+                metaData = android.os.Bundle().apply { putString("com.lirix.translation.variant", com.lirix.app.BuildConfig.TRANSLATION_VARIANT) }
+            }
         }
         val installed = info("com.lirix.app", 19, "permanent")
         val file = java.io.File("candidate.apk")
-        org.mockito.Mockito.`when`(pm.getPackageInfo("com.lirix.app", android.content.pm.PackageManager.GET_SIGNATURES)).thenReturn(installed)
+        org.mockito.Mockito.`when`(pm.getPackageInfo("com.lirix.app", (android.content.pm.PackageManager.GET_SIGNATURES or android.content.pm.PackageManager.GET_META_DATA))).thenReturn(installed)
         for (bad in listOf(info("evil.package", 20, "permanent"), info("com.lirix.app", 19, "permanent"),
-            info("com.lirix.app", 18, "permanent"), info("com.lirix.app", 20, "other-key"))) {
-            org.mockito.Mockito.`when`(pm.getPackageArchiveInfo(file.absolutePath, android.content.pm.PackageManager.GET_SIGNATURES)).thenReturn(bad)
+            info("com.lirix.app", 18, "permanent"), info("com.lirix.app", 20, "other-key"),
+            info("com.lirix.app", 20, "permanent").apply { applicationInfo!!.metaData = null },
+            info("com.lirix.app", 20, "permanent").apply { applicationInfo!!.metaData!!.putString("com.lirix.translation.variant", "unknown") },
+            info("com.lirix.app", 20, "permanent").apply { applicationInfo!!.metaData!!.putString("com.lirix.translation.variant", if (com.lirix.app.BuildConfig.TRANSLATION_VARIANT == "private") "compact" else "private") })) {
+            org.mockito.Mockito.`when`(pm.getPackageArchiveInfo(file.absolutePath, (android.content.pm.PackageManager.GET_SIGNATURES or android.content.pm.PackageManager.GET_META_DATA))).thenReturn(bad)
             var rejected = false
             try { GitHubUpdates.verify(context, file) } catch (_: IllegalStateException) { rejected = true }
             assertTrue(rejected)
         }
-        org.mockito.Mockito.`when`(pm.getPackageArchiveInfo(file.absolutePath, android.content.pm.PackageManager.GET_SIGNATURES))
+        org.mockito.Mockito.`when`(pm.getPackageArchiveInfo(file.absolutePath, (android.content.pm.PackageManager.GET_SIGNATURES or android.content.pm.PackageManager.GET_META_DATA)))
             .thenReturn(info("com.lirix.app", 20, "permanent"))
         GitHubUpdates.verify(context, file)
     }
@@ -75,10 +81,10 @@ class GitHubUpdatesTest {
         assertEquals(65536, output.size())
     }
     private fun release(tag: String = "v1.6.0", prerelease: Boolean = false, draft: Boolean = false,
-                        url: String = "https://github.com/Asm-o-Dan/lirix/releases/download/$tag/lirix.apk",
+                        url: String = "https://github.com/Asm-o-Dan/lirix/releases/download/$tag/lirix-$tag-private.apk",
                         digest: String = "sha256:" + "a".repeat(64), copies: Int = 1): JSONObject {
         val assets = JSONArray()
-        repeat(copies) { assets.put(JSONObject().put("name", "lirix$it.apk").put("state", "uploaded")
+        repeat(copies) { assets.put(JSONObject().put("name", "lirix-$tag-private.apk").put("state", "uploaded")
             .put("size", 19116225).put("browser_download_url", url).put("digest", digest)) }
         return JSONObject().put("tag_name", tag).put("prerelease", prerelease).put("draft", draft).put("assets", assets)
     }
@@ -106,4 +112,22 @@ class GitHubUpdatesTest {
             assertNull(GitHubUpdates.select(JSONArray().put(bad).toString(), "1.5.1"))
         }
     }
+    @Test fun eachVariantOnlyReceivesItsOwnExactAssetAndNeverGuessesLegacyOrOpposite() {
+        val both = release()
+        val compact = JSONObject(both.getJSONArray("assets").getJSONObject(0).toString())
+            .put("name", "lirix-v1.6.0-compact.apk")
+            .put("browser_download_url", "https://github.com/Asm-o-Dan/lirix/releases/download/v1.6.0/lirix-v1.6.0-compact.apk")
+        both.getJSONArray("assets").put(compact)
+        val json = JSONArray().put(both).toString()
+        assertTrue(GitHubUpdates.select(json, "1.5.1", "private")!!.url.endsWith("-private.apk"))
+        assertTrue(GitHubUpdates.select(json, "1.5.1", "compact")!!.url.endsWith("-compact.apk"))
+        assertNull(GitHubUpdates.select(json, "1.5.1", "other"))
+        assertNull(GitHubUpdates.select(JSONArray().put(release()).toString(), "1.5.1", "compact"))
+        for (name in listOf("lirix-v1.6.0.apk", "lirix-v1.6.0-compact.apk", "lirix-v1.6.0-private-debug.apk")) {
+            val misleading = release()
+            misleading.getJSONArray("assets").getJSONObject(0).put("name", name)
+            assertNull(GitHubUpdates.select(JSONArray().put(misleading).toString(), "1.5.1", "private"))
+        }
+    }
+
 }

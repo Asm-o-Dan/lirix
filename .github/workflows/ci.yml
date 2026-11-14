@@ -28,14 +28,19 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Install private translation native toolchain
+        run: sdkmanager "ndk;26.1.10909125" "cmake;3.22.1"
+
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --no-daemon
+        run: ./gradlew :app:testPrivateDebugUnitTest :app:testCompactDebugUnitTest --no-daemon
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew :app:assemblePrivateDebug :app:assembleCompactDebug --no-daemon
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: lirix-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            app/build/outputs/apk/private/debug/app-private-debug.apk
+            app/build/outputs/apk/compact/debug/app-compact-debug.apk

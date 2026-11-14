@@ -8,13 +8,36 @@ plugins {
 android {
     namespace = "com.lirix.app"
     compileSdk = 35
+    ndkVersion = "26.1.10909125"
+    flavorDimensions += "translation"
+    productFlavors {
+        create("private") {
+            dimension = "translation"
+            buildConfigField("String", "TRANSLATION_VARIANT", "\"private\"")
+            manifestPlaceholders["translationVariant"] = "private"
+            externalNativeBuild.cmake {
+                arguments += "-DLIRIX_PRIVATE=ON"
+                targets += "lirix_sentencepiece"
+            }
+        }
+        create("compact") {
+            dimension = "translation"
+            buildConfigField("String", "TRANSLATION_VARIANT", "\"compact\"")
+            manifestPlaceholders["translationVariant"] = "compact"
+            externalNativeBuild.cmake.arguments += "-DLIRIX_PRIVATE=OFF"
+        }
+    }
+    externalNativeBuild.cmake {
+        path = file("src/private/cpp/CMakeLists.txt")
+        version = "3.22.1"
+    }
 
     defaultConfig {
         applicationId = "com.lirix.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.5.1"
+        versionCode = 20
+        versionName = "1.5.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -61,7 +84,15 @@ android {
         debug {
             isMinifyEnabled = false
         }
+        // Instrumented tests install and then uninstall the app they test. A separate package keeps
+        // them away from the user's installed com.lirix.app and its data (incident 2026-11-01).
+        create("uitest") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".uitest"
+            matchingFallbacks += listOf("debug")
+        }
     }
+    testBuildType = "uitest"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -78,6 +109,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     testOptions {
@@ -88,10 +120,13 @@ android {
     }
 
     sourceSets.getByName("androidTest").assets.srcDir("src/test/resources/fixtures")
+    // The test build type shares the debug-only Compose test host.
+    sourceSets.getByName("uitest").manifest.srcFile("src/debug/AndroidManifest.xml")
 
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += setOf("/README.md", "README.md", "**/README.md")
             // Both Kuromoji artifacts carry notices; preserve all text in the APK.
             merges += setOf("META-INF/LICENSE.md", "META-INF/CONTRIBUTORS.md")
         }
@@ -125,8 +160,24 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
 
+    // On-device translation; language models are downloaded separately after opt-in.
+    "compactImplementation"("com.google.mlkit:translate:17.0.3")
+    "compactImplementation"("com.google.mlkit:language-id:17.0.6")
+
+    "privateImplementation"("com.microsoft.onnxruntime:onnxruntime-android:1.23.2") {
+        version { strictly("1.23.2") }
+    }
+    "privateImplementation"("com.optimaize.languagedetector:language-detector:0.6") {
+        exclude(group = "com.intellij", module = "annotations")
+    }
+    // Full Guava supplies the same interface; keep AndroidX's extraction artifact empty.
+    "privateImplementation"("com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava")
+
     // Logging
     implementation(libs.timber)
+
+    // DOM Parser for Lyrics Rules
+    implementation("org.jsoup:jsoup:1.23.2")
 
     // QR & Barcode (ZXing)
     implementation("com.google.zxing:core:3.5.3")
@@ -155,3 +206,42 @@ dependencies {
 }
 
 
+
+dependencies {
+    // The instrumented-test build type needs the same debug-only Compose helpers.
+    "uitestImplementation"(libs.androidx.ui.tooling)
+    "uitestImplementation"(libs.androidx.ui.test.manifest)
+}
+
+// Instrumented tests also change device state (locale, foreground activity). They run on an
+// emulator; a physical phone needs an explicit -Plirix.allowPhysicalDevice=true.
+val allowPhysicalDevice = providers.gradleProperty("lirix.allowPhysicalDevice").map { it.toBoolean() }.orElse(false)
+val adbExecutable = androidComponents.sdkComponents.adb
+tasks.matching { it.name.startsWith("connected") && it.name.endsWith("AndroidTest") }.configureEach {
+    val allowed = allowPhysicalDevice
+    val adb = adbExecutable
+    doFirst {
+        if (allowed.get()) return@doFirst
+        val adbPath = adb.get().asFile.absolutePath
+        fun run(vararg args: String): String {
+            val process = ProcessBuilder(adbPath, *args).redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().readText()
+            process.waitFor()
+            return output
+        }
+        val serials = run("devices").lines().drop(1)
+            .map { it.trim().split(Regex("[ \t]+")) }
+            .filter { it.size >= 2 && it[1] == "device" }
+            .map { it[0] }
+        val physical = serials.filterNot { serial ->
+            val props = run("-s", serial, "shell", "getprop ro.kernel.qemu; getprop ro.boot.qemu; getprop ro.hardware")
+            props.lines().map { it.trim() }.any { it == "1" || it == "ranchu" || it == "goldfish" }
+        }
+        if (physical.isNotEmpty()) {
+            throw GradleException(
+                "Instrumented tests are blocked on physical devices ${physical.joinToString()}. " +
+                    "Run them on an emulator, or pass -Plirix.allowPhysicalDevice=true for a test phone without personal data."
+            )
+        }
+    }
+}

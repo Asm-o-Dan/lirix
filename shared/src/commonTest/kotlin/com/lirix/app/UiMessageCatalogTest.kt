@@ -24,6 +24,13 @@ class UiMessageCatalogTest {
             assertEquals("Треков: 12", LirixStrings.message("Треков: {0}", 12))
         } finally { LirixStrings.currentLanguage = InterfaceLanguage.EN }
     }
+    @Test fun translationSourceErrorsHaveEnglishTextIncludingHttpStatus() {
+        assertEquals("The Lyrsense source did not respond in time", UiMessageCatalog.text("Источник Lyrsense не ответил вовремя", InterfaceLanguage.EN))
+        assertEquals("The source is unavailable (HTTP 503)", UiMessageCatalog.text("Источник недоступен (HTTP 503)", InterfaceLanguage.EN))
+        assertEquals("Rustoeng restricted access (HTTP 403)", UiMessageCatalog.text("Rustoeng ограничил доступ (HTTP 403)", InterfaceLanguage.EN))
+        assertEquals("Источник недоступен (HTTP 503)", UiMessageCatalog.text("Источник недоступен (HTTP 503)", InterfaceLanguage.RU))
+        assertEquals("Unknown text (HTTP 500)", UiMessageCatalog.text("Unknown text (HTTP 500)", InterfaceLanguage.EN))
+    }
     @Test fun argumentValuesAreNotReinterpretedAsFormattingOrTranslations() {
         assertEquals("Lyrics — {1} 日本語", UiMessageCatalog.text("Текст — {0}", InterfaceLanguage.EN, "{1} 日本語"))
         assertEquals("Optional search URL with {query}", UiMessageCatalog.text("Адрес поиска с {query}, необязательно", InterfaceLanguage.EN))

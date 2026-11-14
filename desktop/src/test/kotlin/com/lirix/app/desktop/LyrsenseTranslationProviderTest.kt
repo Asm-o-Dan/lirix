@@ -7,6 +7,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class LyrsenseTranslationProviderTest {
+    private suspend fun unavailable(block: suspend () -> Unit) {
+        try { block(); fail("Unavailable/uncertain source reported as a successful result") }
+        catch (e: CancellationException) { throw e }
+        catch (_: Exception) { }
+    }
     private val url = "https://lyrsense.com/example_artist/example_song"
     private fun page(artist: String = "Example Artist", title: String = "Example Song", canonical: String = url) = """
         <link rel="canonical" href="$canonical">
@@ -64,7 +69,7 @@ class LyrsenseTranslationProviderTest {
         assertEquals(url, found.document.sourceUrl)
         assertEquals(2, requests.size)
         val wrong = LyrsenseTranslationProvider { request -> if (request.contains("/search?")) search(match) else page(artist = "Other Artist") }
-        assertEquals(TranslationSearchResult.Missing, wrong.find("Example Song", "Example Artist"))
+        unavailable { wrong.find("Example Song", "Example Artist") }
     }
 
     @Test fun ambiguousSearchDoesNotAutomaticallyLoadOrChooseFirst() = runBlocking {
@@ -89,8 +94,8 @@ class LyrsenseTranslationProviderTest {
         assertThrows(IllegalArgumentException::class.java) { LyrsenseTranslationProvider.parse(page(canonical = "https://lyrsense.com/other/song"), url) }
         var calls = 0
         val provider = LyrsenseTranslationProvider { calls++; "<html>Verification required</html>" }
-        assertEquals(TranslationSearchResult.Missing, provider.find("Example Song", "Example Artist"))
-        assertEquals(TranslationSearchResult.Missing, provider.find("Other Song", "Example Artist", refresh = true))
+        unavailable { provider.find("Example Song", "Example Artist") }
+        unavailable { provider.find("Other Song", "Example Artist", refresh = true) }
         assertEquals(1, calls)
     }
 
@@ -102,4 +107,50 @@ class LyrsenseTranslationProviderTest {
         try { provider.find("Example Song", "Example Artist"); fail("Cancellation swallowed") }
         catch (_: CancellationException) { }
     }
+    @Test fun nullTransportHttpFailureTimeoutAndBackoffAreNotAbsence() = runBlocking {
+        val sources: List<suspend (String) -> String?> = listOf(
+            { null }, { throw java.io.IOException("HTTP 403 fixture") },
+            { kotlinx.coroutines.withTimeout(1) { kotlinx.coroutines.delay(100); "unused" } }
+        )
+        for (source in sources) {
+            var calls = 0
+            val provider = LyrsenseTranslationProvider { calls++; source(it) }
+            unavailable { provider.find("Example Song", "Example Artist") }
+            unavailable { provider.find("Other Song", "Example Artist", refresh = true) }
+            assertEquals(1, calls)
+        }
+    }
+
+    @Test fun unavailableLyrsenseAndMissingOtherSourcesPublishFailureNotAbsence() = runBlocking {
+        val emptyForm = "<form id='lyricstranslatesearch-searchsong-form' method='post' action='/en/songs'><select name='formtree[ltsearchtranslationlanguage][]'><option value='russian'>Russian</option></select></form>"
+        fun connection(uri: java.net.URI, status: Int) = object : java.net.HttpURLConnection(uri.toURL()) {
+            override fun connect() {}
+            override fun disconnect() {}
+            override fun usingProxy() = false
+            override fun getResponseCode() = status
+            override fun getContentType() = "text/html; charset=UTF-8"
+            override fun getInputStream() = java.io.ByteArrayInputStream(emptyForm.toByteArray())
+            override fun getOutputStream() = java.io.ByteArrayOutputStream()
+        }
+        val transports: List<suspend (String) -> String?> = listOf(
+            { null }, { throw java.io.IOException("HTTP 403 fixture") },
+            { kotlinx.coroutines.withTimeout(1) { kotlinx.coroutines.delay(100); "unused" } }
+        )
+        for (fetch in transports) {
+            val providers = SongTranslationProviders(
+                amalgama = AmalgamaTranslationProvider { connection(it, 404) },
+                multilingual = LyricsTranslateProvider { connection(it, 200) },
+                lyrsense = LyrsenseTranslationProvider(fetch)
+            )
+            val dao = object : SongTranslationDao {
+                override fun observe(trackKey: String, language: String) = kotlinx.coroutines.flow.flowOf(emptyList<SongTranslationEntity>())
+                override suspend fun get(trackKey: String, language: String) = emptyList<SongTranslationEntity>()
+                override suspend fun save(entity: SongTranslationEntity) { fail("No document may be saved") }
+            }
+            val automatic = AutomaticSongTranslations(dao, providers::find, searchLanguage = providers::findLanguage)
+            automatic.resolve("track", "Example Song", "Example Artist")
+            assertTrue(automatic.states.value["track"] is AutomaticTranslationState.Failed)
+        }
+    }
+
 }

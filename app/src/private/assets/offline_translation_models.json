@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "packages": [
+    {
+      "pair": "en-ru",
+      "files": [
+        {
+          "name": "encoder_model.onnx",
+          "bytes": 51450104,
+          "sha256": "1d07920d23b42946fac77aae9f97c8fd8104479d6ee0f5de56ac48facefdda07",
+          "url": "https://huggingface.co/Zweiarm/opus-mt-onnx-int8/resolve/32a5add3077acbe625776e56cf2eb0f7aa621732/opus-mt-en-ru/encoder_model.onnx"
+        },
+        {
+          "name": "decoder_model.onnx",
+          "bytes": 90286235,
+          "sha256": "e9fdfef28c1daf83099c6c23c30902d4d2517776d593e64894c107e252338413",
+          "url": "https://huggingface.co/Zweiarm/opus-mt-onnx-int8/resolve/32a5add3077acbe625776e56cf2eb0f7aa621732/opus-mt-en-ru/decoder_model.onnx"
+        },
+        {
+          "name": "decoder_with_past_model.onnx",
+          "bytes": 87074292,
+          "sha256": "80e11ff61310b6d37531ec8361a76c5624af2d43fc74e5e422d9daf5e0874b7b",
+          "url": "https://huggingface.co/Zweiarm/opus-mt-onnx-int8/resolve/32a5add3077acbe625776e56cf2eb0f7aa621732/opus-mt-en-ru/decoder_with_past_model.onnx"
+        },
+        {
+          "bytes": 802781,
+          "sha256": "16bebef1389a0b8ab452772c4e35b9e605e5713f8ac7baa71ca701394eaa086d",
+          "name": "source.spm",
+          "url": "https://huggingface.co/Helsinki-NLP/opus-mt-en-ru/resolve/bb09c99d180016eac6819df3dae68edb1690fdee/source.spm"
+        },
+        {
+          "bytes": 1080169,
+          "sha256": "745998e51ba5b058e38b7ac7765c25c43ed5c1c39cc92b27163b9b2e323c9d7c",
+          "name": "target.spm",
+          "url": "https://huggingface.co/Helsinki-NLP/opus-mt-en-ru/resolve/bb09c99d180016eac6819df3dae68edb1690fdee/target.spm"
+        },
+        {
+          "bytes": 2601758,
+          "sha256": "33e95da3be3fa3b50169c4c46693ba2f29fbf4cb29d99044bd07d72d181fa1e9",
+          "name": "vocab.json",
+          "url": "https://huggingface.co/Helsinki-NLP/opus-mt-en-ru/resolve/bb09c99d180016eac6819df3dae68edb1690fdee/vocab.json"
+        }
+      ],
+      "eos": 0,
+      "pad": 62517,
+      "vocabSize": 62518
+    },
+    {
+      "pair": "ru-en",
+      "files": [
+        {
+          "name": "encoder_model.onnx",
+          "bytes": 51450104,
+          "sha256": "a1827ab62207b5e99f308565566f1b9fe7fb505db2d60af9994feb53bd18c64f",
+          "url": "https://huggingface.co/Zweiarm/opus-mt-onnx-int8/resolve/32a5add3077acbe625776e56cf2eb0f7aa621732/opus-mt-ru-en/encoder_model.onnx"
+        },
+        {
+          "name": "decoder_model.onnx",
+          "bytes": 90286235,
+          "sha256": "9bd0cfa79f71d1c3055266cec19d3e23e496ee857d29223c12476b7c37e39dcc",
+          "url": "https://huggingface.co/Zweiarm/opus-mt-onnx-int8/resolve/32a5add3077acbe625776e56cf2eb0f7aa621732/opus-mt-ru-en/decoder_model.onnx"
+        },
+        {
+          "name": "decoder_with_past_model.onnx",
+          "bytes": 87074292,
+          "sha256": "6229d5b2a164361b30211a4adaadd114503b1107dc0af9347031660092d8db24",
+          "url": "https://huggingface.co/Zweiarm/opus-mt-onnx-int8/resolve/32a5add3077acbe625776e56cf2eb0f7aa621732/opus-mt-ru-en/decoder_with_past_model.onnx"
+        },
+        {
+          "bytes": 1080169,
+          "sha256": "745998e51ba5b058e38b7ac7765c25c43ed5c1c39cc92b27163b9b2e323c9d7c",
+          "name": "source.spm",
+          "url": "https://huggingface.co/Helsinki-NLP/opus-mt-ru-en/resolve/fbd6dc73284f95536648512cc21d57f19191961a/source.spm"
+        },
+        {
+          "bytes": 802781,
+          "sha256": "16bebef1389a0b8ab452772c4e35b9e605e5713f8ac7baa71ca701394eaa086d",
+          "name": "target.spm",
+          "url": "https://huggingface.co/Helsinki-NLP/opus-mt-ru-en/resolve/fbd6dc73284f95536648512cc21d57f19191961a/target.spm"
+        },
+        {
+          "bytes": 2601758,
+          "sha256": "33e95da3be3fa3b50169c4c46693ba2f29fbf4cb29d99044bd07d72d181fa1e9",
+          "name": "vocab.json",
+          "url": "https://huggingface.co/Helsinki-NLP/opus-mt-ru-en/resolve/fbd6dc73284f95536648512cc21d57f19191961a/vocab.json"
+        }
+      ],
+      "eos": 0,
+      "pad": 62517,
+      "vocabSize": 62518
+    }
+  ]
+}

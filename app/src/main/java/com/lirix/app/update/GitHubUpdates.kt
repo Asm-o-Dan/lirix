@@ -1,5 +1,6 @@
 package com.lirix.app.update
 
+import com.lirix.app.BuildConfig
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -29,7 +30,8 @@ object GitHubUpdates {
         return a.zip(b).firstOrNull { it.first != it.second }?.let { it.first > it.second } ?: false
     }
 
-    internal fun select(json: String, installed: String): AndroidRelease? {
+    internal fun select(json: String, installed: String, variant: String = "private"): AndroidRelease? {
+        if (variant !in setOf("private", "compact")) return null
         val releases = JSONArray(json)
         val candidates = mutableListOf<AndroidRelease>()
         for (i in 0 until releases.length()) {
@@ -38,8 +40,9 @@ object GitHubUpdates {
             val tag = release.optString("tag_name")
             if (!newer(tag, installed)) continue
             val assets = release.optJSONArray("assets") ?: continue
+            val assetName = "lirix-$tag-$variant.apk"
             val apks = (0 until assets.length()).map { assets.getJSONObject(it) }.filter {
-                it.optString("name").endsWith(".apk", true) && it.optString("state") == "uploaded"
+                it.optString("name") == assetName && it.optString("state") == "uploaded"
             }
             // Ambiguous ABI/debug variants must be explicitly resolved by the publisher.
             if (apks.size != 1) continue
@@ -47,7 +50,7 @@ object GitHubUpdates {
             val url = apk.optString("browser_download_url")
             val expectedPrefix = "$PREFIX$tag/"
             val size = apk.optLong("size")
-            if (!url.startsWith(expectedPrefix) || size !in 1..300_000_000L) continue
+            if (url != expectedPrefix + assetName || size !in 1..300_000_000L) continue
             val digest = apk.optString("digest").takeIf { Regex("sha256:[0-9a-fA-F]{64}").matches(it) }?.substringAfter(':') ?: continue
             candidates += AndroidRelease(tag.removePrefix("v"), url, size, digest)
         }
@@ -79,7 +82,7 @@ object GitHubUpdates {
                 }
                 output.toByteArray()
             }
-            select(bytes.toString(Charsets.UTF_8), installed)
+            select(bytes.toString(Charsets.UTF_8), installed, BuildConfig.TRANSLATION_VARIANT)
         } finally { connection.disconnect() }
     }
 
@@ -125,9 +128,11 @@ object GitHubUpdates {
     @Suppress("DEPRECATION")
     fun verify(context: Context, apk: File) {
         val pm = context.packageManager
-        val flags = if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
+        val flags = (if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES) or PackageManager.GET_META_DATA
         val candidate = pm.getPackageArchiveInfo(apk.absolutePath, flags) ?: error("Invalid APK")
         val installed = pm.getPackageInfo(context.packageName, flags)
+        check(candidate.applicationInfo?.metaData?.getString("com.lirix.translation.variant") == BuildConfig.TRANSLATION_VARIANT) { "Wrong translation variant" }
+        check(installed.applicationInfo?.metaData?.getString("com.lirix.translation.variant") == BuildConfig.TRANSLATION_VARIANT) { "Unknown installed translation variant" }
         check(candidate.packageName == context.packageName) { "Wrong package" }
         val candidateVersion = if (Build.VERSION.SDK_INT >= 28) candidate.longVersionCode else candidate.versionCode.toLong()
         val installedVersion = if (Build.VERSION.SDK_INT >= 28) installed.longVersionCode else installed.versionCode.toLong()

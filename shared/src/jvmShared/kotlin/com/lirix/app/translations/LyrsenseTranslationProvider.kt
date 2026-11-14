@@ -1,6 +1,9 @@
 package com.lirix.app.translations
 
 import com.lirix.app.feature.lyrics.LyricsSourceHttp
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -92,13 +95,13 @@ class LyrsenseTranslationProvider(
             return@withLock TranslationSearchResult.Missing
         val key = "$artistKey|$titleKey"
         val now = System.currentTimeMillis()
-        if (now < unavailableUntil) return@withLock TranslationSearchResult.Missing
+        if (now < unavailableUntil) error("Источник Lyrsense временно недоступен")
         if (!refresh && misses[key]?.let { now - it in 0..899_999L } == true) return@withLock TranslationSearchResult.Missing
         try {
             withTimeoutOrNull(15_000L) {
                 val html = fetch(searchUrl(title, artist)) ?: run {
                     unavailableUntil = now + 60_000L
-                    return@withTimeoutOrNull TranslationSearchResult.Missing
+                    error("Источник Lyrsense недоступен")
                 }
                 val candidates = searchCandidates(html, title, artist)
                 if (candidates.isEmpty()) {
@@ -109,14 +112,18 @@ class LyrsenseTranslationProvider(
                 if (candidates.size != 1) return@withTimeoutOrNull TranslationSearchResult.Candidates(candidates)
                 val document = load(candidates.single().sourceUrl)
                 if (TranslationMetadata.artistKey(document.artist) != artistKey || TranslationMetadata.titleKey(document.title) != titleKey)
-                    TranslationSearchResult.Missing
+                    error("Источник Lyrsense вернул другую песню")
                 else TranslationSearchResult.Found(document)
-            } ?: run { unavailableUntil = System.currentTimeMillis() + 60_000L; TranslationSearchResult.Missing }
+            } ?: error("Источник Lyrsense не ответил вовремя")
+        } catch (e: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            unavailableUntil = System.currentTimeMillis() + 60_000L
+            throw IllegalStateException("Источник Lyrsense не ответил вовремя", e)
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             unavailableUntil = System.currentTimeMillis() + 60_000L
-            TranslationSearchResult.Missing
+            throw e
         }
     }
 }

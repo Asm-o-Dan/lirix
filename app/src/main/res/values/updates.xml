@@ -23,4 +23,6 @@
   <string name="update_permission_detail">Allow Lirix to install updates in Android settings, then return here.</string>
   <string name="update_ready_detail">The file has been verified. Confirm installation in the Android system dialog.</string>
   <string name="update_current_detail">The latest available version is installed.</string>
+    <string name="update_variant_private">Private build · OPUS-MT</string>
+    <string name="update_variant_compact">Compact build · ML Kit</string>
 </resources>

@@ -121,7 +121,10 @@ class UpdateActivity : ComponentActivity() {
             activity.lifecycleScope.launch {
                 try {
                     if (GitHubUpdates.check(activity) != null) activity.lifecycle.withResumed { open(activity) }
-                } catch (e: CancellationException) { throw e } catch (_: Exception) { /* Manual retry remains available. */ }
+                } catch (e: CancellationException) { throw e } catch (_: Exception) {
+                    // The check did not happen (no network, GitHub unavailable): try again in an hour, not in a day.
+                    preferences.edit().putLong("checked", now - 23 * 60 * 60 * 1000L).apply()
+                }
             }
         }
     }

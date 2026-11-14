@@ -41,12 +41,15 @@ jobs:
           printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/lirix-release.jks"
           echo "RELEASE_STORE_FILE=$RUNNER_TEMP/lirix-release.jks" >> "$GITHUB_ENV"
 
+      - name: Install private translation native toolchain
+        run: sdkmanager "ndk;26.1.10909125" "cmake;3.22.1"
+
       - name: Test and build Android
         env:
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
           RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
           RELEASE_KEY_ALIAS: lirix-release
-        run: ./gradlew :shared:desktopTest :app:testDebugUnitTest :app:assembleRelease --no-daemon
+        run: ./gradlew :shared:desktopTest :app:testPrivateDebugUnitTest :app:testCompactDebugUnitTest :app:assemblePrivateRelease :app:assembleCompactRelease --no-daemon
 
       - name: Rename APK for Release
         if: github.ref_name != 'v1.5.0' && github.ref_name != 'v1.5.1'
@@ -54,7 +57,8 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           mkdir -p release-artifacts
-          cp app/build/outputs/apk/release/app-release.apk "release-artifacts/lirix-${RELEASE_TAG}.apk"
+          cp app/build/outputs/apk/private/release/app-private-release.apk "release-artifacts/lirix-${RELEASE_TAG}-private.apk"
+          cp app/build/outputs/apk/compact/release/app-compact-release.apk "release-artifacts/lirix-${RELEASE_TAG}-compact.apk"
 
       - uses: actions/upload-artifact@v4
         if: github.ref_name != 'v1.5.0' && github.ref_name != 'v1.5.1'

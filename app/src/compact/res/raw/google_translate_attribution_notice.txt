@@ -1,0 +1,5 @@
+Official Google Translate attribution artwork, unmodified color-regular@2x.png.
+Source: https://docs.cloud.google.com/static/translate/images/google-translate-attribution.zip
+Brand usage: https://docs.cloud.google.com/translate/attribution
+ML Kit usage guidelines: https://developers.google.com/ml-kit/language/translation/translation-terms
+Downloaded 2026-11-08. Google marks belong to Google; inclusion does not imply endorsement.

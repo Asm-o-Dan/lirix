@@ -23,4 +23,6 @@
   <string name="update_permission_detail">Разреши Lirix устанавливать обновления в настройках Android, затем вернись сюда.</string>
   <string name="update_ready_detail">Файл проверен. Подтверди установку в системном окне Android.</string>
   <string name="update_current_detail">Установлена последняя доступная версия.</string>
+    <string name="update_variant_private">Приватная сборка · OPUS-MT</string>
+    <string name="update_variant_compact">Компактная сборка · ML Kit</string>
 </resources>

@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lirix.app.R
+import com.lirix.app.BuildConfig
 import kotlin.math.roundToInt
 
 /** Presentation of the real activity state; no network, installation or release policy lives here. */
@@ -78,6 +79,7 @@ fun UpdateScreen(state: UpdateScreenState, onBack: () -> Unit, onPrimary: () -> 
                         .semantics { liveRegion = LiveRegionMode.Polite },
                         style = MaterialTheme.typography.headlineSmall.copy(fontSize = 24.sp, lineHeight = 32.sp),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    Text(stringResource(if (BuildConfig.TRANSLATION_VARIANT == "private") R.string.update_variant_private else R.string.update_variant_compact), style = MaterialTheme.typography.labelLarge)
                     Text(stringResource(R.string.update_installed, state.installedVersion),
                         modifier = Modifier.fillMaxWidth().testTag("update-installed"),
                         style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant,
