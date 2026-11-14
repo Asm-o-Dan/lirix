@@ -42,7 +42,7 @@ class FavoriteUserChoiceDesktopTest {
         try {
             buildVersion14(file)
             fun open() = Room.databaseBuilder<AppDatabase>(name = file.absolutePath).setDriver(BundledSQLiteDriver())
-                .addMigrations(MIGRATION_14_15).build()
+                .addMigrations(MIGRATION_14_15, MIGRATION_15_16).build()
             var db = open()
             try {
                 val tracks = db.musicDao().getAllTracks().associateBy { it.trackKey }

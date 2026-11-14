@@ -40,14 +40,15 @@ class Schema14CompatibilityTest {
             helper.close()
             repeat(2) {
                 val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                    .addMigrations(AppDatabase.MIGRATION_12_14, AppDatabase.MIGRATION_14_15).build()
+                    .addMigrations(AppDatabase.MIGRATION_12_14, AppDatabase.MIGRATION_14_15, AppDatabase.MIGRATION_15_16).build()
                 try {
                     val db = room.openHelper.writableDatabase
-                    assertEquals(15, db.version)
+                    assertEquals(16, db.version)
                     db.query("SELECT identity_hash FROM room_master_table WHERE id=42").use { c ->
-                        assertTrue(c.moveToFirst()); // v15 identity (SPEC-MEDIA-FAV-01); v14 was af51698a84bb8d10ace2e9856ddf8742.
-                        assertEquals("17214f99238de8fab93f952143fea622", c.getString(0))
+                        assertTrue(c.moveToFirst()); // v16 identity (track_metadata); v15 was 17214f99238de8fab93f952143fea622, v14 af51698a84bb8d10ace2e9856ddf8742.
+                        assertEquals("a1badfc84303882e78994ebb2a0d4ad2", c.getString(0))
                     }
+                    db.query("SELECT COUNT(*) FROM track_metadata").use { c -> assertTrue(c.moveToFirst()); assertEquals(0, c.getInt(0)) }
                     db.query("SELECT userNotes,isFavorite,playCount FROM music_tracks WHERE trackKey='key'").use { c ->
                         assertTrue(c.moveToFirst()); assertEquals("User note",c.getString(0));assertEquals(1,c.getInt(1));assertEquals(7,c.getInt(2))
                     }

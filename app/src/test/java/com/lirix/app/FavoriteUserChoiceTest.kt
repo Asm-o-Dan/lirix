@@ -125,7 +125,7 @@ class FavoriteUserChoiceTest {
             helper.writableDatabase
             helper.close()
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name).allowMainThreadQueries()
-                .addMigrations(AppDatabase.MIGRATION_14_15).build()
+                .addMigrations(AppDatabase.MIGRATION_14_15, AppDatabase.MIGRATION_15_16).build()
             try {
                 runBlocking {
                     val tracks = room.musicDao().getAllTracks().associateBy { it.trackKey }
@@ -139,7 +139,7 @@ class FavoriteUserChoiceTest {
                     assertEquals(setOf("mine") + Schema15.messengerRules.map { it.id }, rules)
                     assertTrue(room.blacklistDao().getActiveRules().size == 5)
                 }
-                assertEquals(15, room.openHelper.writableDatabase.version)
+                assertEquals(16, room.openHelper.writableDatabase.version)
             } finally { room.close() }
         } finally { context.deleteDatabase(name) }
     }

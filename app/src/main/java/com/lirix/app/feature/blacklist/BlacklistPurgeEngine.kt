@@ -92,6 +92,8 @@ class BlacklistPurgeEngine(private val db: AppDatabase) {
                 sessions += db.musicDao().getSessionsByTrackKeys(chunk)
                 deletedSessions += db.musicDao().deleteSessionsByTrackKeys(chunk)
                 deletedTracks += db.musicDao().deleteTracksByKeys(chunk)
+                // Catalogue facts of a removed track are a re-fetchable cache; they must not outlive it.
+                db.trackMetadataDao().deleteByKeys(chunk)
             }
 
             Pair(PurgeReport(deletedTracks, deletedSessions), PurgeBackup(matching, sessions))

@@ -107,6 +107,14 @@ object WrappedStatsEngine {
         return trimmed.lowercase() in UNKNOWN_ARTIST_NAMES
     }
 
+    /** First instant of a summary period; shared by every summary so they describe the same window. */
+    fun periodStart(timeframe: AnalyticsTimeframe, referenceTimestampMs: Long): Long = when (timeframe) {
+        AnalyticsTimeframe.TODAY -> startOfDayMs(referenceTimestampMs)
+        AnalyticsTimeframe.WEEK -> referenceTimestampMs - 7 * 86_400_000L
+        AnalyticsTimeframe.MONTH -> referenceTimestampMs - 30 * 86_400_000L
+        AnalyticsTimeframe.ALL_TIME -> Long.MIN_VALUE
+    }
+
     fun calculateEffectiveSessionDuration(
         session: MusicListeningSessionEntity,
         referenceTimestampMs: Long,
@@ -144,12 +152,7 @@ object WrappedStatsEngine {
             )
         }
 
-        val periodStart = when (timeframe) {
-            AnalyticsTimeframe.TODAY -> startOfDayMs(referenceTimestampMs)
-            AnalyticsTimeframe.WEEK -> referenceTimestampMs - 7 * 86_400_000L
-            AnalyticsTimeframe.MONTH -> referenceTimestampMs - 30 * 86_400_000L
-            AnalyticsTimeframe.ALL_TIME -> Long.MIN_VALUE
-        }
+        val periodStart = periodStart(timeframe, referenceTimestampMs)
         val filteredSessions = ListeningIntervals.project(sessions, periodStart, referenceTimestampMs)
 
         val trackMap = tracks.associateBy { it.trackKey }

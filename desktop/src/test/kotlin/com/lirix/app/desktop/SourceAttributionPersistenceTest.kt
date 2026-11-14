@@ -52,7 +52,7 @@ class SourceAttributionPersistenceTest {
                 connection.execSQL("INSERT INTO music_listening_sessions VALUES (1,'key','test',1,1001,1000,1,'[]')")
                 connection.execSQL("PRAGMA user_version = 13")
             }
-            fun open() = Room.databaseBuilder<AppDatabase>(name = file.absolutePath).setDriver(BundledSQLiteDriver()).addMigrations(MIGRATION_13_14, MIGRATION_14_15).build()
+            fun open() = Room.databaseBuilder<AppDatabase>(name = file.absolutePath).setDriver(BundledSQLiteDriver()).addMigrations(MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16).build()
             var db = open()
             try {
                 assertEquals("USER:EDIT", db.lyricsDao().getLyrics("key")!!.provider)

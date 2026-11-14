@@ -1,0 +1,174 @@
+{
+ "created": "2026-11-14T10:34:38.582Z",
+ "count": 11,
+ "offset": 0,
+ "recordings": [
+  {
+   "id": "cd083ffa-7198-4913-811f-e5b237a7aa38",
+   "score": 100,
+   "title": "Кукла колдуна",
+   "length": 202000,
+   "first-release-date": "2001",
+   "artist-credit": [
+    {
+     "name": "Король и Шут",
+     "artist": {
+      "name": "Король и Шут"
+     }
+    }
+   ]
+  },
+  {
+   "id": "53ec21be-1fad-4e00-81db-4c63810bed40",
+   "score": 100,
+   "title": "Кукла колдуна",
+   "length": 204040,
+   "first-release-date": "2013",
+   "artist-credit": [
+    {
+     "name": "Король и Шут",
+     "artist": {
+      "name": "Король и Шут"
+     }
+    }
+   ]
+  },
+  {
+   "id": "326ae1d2-ff73-4807-bd3f-dd1c2f8e6672",
+   "score": 100,
+   "title": "Кукла колдуна",
+   "length": 202075,
+   "first-release-date": "2007",
+   "artist-credit": [
+    {
+     "name": "Король и Шут",
+     "artist": {
+      "name": "Король и Шут"
+     }
+    }
+   ]
+  },
+  {
+   "id": "ca0c986f-b275-4620-bc6c-ba47fa6ba7df",
+   "score": 100,
+   "title": "Кукла колдуна",
+   "first-release-date": "2003",
+   "artist-credit": [
+    {
+     "name": "Король и Шут",
+     "artist": {
+      "name": "Король и Шут"
+     }
+    }
+   ]
+  },
+  {
+   "id": "d01414e6-a685-4c15-8d97-9bd13cfa1974",
+   "score": 100,
+   "title": "Кукла колдуна",
+   "length": 203000,
+   "isrcs": [
+    "RUB731581380"
+   ],
+   "first-release-date": "1999",
+   "artist-credit": [
+    {
+     "name": "Король и Шут",
+     "artist": {
+      "name": "Король и Шут"
+     }
+    }
+   ]
+  },
+  {
+   "id": "a3018d11-9c37-4437-9c6f-e6646fe312f6",
+   "score": 100,
+   "title": "Кукла колдуна",
+   "length": 202000,
+   "first-release-date": "2009-07-15",
+   "artist-credit": [
+    {
+     "name": "Король и Шут",
+     "artist": {
+      "name": "Король и Шут"
+     }
+    }
+   ]
+  },
+  {
+   "id": "5328bc8c-04df-4772-b720-dd2451da278b",
+   "score": 100,
+   "title": "Кукла Колдуна",
+   "length": 207920,
+   "first-release-date": "2023",
+   "artist-credit": [
+    {
+     "name": "Король и Шут",
+     "artist": {
+      "name": "Король и Шут"
+     }
+    }
+   ]
+  },
+  {
+   "id": "ca7622b0-6137-46e5-9c54-8871223fc4d1",
+   "score": 100,
+   "title": "Кукла колдуна",
+   "length": 206398,
+   "first-release-date": "2004",
+   "artist-credit": [
+    {
+     "name": "Король и Шут",
+     "artist": {
+      "name": "Король и Шут"
+     }
+    }
+   ]
+  },
+  {
+   "id": "2b023f56-f09c-4167-a4b0-a49107a6cb5d",
+   "score": 100,
+   "title": "Кукла колдуна",
+   "length": 203920,
+   "first-release-date": "1998",
+   "artist-credit": [
+    {
+     "name": "Король и Шут",
+     "artist": {
+      "name": "Король и Шут"
+     }
+    }
+   ]
+  },
+  {
+   "id": "0593fbe4-4f07-4c9f-a266-b51c9a6179a8",
+   "score": 100,
+   "title": "Кукла Колдуна",
+   "length": 210000,
+   "first-release-date": "2018-08-07",
+   "artist-credit": [
+    {
+     "name": "Король и Шут",
+     "artist": {
+      "name": "Король и Шут"
+     }
+    }
+   ]
+  },
+  {
+   "id": "1c4ec92f-bc94-4f53-8ef0-4c4b9babc1f4",
+   "score": 78,
+   "title": "Кукла колдуна (Из сериала «Король и Шут»)",
+   "length": 206053,
+   "first-release-date": "2023-04-06",
+   "artist-credit": [
+    {
+     "name": "Король и Шут",
+     "artist": {
+      "name": "Король и Шут"
+     }
+    }
+   ]
+  }
+ ]
+}

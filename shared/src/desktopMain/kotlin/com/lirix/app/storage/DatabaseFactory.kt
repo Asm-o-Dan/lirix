@@ -39,6 +39,12 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
     }
 }
 
+val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(Schema16.CREATE_TRACK_METADATA)
+    }
+}
+
 /** Fresh databases get the same built-in rules that the 14→15 migration adds. */
 val SEED_BUILTIN_RULES_CALLBACK = object : RoomDatabase.Callback() {
     override fun onCreate(connection: SQLiteConnection) {
@@ -57,7 +63,7 @@ fun getDesktopDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
         name = dbFile.absolutePath
     )
         .setDriver(BundledSQLiteDriver())
-        .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_12_14, MIGRATION_14_15)
+        .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_12_14, MIGRATION_14_15, MIGRATION_15_16)
         .addCallback(SEED_BUILTIN_RULES_CALLBACK)
 }
 

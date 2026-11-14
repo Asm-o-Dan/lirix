@@ -11,9 +11,10 @@ class AndroidBackupPolicyTest {
     private val main = File("src/main").takeIf { it.isDirectory } ?: File("app/src/main")
     private val androidNs = "http://schemas.android.com/apk/res/android"
     private val userPrefs = setOf("lirix_preferences", "lirix_library_exclusions", "lirix_translations", "lirix_ui_prompter_prefs",
-        "lirix_sync_prefs", "media_sync_offsets", "lyrics_reading_preferences")
+        "lirix_sync_prefs", "media_sync_offsets", "lyrics_reading_preferences", "lirix_profile")
     // Update-check throttling belongs to this installation, not the user's restored library/settings.
-    private val devicePrefs = setOf("lirix_trusted_devices", "lirix_device_addrs", "updates")
+    // Track-data consent and the personal Last.fm key stay on this device: a restore must not switch network lookups on.
+    private val devicePrefs = setOf("lirix_trusted_devices", "lirix_device_addrs", "updates", "lirix_track_metadata")
 
     private fun xml(path: String): Element = DocumentBuilderFactory.newInstance().apply {
         isNamespaceAware = true

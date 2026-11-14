@@ -1,0 +1,20 @@
+{
+ "content": [
+  {
+   "id": "5baf258b-7d00-4697-a926-74855e3e92c1",
+   "href": "https://open.spotify.com/track/5Iakt8yOzUsd1shYV04cS9",
+   "isrc": "USDPK1700195",
+   "acousticness": 6.25e-05,
+   "danceability": 0.275,
+   "energy": 0.948,
+   "instrumentalness": 0.0,
+   "key": 7,
+   "liveness": 0.647,
+   "loudness": -3.785,
+   "mode": 1,
+   "speechiness": 0.24,
+   "tempo": 165.887,
+   "valence": 0.145
+  }
+ ]
+}

@@ -1,0 +1,60 @@
+{
+ "resultCount": 5,
+ "results": [
+  {
+   "wrapperType": "track",
+   "kind": "song",
+   "artistName": "Korol I Shut",
+   "collectionName": "Акустический альбом",
+   "trackName": "Кукла колдуна",
+   "releaseDate": "1998-08-05T07:00:00Z",
+   "trackTimeMillis": 203920,
+   "primaryGenreName": "Rock",
+   "trackExplicitness": "notExplicit"
+  },
+  {
+   "wrapperType": "track",
+   "kind": "song",
+   "artistName": "Korol I Shut",
+   "collectionName": "Король и Шут, Ч. 1 (Из сериала «Король и Шут»)",
+   "trackName": "Кукла колдуна (Из сериала «Король и Шут»)",
+   "releaseDate": "2023-04-06T12:00:00Z",
+   "trackTimeMillis": 206019,
+   "primaryGenreName": "Soundtrack",
+   "trackExplicitness": "notExplicit"
+  },
+  {
+   "wrapperType": "track",
+   "kind": "song",
+   "artistName": "Korol I Shut",
+   "collectionName": "Live 2000 (Live)",
+   "trackName": "Кукла колдуна (Live)",
+   "releaseDate": "2000-02-02T12:00:00Z",
+   "trackTimeMillis": 183907,
+   "primaryGenreName": "Rock",
+   "trackExplicitness": "notExplicit"
+  },
+  {
+   "wrapperType": "track",
+   "kind": "song",
+   "artistName": "Белая бумага",
+   "collectionName": "Кукла колдуна - Single",
+   "trackName": "Кукла колдуна",
+   "releaseDate": "2021-04-01T12:00:00Z",
+   "trackTimeMillis": 178759,
+   "primaryGenreName": "Hip-Hop/Rap",
+   "trackExplicitness": "notExplicit"
+  },
+  {
+   "wrapperType": "track",
+   "kind": "song",
+   "artistName": "CAGMO",
+   "collectionName": "Симфония Король и Шут",
+   "trackName": "Кукла колдуна",
+   "releaseDate": "2024-07-25T12:00:00Z",
+   "trackTimeMillis": 208103,
+   "primaryGenreName": "Rock",
+   "trackExplicitness": "notExplicit"
+  }
+ ]
+}

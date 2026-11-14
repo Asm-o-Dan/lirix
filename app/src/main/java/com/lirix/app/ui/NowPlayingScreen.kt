@@ -1148,7 +1148,10 @@ fun NowPlayingScreen(
 
         infoTrack?.let { track ->
             com.lirix.app.ui.components.TrackInfoDialog(track, db.lyricsDao(), db.songTranslationDao(),
-                language = translationLanguage, onDismiss = { infoTrack = null })
+                language = translationLanguage,
+                metadata = remember(track.trackKey) { db.trackMetadataDao().observe(track.trackKey) },
+                metadataEnabled = com.lirix.app.feature.metadata.TrackMetadataSettings.of(context).enabled.collectAsState().value,
+                onDismiss = { infoTrack = null })
         }
 
         if (showOverlayPermissionDialog) {

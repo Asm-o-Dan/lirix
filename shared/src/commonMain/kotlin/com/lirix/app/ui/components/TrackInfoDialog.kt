@@ -61,7 +61,11 @@ fun trackInfoPublicUrl(value: String?): String? = value?.takeIf {
 
 @Composable
 fun TrackInfoDialog(track: TrackEntity, lyricsDao: LyricsDao, translationsDao: SongTranslationDao,
-                    language: String = "ru", onDismiss: () -> Unit) {
+                    language: String = "ru",
+                    /** Stored catalogue metadata of this track; null hides the section (platforms without the feature). */
+                    metadata: kotlinx.coroutines.flow.Flow<com.lirix.app.storage.TrackMetadataEntity?>? = null,
+                    metadataEnabled: Boolean = false,
+                    onDismiss: () -> Unit) {
     val c = LirixThemeTokens.colors
     val uri = LocalUriHandler.current
     var sources by remember(track.trackKey, language) { mutableStateOf<List<TrackInfoSource>>(emptyList()) }
@@ -78,6 +82,7 @@ fun TrackInfoDialog(track: TrackEntity, lyricsDao: LyricsDao, translationsDao: S
         } catch (e: CancellationException) { throw e }
         catch (_: Exception) { loading = false; error = com.lirix.app.ui.i18n.LirixStrings.message("Не удалось прочитать информацию об источниках") }
     }
+    val trackMetadata = metadata?.let { flow -> remember(track.trackKey, flow) { flow }.collectAsState(initial = null).value }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(com.lirix.app.ui.i18n.LirixStrings.message("Инфо о треке"), color = c.textPrimary) },
@@ -106,6 +111,10 @@ fun TrackInfoDialog(track: TrackEntity, lyricsDao: LyricsDao, translationsDao: S
                     }
                 }
                 error?.let { Text(it, color = c.textSecondary) }
+                if (metadata != null) {
+                    HorizontalDivider(color = c.borderSubtle)
+                    TrackMetadataSection(trackMetadata, metadataEnabled)
+                }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(com.lirix.app.ui.i18n.LirixStrings.message("Закрыть")) } },

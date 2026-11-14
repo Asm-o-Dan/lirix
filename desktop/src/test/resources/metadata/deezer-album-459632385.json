@@ -1,0 +1,17 @@
+{
+ "id": 459632385,
+ "title": "Nightmare",
+ "genres": {
+  "data": [
+   {
+    "id": 152,
+    "name": "Rock"
+   },
+   {
+    "id": 464,
+    "name": "Metal"
+   }
+  ]
+ },
+ "release_date": "2025-01-14"
+}

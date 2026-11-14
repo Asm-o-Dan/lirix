@@ -1,0 +1,25 @@
+{
+ "created": "2026-11-14T10:34:34.947Z",
+ "count": 1,
+ "offset": 0,
+ "recordings": [
+  {
+   "id": "ac12c4ed-5f72-40cb-98af-cb5f925cf29a",
+   "score": 100,
+   "title": "Nightmare",
+   "length": 261813,
+   "isrcs": [
+    "USDPK1700195"
+   ],
+   "first-release-date": "2015-10-31",
+   "artist-credit": [
+    {
+     "name": "Deuce",
+     "artist": {
+      "name": "Deuce"
+     }
+    }
+   ]
+  }
+ ]
+}

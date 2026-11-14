@@ -51,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import com.lirix.app.R
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -85,6 +86,13 @@ fun WrappedScreen() {
     val tracks by db.musicDao().observeRecentTracks().collectAsStateWithLifecycle(initialValue = emptyList())
     val sessions by db.musicDao().observeAllSessions().collectAsStateWithLifecycle(initialValue = emptyList())
     val rawAchievements by db.achievementDao().observeAchievements().collectAsStateWithLifecycle(initialValue = emptyList())
+    val metadata by remember { db.trackMetadataDao().observeAllFound() }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val metadataEnabled by remember { com.lirix.app.feature.metadata.TrackMetadataSettings.of(context) }.enabled.collectAsStateWithLifecycle()
+    var soundSummary by remember { mutableStateOf<Pair<AnalyticsTimeframe, com.lirix.app.analytics.SoundSummary>?>(null) }
+    // Achievements added after the database was created are seeded here; existing rows are never replaced.
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) { db.achievementDao().insertAll(com.lirix.app.analytics.SoundAchievements.definitions()) }
+    }
     val calendarPeriod by remember { com.lirix.app.analytics.calendarPeriodChanges() }
         .collectAsStateWithLifecycle(initialValue = com.lirix.app.analytics.calendarPeriodTick())
 
@@ -171,10 +179,25 @@ fun WrappedScreen() {
         calculatedStats = period to result
     }
 
-    LaunchedEffect(rawAchievements, tracks, sessions) {
-        withContext(Dispatchers.Default) {
-            evaluatedAchievements = GamificationEngine.checkAchievements(rawAchievements, tracks, sessions)
+    LaunchedEffect(selectedTimeframe, tracks, sessions, metadata, calendarPeriod) {
+        val period = selectedTimeframe
+        soundSummary = period to withContext(Dispatchers.Default) {
+            com.lirix.app.analytics.SoundSummaryEngine.build(tracks, sessions, metadata, period, System.currentTimeMillis())
         }
+    }
+
+    LaunchedEffect(rawAchievements, tracks, sessions, metadata) {
+        withContext(Dispatchers.Default) {
+            evaluatedAchievements = GamificationEngine.checkAchievements(rawAchievements, tracks, sessions, metadata)
+        }
+    }
+    // Grouped by kind; inside a group completed ones first, then the closest to completion.
+    val achievementGroups = remember(evaluatedAchievements) {
+        evaluatedAchievements.groupBy { if (it.category in achievementCategoryOrder) it.category else "SPECIAL" }
+            .mapValues { (_, list) ->
+                list.sortedWith(compareByDescending<AchievementEntity> { it.isUnlocked }
+                    .thenByDescending { it.currentProgress.toFloat() / it.maxProgress.coerceAtLeast(1) }.thenBy { it.id })
+            }
     }
 
     val unlockedCount = evaluatedAchievements.count { it.isUnlocked }
@@ -279,6 +302,14 @@ fun WrappedScreen() {
         }
 
 
+        // Local profile: avatar and genres, only from data that is really stored.
+        item { ProfileCard(tracks) }
+
+        // How the selected period sounded: mood, genres, decades, records.
+        soundSummary?.takeIf { it.first == selectedTimeframe }?.second?.let { summary ->
+            item { WrappedSoundSection(summary, metadataEnabled) }
+        }
+
         // 3. Honest Facts Section (Typography list, no SaaS cards)
         if (stats != null) item {
             Column(
@@ -354,8 +385,26 @@ fun WrappedScreen() {
         }
 
         // 6. Compact Achievements List (48dp row height, thin progress, no gold gradients)
-        items(evaluatedAchievements) { ach ->
-            MinimalAchievementRow(achievement = ach)
+        if (!metadataEnabled && achievementGroups.containsKey("SOUND")) item {
+            Text(
+                text = stringResource(R.string.achievement_sound_needs_data),
+                style = LirixMobileTypography.bodySmall,
+                color = lirixColors.textSecondary
+            )
+        }
+        for (category in achievementCategoryOrder) {
+            val group = achievementGroups[category] ?: continue
+            item(key = "achievements-$category") {
+                Text(
+                    text = stringResource(R.string.achievement_group_title, achievementCategoryLabel(category), group.count { it.isUnlocked }, group.size),
+                    style = LirixMobileTypography.labelLarge,
+                    color = lirixColors.textSecondary,
+                    modifier = Modifier.padding(top = 4.dp).semantics { heading() }
+                )
+            }
+            items(group, key = { it.id }) { ach ->
+                MinimalAchievementRow(achievement = ach)
+            }
         }
     }
 }
@@ -507,7 +556,7 @@ private fun MinimalAchievementRow(achievement: AchievementEntity) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = achievement.title,
+                    text = com.lirix.app.ui.i18n.LirixStrings.message(achievement.title),
                     style = LirixMobileTypography.titleSmall.copy(
                         fontWeight = if (isUnlocked) FontWeight.SemiBold else FontWeight.Medium
                     ),
@@ -527,7 +576,7 @@ private fun MinimalAchievementRow(achievement: AchievementEntity) {
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
-                text = achievement.description,
+                text = com.lirix.app.ui.i18n.LirixStrings.message(achievement.description),
                 style = LirixMobileTypography.bodySmall,
                 color = lirixColors.textMuted,
                 maxLines = 1,

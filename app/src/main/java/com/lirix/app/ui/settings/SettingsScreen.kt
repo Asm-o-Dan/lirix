@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Shield
@@ -52,6 +53,9 @@ fun SettingsContent(onBack: () -> Unit) {
     var showTheme by rememberSaveable { mutableStateOf(false) }
     var showLanguage by rememberSaveable { mutableStateOf(false) }
     var blacklistOpen by rememberSaveable { mutableStateOf(false) }
+    var showTrackData by rememberSaveable { mutableStateOf(false) }
+    val trackData = remember(context.applicationContext) { com.lirix.app.feature.metadata.TrackMetadataSettings.of(context) }
+    val trackDataEnabled by trackData.enabled.collectAsState()
     val listScroll = rememberScrollState()
     BackHandler(enabled = blacklistOpen) { blacklistOpen = false }
     if (blacklistOpen) {
@@ -67,7 +71,10 @@ fun SettingsContent(onBack: () -> Unit) {
     } else SettingsScreen(themeName = theme.title, languageName = stringResource(language.titleRes), version = version,
         onTheme = { showTheme = true }, onLanguage = { showLanguage = true },
         onUpdates = { UpdateActivity.open(context) }, onBlacklist = { blacklistOpen = true }, onBack = onBack,
-        scrollState = listScroll)
+        scrollState = listScroll,
+        trackDataState = stringResource(if (trackDataEnabled) R.string.track_data_on else R.string.track_data_off),
+        onTrackData = { showTrackData = true })
+    if (showTrackData) TrackDataSettingsDialog(trackData) { showTrackData = false }
     if (showTheme) ThemeSelectionDialog(theme, { repository.setTheme(it) }, { showTheme = false })
     if (showLanguage) LanguageSelectionDialog(onDismiss = { showLanguage = false })
 }
@@ -75,7 +82,8 @@ fun SettingsContent(onBack: () -> Unit) {
 @Composable
 fun SettingsScreen(themeName: String, languageName: String, version: String,
     onTheme: () -> Unit, onLanguage: () -> Unit, onUpdates: () -> Unit, onBlacklist: () -> Unit, onBack: () -> Unit,
-    scrollState: ScrollState = rememberScrollState()) {
+    scrollState: ScrollState = rememberScrollState(),
+    trackDataState: String? = null, onTrackData: (() -> Unit)? = null) {
     val colors = MaterialTheme.colorScheme
     Scaffold(containerColor = colors.background, contentColor = colors.onBackground,
         contentWindowInsets = WindowInsets.safeDrawing,
@@ -102,6 +110,9 @@ fun SettingsScreen(themeName: String, languageName: String, version: String,
                 SettingsRow("updates", stringResource(R.string.settings_updates),
                     stringResource(R.string.settings_version, version), Icons.Default.SystemUpdate, onUpdates)
                 SettingsRow("blacklist", stringResource(R.string.menu_blacklist), null, Icons.Default.Shield, onBlacklist)
+                onTrackData?.let {
+                    SettingsRow("track-data", stringResource(R.string.track_data_title), trackDataState, Icons.Default.Insights, it)
+                }
             }
         }
     }

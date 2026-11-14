@@ -1,0 +1,17 @@
+{
+ "id": 2350066925,
+ "title": "Nightmare",
+ "title_short": "Nightmare",
+ "isrc": "USDPK1700195",
+ "duration": 261,
+ "bpm": 166.04,
+ "release_date": "2018-03-02",
+ "explicit_lyrics": false,
+ "artist": {
+  "name": "Deuce"
+ },
+ "album": {
+  "id": 459632385,
+  "title": "Nightmare"
+ }
+}

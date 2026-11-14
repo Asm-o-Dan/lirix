@@ -6,6 +6,13 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
+val AppDatabase.Companion.MIGRATION_15_16: Migration
+    get() = object : Migration(15, 16) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(Schema16.CREATE_TRACK_METADATA)
+        }
+    }
+
 val AppDatabase.Companion.MIGRATION_14_15: Migration
     get() = object : Migration(14, 15) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -286,7 +293,8 @@ fun getAppDatabaseBuilder(context: Context): RoomDatabase.Builder<AppDatabase> {
             AppDatabase.MIGRATION_12_13,
             AppDatabase.MIGRATION_13_14,
             AppDatabase.MIGRATION_12_14,
-            AppDatabase.MIGRATION_14_15
+            AppDatabase.MIGRATION_14_15,
+            AppDatabase.MIGRATION_15_16
         )
         .addCallback(object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {

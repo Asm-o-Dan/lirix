@@ -3,6 +3,7 @@ package com.lirix.app.analytics
 import com.lirix.app.storage.AchievementEntity
 import com.lirix.app.storage.MusicListeningSessionEntity
 import com.lirix.app.storage.MusicTrackEntity
+import com.lirix.app.storage.TrackMetadataEntity
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -26,9 +27,11 @@ object GamificationEngine {
     fun checkAchievements(
         currentAchievements: List<AchievementEntity>,
         tracks: List<MusicTrackEntity>,
-        sessions: List<MusicListeningSessionEntity>
+        sessions: List<MusicListeningSessionEntity>,
+        metadata: List<TrackMetadataEntity> = emptyList()
     ): List<AchievementEntity> {
         val now = System.currentTimeMillis()
+        val soundMetrics = SoundAchievements.metrics(tracks, metadata)
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
         // Метрики по трекам
@@ -226,7 +229,10 @@ object GamificationEngine {
                 }
 
                 else -> {
-                    return@map ach
+                    // Achievements counted from catalogue facts (SoundAchievements); unknown ids stay untouched.
+                    val value = soundMetrics[ach.id] ?: return@map ach
+                    progress = minOf(value, ach.maxProgress)
+                    shouldUnlock = value >= ach.maxProgress
                 }
             }
 

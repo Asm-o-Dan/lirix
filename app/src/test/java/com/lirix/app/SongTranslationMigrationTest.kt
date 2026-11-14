@@ -12,6 +12,7 @@ import com.lirix.app.storage.MIGRATION_11_12
 import com.lirix.app.storage.MIGRATION_12_13
 import com.lirix.app.storage.MIGRATION_13_14
 import com.lirix.app.storage.MIGRATION_14_15
+import com.lirix.app.storage.MIGRATION_15_16
 import com.lirix.app.translations.*
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -40,7 +41,7 @@ class SongTranslationMigrationTest {
             val helper = FrameworkSQLiteOpenHelperFactory().create(config)
             helper.writableDatabase
             helper.close()
-            fun open() = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(AppDatabase.MIGRATION_11_12, AppDatabase.MIGRATION_12_13, AppDatabase.MIGRATION_13_14, AppDatabase.MIGRATION_14_15).build()
+            fun open() = Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(AppDatabase.MIGRATION_11_12, AppDatabase.MIGRATION_12_13, AppDatabase.MIGRATION_13_14, AppDatabase.MIGRATION_14_15, AppDatabase.MIGRATION_15_16).build()
             var db = open()
             val translation = SongTranslation("https://www.amalgama-lab.com/songs/a/artist/example.html", "Example", "Artist", "Пример", "Автор",
                 listOf(TranslationBlock("Synthetic first line", "Искусственная первая строка")))

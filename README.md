@@ -71,6 +71,8 @@ Google Translate powers translation in the compact build: [ML Kit privacy](https
 
 Playback history, favorites, notes, lyrics, translations and source rules are stored in the local SQLite database (`event_engine.db`). If the user enables Android system backup, the OS may back up eligible library data and preferences to its configured backup provider or transfer them to another Android device. Device trust/pairing data and derived caches are excluded. Backup timing, encryption capabilities, transport availability and the 25 MB cloud quota are controlled by Android; enabling support does not confirm that a backup exists.
 
+Track data (genre, release year, tempo, key and sound estimates) is off by default. When the user turns it on in Settings, Lirix sends the title and artist of the track that is playing to open catalogues ([iTunes Search](https://performance-partners.apple.com/search-api), [MusicBrainz](https://musicbrainz.org), [ReccoBeats](https://reccobeats.com), [Deezer](https://developers.deezer.com/api)) and, only with the user's own API key, to [Last.fm](https://www.last.fm/api). At most 30 lookups an hour, one track at a time; the library is never uploaded. The profile avatar is drawn locally and is never sent anywhere.
+
 ---
 
 ## ⚖️ Legal Disclaimer & Terms of Use

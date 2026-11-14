@@ -91,6 +91,8 @@ class MediaSessionCollector private constructor(private val context: Context) {
                     if (track != null && observation.state == "PLAYING" && prefetchedKey != track.trackKey) {
                         prefetchedKey = track.trackKey
                         currentEngine.prefetchLyricsAsync(context, scope, track)
+                        com.lirix.app.feature.metadata.TrackMetadataCoordinator.get(context)
+                            .onTrackPlaying(context, scope, track, snapshot.durationMs)
                     }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) { throw e }
