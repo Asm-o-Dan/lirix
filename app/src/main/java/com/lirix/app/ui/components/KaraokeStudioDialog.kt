@@ -14,6 +14,13 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay5
+import androidx.compose.material.icons.filled.Forward5
+import kotlinx.coroutines.flow.first
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -27,12 +34,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -90,7 +95,9 @@ fun KaraokeStudioDialog(
     var showLrc by remember { mutableStateOf(false) }
     var timeEntry by remember { mutableStateOf<String?>(null) }
     var tailEntry by remember { mutableStateOf<String?>(null) }
-    var follow by remember { mutableStateOf(false) }
+    var follow by remember(trackKey) { mutableStateOf(true) }
+    var advanced by remember(trackKey) { mutableStateOf(false) }
+    var confirmSkipCredits by remember(trackKey) { mutableStateOf(false) }
     var playback by remember { mutableStateOf(StudioPlaybackReading()) }
     var loopA by remember { mutableStateOf<Long?>(null) }
     var loopB by remember { mutableStateOf<Long?>(null) }
@@ -258,17 +265,34 @@ fun KaraokeStudioDialog(
     }
 
     val validation = KaraokeStudioEngine.validationError(state)
-    Dialog(onDismissRequest = { close() }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        // DialogProperties alone leaves the window offset below the status bar at full screen height,
-        // which pushed the pinned "Apply" button under the gesture bar. Make the window edge-to-edge
-        // so safeDrawingPadding() sees the real system bar insets.
-        val dialogView = LocalView.current
-        DisposableEffect(dialogView) {
-            (dialogView.parent as? DialogWindowProvider)?.window?.let { WindowCompat.setDecorFitsSystemWindows(it, false) }
-            onDispose {}
+    val lineListState = rememberLazyListState()
+    val timelineOffset = with(androidx.compose.ui.platform.LocalDensity.current) { 208.dp.roundToPx() }
+    LaunchedEffect(ready, state.selectedIndex, state.lines.size, state.mode) {
+        if (ready && state.lines.isNotEmpty()) {
+            snapshotFlow { lineListState.layoutInfo.totalItemsCount }.first { it >= state.lines.size }
+            val prefix = lineListState.layoutInfo.totalItemsCount - state.lines.size
+            val offset = if (state.mode == StudioMode.PRECISE && pinTimeline) -timelineOffset else 0
+            lineListState.scrollToItem((prefix + state.selectedIndex - 1).coerceAtLeast(0), offset)
         }
-        Surface(modifier = Modifier.fillMaxSize().safeDrawingPadding().imePadding(), color = colors.appBackground) {
-            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
+    }
+    fun stampCurrentLine() {
+        val now = readStudioPlayback(trackKey, sourcePackage)
+        if (now.matchesTrack && now.playing && edit(KaraokeStudioEdit.Stamp(state.selectedIndex, now.positionMs, reactionMs))) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            state = state.copy(selectedIndex = (state.selectedIndex + 1).coerceAtMost((state.lines.size - 1).coerceAtLeast(0)))
+        }
+    }
+    fun undoLastEdit() {
+        val previous = state.undo.lastOrNull() ?: return
+        val index = studioUndoSelection(previous, state.lines)
+        if (edit(KaraokeStudioEdit.Undo) && index != null) {
+            state = state.copy(selectedIndex = index)
+        }
+    }
+    Dialog(onDismissRequest = { close() }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = true)) {
+        Surface(modifier = Modifier.fillMaxSize().imePadding(), color = colors.appBackground) {
+            val safeBottom = maxOf(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 16.dp, 56.dp)
+            Column(modifier = Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = safeBottom)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(trackTitle, style = MaterialTheme.typography.titleMedium, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -278,37 +302,59 @@ fun KaraokeStudioDialog(
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = state.mode == StudioMode.QUICK, enabled = ready && !busy,
-                        onClick = { changeMode(StudioMode.QUICK) }, label = { Text("Tap-to-Sync") })
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = colors.accentPrimary, selectedLabelColor = MaterialTheme.colorScheme.onPrimary),
+                        onClick = { changeMode(StudioMode.QUICK) }, label = { Text(stringResource(R.string.studio_mode_quick)) })
                     FilterChip(selected = state.mode == StudioMode.PRECISE, enabled = ready && !busy,
-                        onClick = { changeMode(StudioMode.PRECISE) }, label = { Text(context.getString(R.string.studio_precise_studio_3d525)) })
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = colors.accentPrimary, selectedLabelColor = MaterialTheme.colorScheme.onPrimary),
+                        onClick = { changeMode(StudioMode.PRECISE) }, label = { Text(stringResource(R.string.studio_mode_precise)) })
+                }
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.studio_marked_progress, state.lines.count { it.timeMs != null }, state.lines.size),
+                        modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+                    TextButton(onClick = {
+                        advanced = !advanced
+                        val opening = advanced
+                        scope.launch {
+                            withFrameNanos { }
+                            val prefix = (lineListState.layoutInfo.totalItemsCount - state.lines.size).coerceAtLeast(0)
+                            val offset = if (!opening && state.mode == StudioMode.PRECISE && pinTimeline) -timelineOffset else 0
+                            lineListState.scrollToItem(if (opening) 0 else (prefix + state.selectedIndex - 1).coerceAtLeast(0), offset)
+                        }
+                    }) {
+                        Text(stringResource(if (advanced) R.string.studio_less else R.string.studio_more))
+                    }
+                }
+                if (ready) {
+                    status?.let { Text(it, color = colors.textSecondary, style = MaterialTheme.typography.bodySmall) }
+                    if (!playback.matchesTrack) Text(stringResource(R.string.studio_open_this_song_in_your_player_to_control_playbac_bb3e5), color = colors.textSecondary, style = MaterialTheme.typography.bodySmall)
+                    else if (!playback.canSeek) Text(stringResource(R.string.studio_the_source_does_not_allow_seeking_the_studio_cur_96fb4), color = colors.textSecondary, style = MaterialTheme.typography.bodySmall)
+                    if (state.lines.isNotEmpty() && state.lines.all { it.timeMs != null }) {
+                        validation?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                    }
+                }
+                val credits = state.lines.count { KaraokeStudioEngine.isCreditLine(it.text) }
+                if (ready && credits > 0 && credits < state.lines.size) {
+                    TextButton(enabled = !busy, onClick = { confirmSkipCredits = true }) {
+                        Text(stringResource(R.string.studio_skip_credits, credits))
+                    }
                 }
                 if (!ready) {
                     Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         if (!corruptDraft && conflictedDraft == null) CircularProgressIndicator(color = colors.accentPrimary)
                     }
                 } else {
-                    LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
-                        item {
-                            status?.let { Text(it, color = colors.textSecondary, style = MaterialTheme.typography.bodySmall) }
-                            if (!playback.matchesTrack) Text(context.getString(R.string.studio_open_this_song_in_your_player_to_control_playbac_bb3e5), color = colors.textSecondary, style = MaterialTheme.typography.bodySmall)
-                            else if (!playback.canSeek) Text(context.getString(R.string.studio_the_source_does_not_allow_seeking_the_studio_cur_96fb4), color = colors.textSecondary, style = MaterialTheme.typography.bodySmall)
-                            validation?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary) }
-                        }
-                        item {
-                            val selected = state.lines.getOrNull(state.selectedIndex)
-                            Text(selected?.text ?: context.getString(R.string.studio_add_lyrics_d0c58), style = MaterialTheme.typography.headlineSmall,
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), color = colors.textPrimary)
-                            Text(context.getString(R.string.studio_line_progress, if (selected == null) 0 else state.selectedIndex + 1, state.lines.size, state.lines.count { it.timeMs != null }),
-                                style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
-                            Text(context.getString(R.string.studio_timestamp, selected?.timeMs?.let { KaraokeStudioEngine.formatTime(it) } ?: context.getString(R.string.studio_unstamped)),
-                                fontFamily = FontFamily.Monospace, color = colors.accentPrimary)
-                        }
+                    LazyColumn(state = lineListState, modifier = Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
                         if (state.mode == StudioMode.PRECISE) {
                             val timeline: @Composable () -> Unit = {
                                 Column(Modifier.fillMaxWidth().background(colors.appBackground)) {
+                                Box {
                                 KaraokeStudioTimeline(state, onCursor = { state = state.copy(cursorMs = it) },
                                     onSelect = { state = state.copy(selectedIndex = it) }, onCommit = { i, time -> edit(KaraokeStudioEdit.SetTime(i, time)) },
                                     onInteraction = { follow = false }, waveform = waveform?.peaks.orEmpty(), waveformDurationMs = waveform?.durationMs ?: 0)
+                                if (audioUri == null) TextButton(modifier = Modifier.align(Alignment.BottomCenter), enabled = !busy, onClick = {
+                                    runCatching { audioPicker.launch(arrayOf("audio/*")) }.onFailure { waveError = context.getString(R.string.studio_could_not_open_the_audio_file_picker_6e0b8) }
+                                }) { Text(stringResource(R.string.studio_choose_audio_for_waveform_37a5e)) }
+                                }
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     TextButton(onClick = { timeEntry = "cursor:" + KaraokeStudioEngine.formatTime(state.cursorMs) }, enabled = !busy) {
                                         Text(KaraokeStudioEngine.formatTime(state.cursorMs), fontFamily = FontFamily.Monospace, color = colors.accentPrimary)
@@ -321,7 +367,7 @@ fun KaraokeStudioDialog(
                             }
                             if (pinTimeline) stickyHeader { timeline() } else item { timeline() }
                             item {
-                                TextButton(onClick = {
+                                if (audioUri != null) TextButton(onClick = {
                                     runCatching { audioPicker.launch(arrayOf("audio/*")) }.onFailure { waveError = context.getString(R.string.studio_could_not_open_the_audio_file_picker_6e0b8) }
                                 }, enabled = !busy) { Text(if (audioUri == null) context.getString(R.string.studio_choose_audio_for_waveform_37a5e) else context.getString(R.string.studio_choose_another_audio_file_b5ce1)) }
                                 waveform?.let {
@@ -333,7 +379,7 @@ fun KaraokeStudioDialog(
                                 waveError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
                                 if (audioUri != null) TextButton(onClick = { invalidateAudio(); audioUri = null }, enabled = !busy) { Text(context.getString(R.string.studio_remove_waveform_a5dfb)) }
                             }
-                            item {
+                            if (advanced) item {
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     StudioNudgeButton(context.getString(R.string.studio_50_ms_822ce), !busy) { edit(KaraokeStudioEdit.Nudge(state.selectedIndex, -50)) }
                                     StudioNudgeButton(context.getString(R.string.studio_50_ms_f5f98), !busy) { edit(KaraokeStudioEdit.Nudge(state.selectedIndex, 50)) }
@@ -356,19 +402,11 @@ fun KaraokeStudioDialog(
                             }
                         } else {
                             item {
-                                Button(modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
-                                    enabled = playback.matchesTrack && playback.playing && state.lines.isNotEmpty() && !busy,
-                                    onClick = {
-                                        val now = readStudioPlayback(trackKey, sourcePackage)
-                                        if (now.matchesTrack && now.playing && edit(KaraokeStudioEdit.Stamp(state.selectedIndex, now.positionMs, reactionMs))) {
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            state = state.copy(selectedIndex = (state.selectedIndex + 1).coerceAtMost((state.lines.size - 1).coerceAtLeast(0)))
-                                        }
-                                    }) { Text(context.getString(R.string.studio_stamp_the_next_line_41c6e)) }
+                                if (advanced) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(context.getString(R.string.studio_reaction_ms, reactionMs), modifier = Modifier.weight(1f), color = colors.textSecondary)
-                                    TextButton(onClick = { reactionMs = (reactionMs - 50).coerceAtLeast(0); prefs.edit().putLong("reaction_lag_ms", reactionMs).apply() }) { Text("−") }
-                                    TextButton(onClick = { reactionMs = (reactionMs + 50).coerceAtMost(1000); prefs.edit().putLong("reaction_lag_ms", reactionMs).apply() }) { Text("+") }
+                                    TextButton(modifier = Modifier.semantics { contentDescription = context.getString(R.string.studio_reaction_decrease) }, onClick = { reactionMs = (reactionMs - 50).coerceAtLeast(0); prefs.edit().putLong("reaction_lag_ms", reactionMs).apply() }) { Text("−") }
+                                    TextButton(modifier = Modifier.semantics { contentDescription = context.getString(R.string.studio_reaction_increase) }, onClick = { reactionMs = (reactionMs + 50).coerceAtMost(1000); prefs.edit().putLong("reaction_lag_ms", reactionMs).apply() }) { Text("+") }
                                 }
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     OutlinedButton(enabled = playback.canSeek && !busy, onClick = {
@@ -382,42 +420,67 @@ fun KaraokeStudioDialog(
                                         if (!current.matchesTrack || !seekStudioPlayback(trackKey, sourcePackage, current.positionMs + 5000)) error = context.getString(R.string.studio_could_not_seek_the_source_27ad6)
                                     }) { Text(context.getString(R.string.studio_5_s_06bb6)) }
                                 }
+                                }
                             }
                         }
-                        item {
+                        if (advanced) item {
                             FlowRow {
-                                TextButton(enabled = state.undo.isNotEmpty() && !busy, onClick = { edit(KaraokeStudioEdit.Undo) }) { Text(context.getString(R.string.studio_undo_action)) }
+                                TextButton(enabled = playback.matchesTrack && !busy, onClick = { follow = true; state = state.copy(cursorMs = playback.positionMs) }) { Text(stringResource(R.string.studio_to_player_c9976)) }
+                                TextButton(enabled = playback.canSeek && !busy, onClick = {
+                                    loopEnabled = false; pendingLoopSeek = null
+                                    if (!seekStudioPlayback(trackKey, sourcePackage, state.cursorMs)) error = context.getString(R.string.studio_could_not_seek_the_source_27ad6)
+                                }) { Text(stringResource(R.string.studio_to_cursor_61a58)) }
+                            }
+                            FlowRow {
+                                TextButton(enabled = state.undo.isNotEmpty() && !busy, onClick = { undoLastEdit() }) { Text(context.getString(R.string.studio_undo_action)) }
                                 TextButton(enabled = state.redo.isNotEmpty() && !busy, onClick = { edit(KaraokeStudioEdit.Redo) }) { Text(context.getString(R.string.studio_redo_e923b)) }
                                 TextButton(enabled = !busy, onClick = { restore = true }) { Text(context.getString(R.string.studio_original_1b2f7)) }
                             }
                             FlowRow {
                                 TextButton(enabled = !busy, onClick = { warnText = true }) { Text(context.getString(R.string.studio_lyrics_93970)) }
                                 TextButton(enabled = !busy, onClick = { showLrc = true }) { Text("LRC") }
-                                TextButton(enabled = !busy && state.lines.isNotEmpty(), onClick = { edit(KaraokeStudioEdit.Clear(state.selectedIndex)) }) { Text(context.getString(R.string.studio_clear_timestamp_47f2f)) }
+                            }
+                            TextButton(enabled = !busy && state.lines.isNotEmpty(), onClick = { edit(KaraokeStudioEdit.Clear(state.selectedIndex)) }) {
+                                Text(stringResource(R.string.studio_clear_timestamp_47f2f), color = if (!busy && state.lines.isNotEmpty()) MaterialTheme.colorScheme.error else colors.textSecondary)
                             }
                         }
                         itemsIndexed(state.lines, key = { _, line -> line.id }) { index, line ->
                             Column(modifier = Modifier.fillMaxWidth().background(if (index == state.selectedIndex) colors.surfaceCard else colors.appBackground)
+                                .semantics { selected = index == state.selectedIndex }
                                 .clickable(enabled = !busy) { follow = false; state = state.copy(selectedIndex = index, cursorMs = line.timeMs ?: state.cursorMs) }
                                 .padding(12.dp).heightIn(min = 48.dp)) {
                                 Text("${index + 1} · ${line.timeMs?.let { KaraokeStudioEngine.formatTime(it) } ?: stringResource(R.string.studio_no_marker)}",
                                     style = MaterialTheme.typography.labelMedium, color = colors.accentPrimary)
-                                Text(line.text, style = MaterialTheme.typography.bodyLarge, color = colors.textPrimary)
+                                Text(line.text, style = if (index == state.selectedIndex) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.bodyLarge, color = if (index == state.selectedIndex) colors.textPrimary else colors.textSecondary)
                             }
                         }
                     }
                 }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis) }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
-                    Text(KaraokeStudioEngine.formatTime(playback.positionMs), style = MaterialTheme.typography.bodySmall, color = colors.textSecondary, modifier = Modifier.padding(vertical = 12.dp))
-                    TextButton(enabled = playback.canToggle && !busy, onClick = { toggleStudioPlayback(trackKey, sourcePackage) }) { Text(if (playback.playing) context.getString(R.string.studio_pause_03498) else context.getString(R.string.studio_play_c750d)) }
-                    TextButton(enabled = playback.matchesTrack && !busy, onClick = { follow = true; state = state.copy(cursorMs = playback.positionMs) }) { Text(context.getString(R.string.studio_to_player_c9976)) }
-                    TextButton(enabled = playback.canSeek && !busy, onClick = {
-                        loopEnabled = false; pendingLoopSeek = null
-                        if (!seekStudioPlayback(trackKey, sourcePackage, state.cursorMs)) error = context.getString(R.string.studio_could_not_seek_the_source_27ad6)
-                    }) { Text(context.getString(R.string.studio_to_cursor_61a58)) }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(enabled = playback.canSeek && !busy, onClick = {
+                        loopEnabled = false
+                        val current = readStudioPlayback(trackKey, sourcePackage)
+                        if (!current.matchesTrack || !seekStudioPlayback(trackKey, sourcePackage, (current.positionMs - 5000).coerceAtLeast(0))) error = context.getString(R.string.studio_could_not_seek_the_source_27ad6)
+                    }) { Icon(Icons.Default.Replay5, contentDescription = stringResource(R.string.studio_seek_back), tint = colors.textPrimary) }
+                    IconButton(enabled = playback.canToggle && !busy, onClick = { toggleStudioPlayback(trackKey, sourcePackage) }) {
+                        Icon(if (playback.playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = stringResource(if (playback.playing) R.string.studio_pause_03498 else R.string.studio_play_c750d), tint = colors.textPrimary)
+                    }
+                    IconButton(enabled = playback.canSeek && !busy, onClick = {
+                        loopEnabled = false
+                        val current = readStudioPlayback(trackKey, sourcePackage)
+                        if (!current.matchesTrack || !seekStudioPlayback(trackKey, sourcePackage, current.positionMs + 5000)) error = context.getString(R.string.studio_could_not_seek_the_source_27ad6)
+                    }) { Icon(Icons.Default.Forward5, contentDescription = stringResource(R.string.studio_seek_forward), tint = colors.textPrimary) }
+                    Text(KaraokeStudioEngine.formatTime(playback.positionMs), style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
                 }
-                Button(modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = ready && !busy && validation == null,
+                Button(modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    enabled = ready && playback.matchesTrack && playback.playing && state.lines.isNotEmpty() && !busy,
+                    onClick = { stampCurrentLine() }) { Text(stringResource(R.string.studio_stamp_short)) }
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(modifier = Modifier.weight(1f).heightIn(min = 48.dp), enabled = state.undo.isNotEmpty() && !busy,
+                        onClick = { undoLastEdit() }) { Text(stringResource(R.string.studio_undo_short)) }
+                Button(modifier = Modifier.weight(1f).heightIn(min = 48.dp).semantics { contentDescription = context.getString(R.string.studio_apply_to_song_bcfc3) }, enabled = ready && !busy && validation == null,
                     onClick = {
                         val snapshot = state
                         val lrc = KaraokeStudioEngine.exportLrc(snapshot) ?: return@Button
@@ -446,10 +509,27 @@ fun KaraokeStudioDialog(
                                     else failure.message ?: context.getString(R.string.studio_could_not_apply_timings_3f46a)
                             } finally { busy = false }
                         }
-                    }) { Text(if (busy) context.getString(R.string.studio_saving_73bfb) else context.getString(R.string.studio_apply_to_song_bcfc3)) }
+                    }) { Text(if (busy) context.getString(R.string.studio_saving_73bfb) else context.getString(R.string.studio_apply_short)) }
+                }
             }
         }
     }
+
+    if (confirmSkipCredits) AlertDialog(
+        onDismissRequest = { confirmSkipCredits = false },
+        title = { Text(stringResource(R.string.studio_skip_credits_title)) },
+        text = { Text(stringResource(R.string.studio_skip_credits_explanation)) },
+        confirmButton = { TextButton(onClick = {
+            val kept = state.lines.filterNot { KaraokeStudioEngine.isCreditLine(it.text) }
+            if (kept.isNotEmpty() && kept.size != state.lines.size) {
+                val selectedId = state.lines.getOrNull(state.selectedIndex)?.id
+                state = state.copy(lines = kept, selectedIndex = kept.indexOfFirst { it.id == selectedId }.coerceAtLeast(0),
+                    undo = (state.undo + listOf(state.lines)).takeLast(100), redo = emptyList())
+            }
+            confirmSkipCredits = false
+        }) { Text(stringResource(R.string.studio_skip_credits_confirm)) } },
+        dismissButton = { TextButton(onClick = { confirmSkipCredits = false }) { Text(stringResource(R.string.studio_cancel_0ec75)) } }
+    )
 
     conflictedDraft?.let { recovery ->
         AlertDialog(onDismissRequest = {}, title = { Text(context.getString(R.string.studio_a_draft_exists_for_another_lyrics_version_a8480)) },
@@ -515,6 +595,11 @@ fun KaraokeStudioDialog(
                 else inputError = error
             }) { Text(context.getString(R.string.studio_shift_8b4ba)) } }, dismissButton = { TextButton(onClick = { tailEntry = null }) { Text(context.getString(R.string.studio_cancel_0ec75)) } })
     }
+}
+
+internal fun studioUndoSelection(previous: List<StudioLine>, current: List<StudioLine>): Int? {
+    val currentById = current.associateBy { it.id }
+    return previous.indexOfFirst { currentById[it.id] != it }.takeIf { it >= 0 }
 }
 
 @Composable

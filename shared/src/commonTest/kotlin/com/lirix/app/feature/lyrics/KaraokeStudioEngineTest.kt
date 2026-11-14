@@ -3,6 +3,14 @@ package com.lirix.app.feature.lyrics
 import kotlin.test.*
 
 class KaraokeStudioEngineTest {
+    @Test fun recognizesOnlyExplicitCreditPrefixes() {
+        listOf("муз. Иванов", "сл. Петров", "Music by Alice", "Lyrics by Bob", " МУЗ.: автор").forEach {
+            assertTrue(KaraokeStudioEngine.isCreditLine(it), it)
+        }
+        listOf("Я помню, муз. играет", "The music by the river", "Lyrics bystanders", "музыка звучит", "").forEach {
+            assertFalse(KaraokeStudioEngine.isCreditLine(it), it)
+        }
+    }
     private fun session(lrc: String = "[00:01.000] First\n[00:02.000] Repeat\n[00:03.000] Repeat") =
         KaraokeStudioEngine.createSession("song-a", "", lrc, 10_000)
     private fun accepted(state: KaraokeStudioState, edit: KaraokeStudioEdit) =

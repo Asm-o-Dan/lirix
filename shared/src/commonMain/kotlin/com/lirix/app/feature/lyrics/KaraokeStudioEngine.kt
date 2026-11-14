@@ -37,6 +37,10 @@ sealed interface KaraokeStudioResult {
 
 object KaraokeStudioEngine {
     const val MAX_LINES = 5000
+    private val creditLine = Regex("^(?:муз\\.|сл\\.|music\\s+by\\b|lyrics\\s+by\\b)(?:\\s|:|$)", RegexOption.IGNORE_CASE)
+
+    /** Identifies explicit credit prefixes; never changes the supplied text. */
+    fun isCreditLine(text: String): Boolean = creditLine.containsMatchIn(text.trim())
     private val tag = Regex("\\[(\\d+:\\d{2}(?:\\.\\d{1,3})?)\\]")
     private val metadata = Regex("^\\[(?:ar|ti|al|by|offset|re|ve|length):.*]$", RegexOption.IGNORE_CASE)
 

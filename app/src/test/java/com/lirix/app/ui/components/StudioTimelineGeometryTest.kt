@@ -6,6 +6,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class StudioTimelineGeometryTest {
+    @Test fun undoFocusReturnsToChangedOrRestoredLine() {
+        val original = listOf(StudioLine(4, "First", null), StudioLine(9, "Second", 2000))
+        assertEquals(0, studioUndoSelection(original, listOf(original[0].copy(timeMs = 1000), original[1])))
+        assertEquals(0, studioUndoSelection(original, listOf(original[1])))
+        assertNull(studioUndoSelection(original, original))
+    }
     @Test fun drawAndSeekUseTheSameCoordinatesAtDifferentZooms() {
         for (span in listOf(2000L, 15000L, 120000L)) {
             val geometry = StudioTimelineGeometry(180000, span, 600f, 240000)
