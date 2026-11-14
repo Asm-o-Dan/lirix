@@ -21,15 +21,26 @@ object TrackMatch {
     )
 
     /** Decorations that do not change which recording it is. */
+    // Android's ICU regex rejects the Unicode character class flag and \b there is not portable for Cyrillic, so word
+    // edges are spelled out as "no letter or digit next to it" (DEFECT-153-01).
+    private const val START = """(?<![\p{L}\p{N}])"""
+    private const val END = """(?![\p{L}\p{N}])"""
+
     private val neutralNote = Regex(
-        """(?iU)\b(feat\.?|ft\.?|featuring|with|при уч\.?|при участии|remaster(ed)?|album version|single version|""" +
+        START + """(feat\.?|ft\.?|featuring|with|при уч\.?|при участии|remaster(ed)?|album version|single version|""" +
             """original( version| mix)?|explicit|clean|mono|stereo|bonus track|deluxe|из (к/ф|фильма|сериала|мультфильма)|from|ost|""" +
-            """official( video| audio| music video)?|lyrics?( video)?|audio|video|hd|hq|\d{4})\b"""
+            """official( video| audio| music video)?|lyrics?( video)?|audio|video|hd|hq|\d{4})""" + END,
+        RegexOption.IGNORE_CASE
     )
     private val bracketed = Regex("""[(\[{]([^)\]}]*)[)\]}]""")
     private val dashSuffix = Regex("""\s+[-–—]\s+(.+)$""")
     private val nonWord = Regex("""[^\p{L}\p{Nd}]+""")
-    private val artistSplit = Regex("""(?iU)\s*(?:,|;|&|/|\+|\bfeat\.?|\bft\.?|\bfeaturing\b|\bx\b|\bvs\.?|\bи\b|\band\b|\bпри уч\.?)\s*""")
+    private val artistSplit = Regex(
+        """\s*(?:,|;|&|/|\+|""" + START + """feat\.?|""" + START + """ft\.?|""" + START + """featuring""" + END + "|" +
+            START + "x" + END + "|" + START + """vs\.?|""" + START + "и" + END + "|" + START + "and" + END + "|" +
+            START + """при уч\.?)\s*""",
+        RegexOption.IGNORE_CASE
+    )
 
     data class Title(val core: String, val variants: Set<String>)
 
